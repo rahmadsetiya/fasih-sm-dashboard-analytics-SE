@@ -2,6 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { ref, reactive, watch, computed, onMounted } from 'vue';
 import { useDark } from '@vueuse/core';
+import { Sun, Moon } from '@lucide/vue';
 import VueApexCharts from 'vue3-apexcharts';
 
 const props = defineProps<{
@@ -76,6 +77,13 @@ const trend        = ref<TrendPoint[]>([]);
 const filterOptions = ref<FilterOption[] | null>(null);
 const filterSearch  = ref('');
 
+// ── compare mode ──────────────────────────────────────────────────────────
+const compareMode     = ref(false);
+const compareSnapshot = ref('');
+const compareData     = ref<BreakdownRow[]>([]);
+const compareLoading  = ref(false);
+const otherSnapshots  = computed(() => snapshots.value.filter(s => s !== filters.snapshot));
+
 // ── pagination ────────────────────────────────────────────────────────────
 const pageSize    = ref<10|20|50>(20);
 const currentPage = ref(1);
@@ -110,6 +118,40 @@ async function fetchData() {
 
 watch(filters, fetchData, { deep: true });
 onMounted(fetchData);
+
+async function fetchCompare() {
+    if (!compareSnapshot.value || !filters.snapshot) return;
+    compareLoading.value = true;
+    try {
+        const params = new URLSearchParams({
+            snapshot:     compareSnapshot.value,
+            role:         filters.role,
+            level:        filters.level,
+            filter_level: filters.filter_level,
+        });
+        filters.filter_codes.forEach(c => params.append('filter_codes[]', c));
+        const res  = await fetch(`/api/data?${params}`, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await res.json();
+        compareData.value = data.breakdown;
+    } finally {
+        compareLoading.value = false;
+    }
+}
+
+function toggleCompare() {
+    compareMode.value = !compareMode.value;
+    if (compareMode.value) {
+        if (!compareSnapshot.value && otherSnapshots.value.length) compareSnapshot.value = otherSnapshots.value[0];
+        if (compareSnapshot.value) fetchCompare();
+    } else {
+        compareData.value = [];
+    }
+}
+
+watch(compareSnapshot, () => { if (compareMode.value) fetchCompare(); });
+watch(filters, () => { if (compareMode.value && compareSnapshot.value) fetchCompare(); }, { deep: true });
 
 // ── level switch ──────────────────────────────────────────────────────────
 const LEVEL_FILTER_MAP: Record<Level, FilterLevel> = {
@@ -205,10 +247,10 @@ const STATUS_COLS = [
 ];
 
 const STATUS_META: Record<string, { short: string; color: string; title: string }> = {
-    'OPEN':                   { short: 'Open',     color: '#64748b', title: 'Belum diisi' },
-    'DRAFT':                  { short: 'Draft',    color: '#2563eb', title: 'Sedang diisi' },
-    'SUBMITTED BY Pencacah':  { short: 'Sub.P',   color: '#7c3aed', title: 'Diserahkan Pencacah' },
-    'APPROVED BY Pengawas':   { short: 'App.P',   color: '#059669', title: 'Disetujui Pengawas' },
+    'OPEN':                   { short: 'Open',     color: '#d1d5db', title: 'Belum diisi' },
+    'DRAFT':                  { short: 'Draft',    color: '#6b7280', title: 'Sedang diisi' },
+    'SUBMITTED BY Pencacah':  { short: 'Sub.P',   color: '#2563eb', title: 'Diserahkan Pencacah' },
+    'APPROVED BY Pengawas':   { short: 'App.P',   color: '#16a34a', title: 'Disetujui Pengawas' },
     'REJECTED BY Pengawas':   { short: 'Rej.P',   color: '#dc2626', title: 'Ditolak Pengawas' },
     'EDITED BY Pengawas':     { short: 'Edit.P',  color: '#d97706', title: 'Diedit Pengawas' },
     'REVOKED BY Pengawas':    { short: 'Rev.P',   color: '#be185d', title: 'Dicabut Pengawas' },
@@ -239,11 +281,16 @@ const donutOptions = computed(() => ({
 }));
 
 const TOP_N = 15;
-const topBreakdown   = computed(() => sortedBreakdown.value.slice(0, TOP_N));
-const barCategories  = computed(() => topBreakdown.value.map(r => r.label.slice(0, 22)));
+const barTopData    = computed(() =>
+    [...breakdown.value]
+        .sort((a, b) => b.progress_pct - a.progress_pct)
+        .slice(0, TOP_N)
+        .reverse()
+);
+const barCategories  = computed(() => barTopData.value.map(r => r.label.slice(0, 22)));
 const barSeries = computed(() => [
-    { name: 'Progress %',  data: topBreakdown.value.map(r => r.progress_pct)  },
-    { name: 'Approved %',  data: topBreakdown.value.map(r => r.approved_pct)  },
+    { name: 'Progress %',  data: barTopData.value.map(r => r.progress_pct)  },
+    { name: 'Approved %',  data: barTopData.value.map(r => r.approved_pct)  },
 ]);
 
 const barOptions = computed(() => ({
@@ -278,6 +325,42 @@ const trendOptions = computed(() => ({
     yaxis: { max: 100, labels: { formatter: (v: number) => v + '%', style: { fontSize: '11px' } } },
     markers: { size: 5 },
     tooltip: { y: { formatter: (v: number) => v.toFixed(1) + '%' } },
+    legend: { position: 'top' as const, fontSize: '12px' },
+}));
+
+// ── compare chart ─────────────────────────────────────────────────────────
+const compareBarData = computed(() => {
+    if (!compareData.value.length || !breakdown.value.length) return null;
+    const map = new Map(compareData.value.map(r => [r.key, r.progress_pct]));
+    const top = [...breakdown.value]
+        .sort((a, b) => b.progress_pct - a.progress_pct)
+        .slice(0, TOP_N)
+        .reverse();
+    return {
+        categories: top.map(r => r.label.slice(0, 22)),
+        snap1: top.map(r => r.progress_pct),
+        snap2: top.map(r => map.get(r.key) ?? 0),
+    };
+});
+
+const compareBarSeries = computed(() => compareBarData.value ? [
+    { name: fmtSnap(filters.snapshot),    data: compareBarData.value.snap1 },
+    { name: fmtSnap(compareSnapshot.value), data: compareBarData.value.snap2 },
+] : []);
+
+const compareBarOptions = computed(() => ({
+    chart: { type: 'bar' as const, background: chartBg.value, toolbar: { show: false } },
+    theme: { mode: chartMode.value },
+    plotOptions: { bar: { horizontal: true, barHeight: '60%', borderRadius: 2 } },
+    colors: ['#2563eb', '#f59e0b'],
+    xaxis: {
+        categories: compareBarData.value?.categories ?? [],
+        max: 100,
+        labels: { formatter: (v: number) => v + '%', style: { fontSize: '11px' } },
+    },
+    yaxis: { labels: { style: { fontSize: '11px' } } },
+    tooltip: { y: { formatter: (v: number) => v.toFixed(1) + '%' } },
+    dataLabels: { enabled: false },
     legend: { position: 'top' as const, fontSize: '12px' },
 }));
 
@@ -342,6 +425,22 @@ function rowContext(row: BreakdownRow): string {
                 </select>
             </div>
 
+            <!-- Compare toggle -->
+            <button
+                :class="['flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                    compareMode
+                        ? 'border-amber-400 bg-amber-400/10 text-amber-600 dark:text-amber-400'
+                        : 'border-input bg-background text-muted-foreground hover:bg-muted']"
+                @click="toggleCompare"
+                :title="compareMode ? 'Matikan mode bandingkan' : 'Bandingkan 2 snapshot'">
+                Bandingkan
+            </button>
+            <select v-if="compareMode && otherSnapshots.length" v-model="compareSnapshot"
+                class="h-7 rounded-md border border-amber-400/60 bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                <option v-for="s in otherSnapshots" :key="s" :value="s">{{ fmtSnap(s) }}</option>
+            </select>
+            <span v-if="compareMode && !otherSnapshots.length" class="text-xs text-muted-foreground">Hanya 1 snapshot tersedia</span>
+
             <div class="h-4 w-px bg-border" />
 
             <!-- Role toggle -->
@@ -370,7 +469,19 @@ function rowContext(row: BreakdownRow): string {
                 <button class="ml-1 rounded-full hover:text-destructive focus:outline-none" @click="clearFilter" aria-label="Hapus filter">✕</button>
             </div>
 
-            <div v-if="loading" class="ml-auto animate-pulse text-xs text-muted-foreground">Memuat…</div>
+            <!-- Theme toggle -->
+            <button
+                :class="['flex items-center justify-center rounded-md border border-input bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring',
+                    filters.filter_codes.length ? '' : 'ml-auto']"
+                :title="isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'"
+                :aria-pressed="isDark"
+                aria-label="Toggle tema"
+                @click="isDark = !isDark">
+                <Sun v-if="isDark" class="size-4" />
+                <Moon v-else class="size-4" />
+            </button>
+
+            <span v-if="loading" class="animate-pulse text-xs text-muted-foreground">Memuat…</span>
         </div>
 
         <!-- Region filter panel -->
@@ -463,9 +574,26 @@ function rowContext(row: BreakdownRow): string {
         </div>
 
         <!-- Trend -->
-        <div v-if="trend.length > 1" class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
+        <div v-if="trend.length >= 1" class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border">
             <h3 class="mb-1 text-sm font-semibold">Tren Progress Over Time</h3>
-            <VueApexCharts type="line" height="200" :options="trendOptions" :series="trendSeries" />
+            <VueApexCharts type="line" :height="trend.length === 1 ? 120 : 200" :options="trendOptions" :series="trendSeries" />
+            <p v-if="trend.length === 1" class="mt-1 text-center text-xs text-muted-foreground">Hanya 1 snapshot — tambah snapshot lebih untuk melihat tren</p>
+        </div>
+
+        <!-- Compare: Grouped bar -->
+        <div v-if="compareMode && compareBarData" class="rounded-xl border border-amber-400/40 bg-card p-4 dark:border-amber-400/30">
+            <div class="mb-2 flex items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold">
+                    Perbandingan Progress — Top {{ TOP_N }} {{ LEVEL_LABELS[filters.level] }}
+                </h3>
+                <span v-if="compareLoading" class="animate-pulse text-xs text-muted-foreground">Memuat…</span>
+            </div>
+            <VueApexCharts type="bar" :height="Math.max(220, TOP_N * 30)"
+                :options="compareBarOptions" :series="compareBarSeries" />
+        </div>
+        <div v-else-if="compareMode && !compareBarData && !compareLoading"
+            class="flex items-center justify-center rounded-xl border border-amber-400/40 bg-card p-6 text-sm text-muted-foreground">
+            Pilih snapshot kedua untuk memulai perbandingan
         </div>
 
         <!-- Breakdown table -->
