@@ -44,6 +44,18 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        'fasih' => [
+            'driver' => 'sqlite',
+            'database' => env('FASIH_DB_DATABASE', storage_path('app/fasih.db')),
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+            'read_only' => true,
+            'busy_timeout' => null,
+            'journal_mode' => null,
+            'synchronous' => null,
+            'transaction_mode' => 'DEFERRED',
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
