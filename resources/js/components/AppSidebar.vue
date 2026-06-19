@@ -2,7 +2,6 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { BarChart3, Users } from '@lucide/vue';
 import { computed } from 'vue';
-import { dashboard } from '@/routes';
 import AppLogo from '@/components/AppLogo.vue';
 import ImportDbButton from '@/components/ImportDbButton.vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -17,6 +16,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 const page = usePage<{ auth: { user: { is_admin: boolean } } }>();

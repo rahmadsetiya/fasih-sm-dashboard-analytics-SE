@@ -18,19 +18,29 @@ class RegionNameController extends Controller
         $request->validate(['csv' => ['required', 'string']]);
 
         $lines = preg_split('/\r?\n/', trim($request->input('csv')));
-        $rows  = [];
+        $rows = [];
         $skipped = 0;
 
         foreach ($lines as $line) {
             $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#')) continue;
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
 
             $parts = str_getcsv($line);
-            if (count($parts) < 2) { $skipped++; continue; }
+            if (count($parts) < 2) {
+                $skipped++;
+
+                continue;
+            }
 
             $code = trim($parts[0]);
             $name = trim($parts[1]);
-            if ($code === '' || $name === '') { $skipped++; continue; }
+            if ($code === '' || $name === '') {
+                $skipped++;
+
+                continue;
+            }
 
             $rows[] = ['code' => $code, 'name' => $name];
         }
@@ -42,7 +52,7 @@ class RegionNameController extends Controller
         RegionName::upsert($rows, ['code'], ['name']);
 
         return response()->json([
-            'message' => count($rows) . ' nama wilayah berhasil diimport.' . ($skipped ? " ($skipped baris dilewati)" : ''),
+            'message' => count($rows).' nama wilayah berhasil diimport.'.($skipped ? " ($skipped baris dilewati)" : ''),
             'imported' => count($rows),
         ]);
     }
@@ -50,12 +60,14 @@ class RegionNameController extends Controller
     public function destroy(string $code): JsonResponse
     {
         RegionName::where('code', $code)->delete();
+
         return response()->json(['message' => 'Data dihapus.']);
     }
 
     public function destroyAll(): JsonResponse
     {
         RegionName::truncate();
+
         return response()->json(['message' => 'Semua nama wilayah dihapus.']);
     }
 }

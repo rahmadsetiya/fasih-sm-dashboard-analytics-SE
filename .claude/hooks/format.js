@@ -7,8 +7,13 @@ process.stdin.on('end', () => {
         const {
             tool_input: { file_path: f } = {},
         } = JSON.parse(d || '{}');
-        if (!f) return;
+
+        if (!f) {
+return;
+}
+
         const cp = require('child_process');
+
         if (/\.(vue|ts|js|css)$/.test(f)) {
             cp.execSync('npx prettier --write ' + JSON.stringify(f), {
                 stdio: 'pipe',

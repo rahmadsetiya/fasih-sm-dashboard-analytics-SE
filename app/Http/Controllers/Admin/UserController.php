@@ -21,10 +21,10 @@ class UserController extends Controller
             'users' => User::orderBy('name')
                 ->get()
                 ->map(fn ($u) => [
-                    'id'         => $u->id,
-                    'name'       => $u->name,
-                    'email'      => $u->email,
-                    'is_admin'   => $u->is_admin,
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'is_admin' => $u->is_admin,
                     'created_at' => $u->created_at?->toDateTimeString(),
                 ]),
         ]);
@@ -35,15 +35,15 @@ class UserController extends Controller
         $this->authorize('admin');
 
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', Password::defaults()],
             'is_admin' => ['boolean'],
         ]);
 
         $user = User::create([
-            'name'     => $data['name'],
-            'email'    => $data['email'],
+            'name' => $data['name'],
+            'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'is_admin' => $data['is_admin'] ?? false,
         ]);
@@ -56,16 +56,16 @@ class UserController extends Controller
         $this->authorize('admin');
 
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', "unique:users,email,{$user->id}"],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', "unique:users,email,{$user->id}"],
             'password' => ['nullable', 'string', Password::defaults()],
             'is_admin' => ['boolean'],
         ]);
 
-        $user->name     = $data['name'];
-        $user->email    = $data['email'];
+        $user->name = $data['name'];
+        $user->email = $data['email'];
         $user->is_admin = $data['is_admin'] ?? $user->is_admin;
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $user->password = Hash::make($data['password']);
         }
         $user->save();

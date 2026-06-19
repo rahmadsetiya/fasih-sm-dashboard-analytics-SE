@@ -11,7 +11,7 @@ class PetugasNameController extends Controller
     public function upsert(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'username'     => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255'],
             'display_name' => ['required', 'string', 'max:255'],
         ]);
 

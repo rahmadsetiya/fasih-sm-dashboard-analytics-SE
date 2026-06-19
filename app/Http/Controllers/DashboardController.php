@@ -48,14 +48,17 @@ class DashboardController extends Controller
         $role = in_array($request->input('role'), ['pengawas', 'pencacah'])
             ? $request->input('role') : 'pengawas';
         $level = $request->input('level', 'kec');
-        $filterCodes = array_values(array_filter((array) $request->input('filter_codes', [])));
-        $filterLevel = $request->input('filter_level', '') ?? '';
+
+        $filterKec = array_values(array_filter((array) $request->input('filter_kec', [])));
+        $filterDesa = array_values(array_filter((array) $request->input('filter_desa', [])));
+        $filterSls = array_values(array_filter((array) $request->input('filter_sls', [])));
+
+        $petugasUsername = $request->input('petugas_username', '');
 
         $table = 'progress_'.$role;
         $base = DB::connection('fasih')->table($table)->where('snapshot_at', $snapshot);
-        $this->applyFilter($base, $filterCodes, $filterLevel);
+        $this->applyGeoFilter($base, $filterKec, $filterDesa, $filterSls);
 
-        $petugasUsername = $request->input('petugas_username', '');
         if ($petugasUsername) {
             $base->where('username', $petugasUsername);
         }
@@ -63,11 +66,11 @@ class DashboardController extends Controller
         $nameOverrides = PetugasName::pluck('display_name', 'username')->all();
 
         return response()->json([
-            'metrics'        => $this->calcMetrics(clone $base),
-            'status_totals'  => $this->calcStatusTotals(clone $base),
-            'breakdown'      => $this->calcBreakdown(clone $base, $level, $nameOverrides),
-            'trend'          => $this->calcTrend($table, $filterCodes, $filterLevel),
-            'filter_options' => $this->calcFilterOptions($table, $snapshot, $level, $filterCodes, $filterLevel),
+            'metrics' => $this->calcMetrics(clone $base),
+            'status_totals' => $this->calcStatusTotals(clone $base),
+            'breakdown' => $this->calcBreakdown(clone $base, $level, $nameOverrides),
+            'trend' => $this->calcTrend($table, $filterKec, $filterDesa, $filterSls),
+            'filter_options' => $this->calcFilterOptions($table, $snapshot, $level, $filterKec, $filterDesa, $filterSls),
         ]);
     }
 
@@ -88,17 +91,17 @@ class DashboardController extends Controller
 
     // ── helpers ───────────────────────────────────────────────────────────
 
-    private function applyFilter($query, array $codes, ?string $level): void
+    private function applyGeoFilter($query, array $kec, array $desa, array $sls): void
     {
-        if (empty($codes) || $level === '') {
-            return;
+        if ($kec) {
+            $query->whereIn('kdkec', $kec);
         }
-        match ($level) {
-            'kec' => $query->whereIn('kec_key', $codes),
-            'desa' => $query->whereIn('desa_key', $codes),
-            'sls' => $query->whereIn('idsubsls', $codes),
-            default => null,
-        };
+        if ($desa) {
+            $query->whereIn('kddes', $desa);
+        }
+        if ($sls) {
+            $query->whereIn('kdsls', $sls);
+        }
     }
 
     private function statusSumSql(): string
@@ -113,13 +116,13 @@ class DashboardController extends Controller
     private function calcMetrics($query): array
     {
         $row = $query->selectRaw('
-            COUNT(DISTINCT username)  as total_petugas,
-            COUNT(DISTINCT desa_key)  as total_desa,
-            COUNT(DISTINCT kec_key)   as total_kec,
-            SUM(region_total)         as total_rt,
-            SUM("OPEN")             as total_open,
-            SUM("APPROVED BY Pengawas") as total_approved,
-            SUM("SUBMITTED BY Pencacah") as total_submitted
+            COUNT(DISTINCT username)          as total_petugas,
+            COUNT(DISTINCT kdkec)             as total_kec,
+            COUNT(DISTINCT kdkec || kddes)    as total_desa,
+            SUM(region_total)                 as total_rt,
+            SUM("OPEN")                       as total_open,
+            SUM("APPROVED BY Pengawas")       as total_approved,
+            SUM("SUBMITTED BY Pencacah")      as total_submitted
         ')->first();
 
         $total = (int) ($row->total_rt ?: 1);
@@ -155,30 +158,38 @@ class DashboardController extends Controller
 
         $rows = match ($level) {
             'desa' => $query->selectRaw("
-                    desa_key as grp_key, nmdesa as label, nmkec,
+                    kdkec || '-' || kddes as grp_key,
+                    nmdesa as label, nmkec,
                     SUM(region_total) as total, $sums
-                ")->groupBy('desa_key', 'nmdesa', 'nmkec')->get(),
+                ")->groupBy('kdkec', 'kddes', 'nmdesa', 'nmkec')->get(),
 
             'sls' => $query->selectRaw("
-                    idsubsls as grp_key, nmsls as label, nmdesa, nmkec,
+                    kdkec || kddes || kdsls as grp_key,
+                    nmsls as label, nmdesa, nmkec,
                     SUM(region_total) as total, $sums
-                ")->groupBy('idsubsls', 'nmsls', 'nmdesa', 'nmkec')->get(),
+                ")->groupBy('kdkec', 'kddes', 'kdsls', 'nmsls', 'nmdesa', 'nmkec')->get(),
+
+            'subsls' => $query->selectRaw("
+                    idsubsls as grp_key,
+                    nmsubsls as label, nmsls, nmdesa, nmkec,
+                    SUM(region_total) as total, $sums
+                ")->groupBy('idsubsls', 'nmsubsls', 'nmsls', 'nmdesa', 'nmkec')->get(),
 
             'by_pengawas', 'by_pencacah' => $query->selectRaw("
                     username as grp_key,
                     COALESCE(NULLIF(nama_lengkap,''), username) as label,
-                    COUNT(DISTINCT kec_key) as kec_count,
-                    COUNT(DISTINCT desa_key) as desa_count,
+                    COUNT(DISTINCT kdkec) as kec_count,
+                    COUNT(DISTINCT kdkec || kddes) as desa_count,
                     SUM(region_total) as total, $sums
                 ")->groupBy('username', 'nama_lengkap')->get(),
 
             default => /* kec */ $query->selectRaw("
-                    kec_key as grp_key, nmkec as label,
+                    kdkec as grp_key, nmkec as label,
                     SUM(region_total) as total, $sums
-                ")->groupBy('kec_key', 'nmkec')->get(),
+                ")->groupBy('kdkec', 'nmkec')->get(),
         };
 
-        return $rows->map(function ($r) {
+        return $rows->map(function ($r) use ($nameOverrides) {
             $total = (int) ($r->total ?: 1);
             $open = (int) ($r->OPEN ?? 0);
             $approved = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
@@ -203,6 +214,9 @@ class DashboardController extends Controller
             if (isset($r->nmdesa)) {
                 $row['nmdesa'] = $r->nmdesa;
             }
+            if (isset($r->nmsls)) {
+                $row['nmsls'] = $r->nmsls;
+            }
             if (isset($r->kec_count)) {
                 $row['kec_count'] = (int) $r->kec_count;
             }
@@ -214,17 +228,17 @@ class DashboardController extends Controller
         })->sortByDesc('total')->values()->all();
     }
 
-    private function calcTrend(string $table, array $filterCodes, ?string $filterLevel): array
+    private function calcTrend(string $table, array $filterKec, array $filterDesa, array $filterSls): array
     {
         $query = DB::connection('fasih')->table($table);
-        $this->applyFilter($query, $filterCodes, $filterLevel);
+        $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
         return $query->selectRaw('
             snapshot_at,
             SUM(region_total)             as total,
-            SUM("OPEN")                 as total_open,
-            SUM("SUBMITTED BY Pencacah") as total_submitted,
-            SUM("APPROVED BY Pengawas") as total_approved
+            SUM("OPEN")                   as total_open,
+            SUM("SUBMITTED BY Pencacah")  as total_submitted,
+            SUM("APPROVED BY Pengawas")   as total_approved
         ')->groupBy('snapshot_at')->orderBy('snapshot_at')->get()
             ->map(function ($r) {
                 $total = (int) ($r->total ?: 1);
@@ -243,34 +257,77 @@ class DashboardController extends Controller
     }
 
     private function calcFilterOptions(
-        string $table, string $snapshot,
-        string $level, array $filterCodes, string $filterLevel
+        string $table, string $snapshot, string $level,
+        array $filterKec, array $filterDesa, array $filterSls
     ): ?array {
-        if (in_array($level, ['kec', 'by_pengawas', 'by_pencacah'])) {
+        if ($level === 'kec') {
             return null;
         }
 
-        $query = DB::connection('fasih')->table($table)->where('snapshot_at', $snapshot);
+        $base = fn () => DB::connection('fasih')->table($table)->where('snapshot_at', $snapshot);
 
-        if ($level === 'desa') {
-            return $query->selectRaw('kec_key as code, nmkec as label, SUM(region_total) as total')
-                ->groupBy('kec_key', 'nmkec')->orderBy('nmkec')->get()
-                ->map(fn ($r) => ['code' => $r->code, 'label' => $r->label, 'total' => (int) $r->total])
-                ->values()->all();
-        }
+        $kecOpts = $base()
+            ->selectRaw('kdkec as code, nmkec as label, SUM(region_total) as total')
+            ->groupBy('kdkec', 'nmkec')
+            ->orderBy('nmkec')
+            ->get()
+            ->map(fn ($r) => [
+                'code' => $r->code,
+                'label' => $r->label,
+                'total' => (int) $r->total,
+            ])
+            ->values()->all();
 
-        if ($level === 'sls') {
-            // If kec codes are already selected, narrow desa options to those kec
-            if (! empty($filterCodes) && $filterLevel === 'kec') {
-                $query->whereIn('kec_key', $filterCodes);
+        $result = ['kec' => $kecOpts, 'desa' => null, 'sls' => null];
+
+        if (in_array($level, ['sls', 'subsls', 'by_pengawas', 'by_pencacah'])) {
+            $desaQ = $base()
+                ->selectRaw('kdkec as kec_code, nmkec as kec, kddes as code, nmdesa as label, SUM(region_total) as total')
+                ->groupBy('kdkec', 'nmkec', 'kddes', 'nmdesa')
+                ->orderBy('nmkec')
+                ->orderBy('nmdesa');
+            if ($filterKec) {
+                $desaQ->whereIn('kdkec', $filterKec);
             }
 
-            return $query->selectRaw('desa_key as code, nmdesa as label, nmkec, SUM(region_total) as total')
-                ->groupBy('desa_key', 'nmdesa', 'nmkec')->orderBy('nmkec')->orderBy('nmdesa')->get()
-                ->map(fn ($r) => ['code' => $r->code, 'label' => $r->label, 'kec' => $r->nmkec, 'total' => (int) $r->total])
+            $result['desa'] = $desaQ->get()
+                ->map(fn ($r) => [
+                    'code' => $r->code,
+                    'label' => $r->label,
+                    'kec_code' => $r->kec_code,
+                    'kec' => $r->kec,
+                    'total' => (int) $r->total,
+                ])
                 ->values()->all();
         }
 
-        return null;
+        if ($level === 'subsls') {
+            $slsQ = $base()
+                ->selectRaw('kdkec as kec_code, nmkec as kec, kddes as desa_code, nmdesa as desa, kdsls as code, nmsls as label, SUM(region_total) as total')
+                ->groupBy('kdkec', 'nmkec', 'kddes', 'nmdesa', 'kdsls', 'nmsls')
+                ->orderBy('nmkec')
+                ->orderBy('nmdesa')
+                ->orderBy('nmsls');
+            if ($filterKec) {
+                $slsQ->whereIn('kdkec', $filterKec);
+            }
+            if ($filterDesa) {
+                $slsQ->whereIn('kddes', $filterDesa);
+            }
+
+            $result['sls'] = $slsQ->get()
+                ->map(fn ($r) => [
+                    'code' => $r->code,
+                    'label' => $r->label,
+                    'desa_code' => $r->desa_code,
+                    'desa' => $r->desa,
+                    'kec_code' => $r->kec_code,
+                    'kec' => $r->kec,
+                    'total' => (int) $r->total,
+                ])
+                ->values()->all();
+        }
+
+        return $result;
     }
 }

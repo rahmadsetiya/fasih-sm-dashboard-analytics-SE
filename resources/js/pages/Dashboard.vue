@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, reactive, watch, computed, onMounted } from 'vue';
-import { useDark, useWindowSize } from '@vueuse/core';
 import { Sun, Moon, Pencil, X } from '@lucide/vue';
+import { useDark, useWindowSize } from '@vueuse/core';
+import { ref, reactive, watch, computed, onMounted } from 'vue';
 
 import VueApexCharts from 'vue3-apexcharts';
 
@@ -13,8 +13,7 @@ const props = defineProps<{
 
 // ── types ─────────────────────────────────────────────────────────────────
 type Role = 'pengawas' | 'pencacah';
-type Level = 'kec' | 'desa' | 'sls' | 'by_pengawas' | 'by_pencacah';
-type FilterLevel = '' | 'kec' | 'desa' | 'sls';
+type Level = 'kec' | 'desa' | 'sls' | 'subsls' | 'by_pengawas' | 'by_pencacah';
 
 interface Metrics {
     total_petugas: number;
@@ -41,6 +40,7 @@ interface BreakdownRow {
     statuses: Record<string, number>;
     nmkec?: string;
     nmdesa?: string;
+    nmsls?: string;
     kec_count?: number;
     desa_count?: number;
 }
@@ -49,6 +49,14 @@ interface FilterOption {
     label: string;
     total: number;
     kec?: string;
+    kec_code?: string;
+    desa?: string;
+    desa_code?: string;
+}
+interface FilterOptions {
+    kec: FilterOption[];
+    desa: FilterOption[] | null;
+    sls: FilterOption[] | null;
 }
 
 // ── state ─────────────────────────────────────────────────────────────────
@@ -59,8 +67,9 @@ const filters = reactive({
     snapshot: props.snapshots[0] ?? '',
     role: 'pengawas' as Role,
     level: 'kec' as Level,
-    filter_codes: [] as string[],
-    filter_level: '' as FilterLevel,
+    filter_kec: [] as string[],
+    filter_desa: [] as string[],
+    filter_sls: [] as string[],
 });
 
 // When Inertia reloads props (e.g. after DB import), sync snapshots and auto-fetch
@@ -68,6 +77,7 @@ watch(
     () => props.snapshots,
     (val) => {
         snapshots.value = val;
+
         if (!filters.snapshot && val.length) {
             filters.snapshot = val[0];
         }
@@ -87,8 +97,10 @@ const metrics = ref<Metrics>({
 const statusTotals = ref<Record<string, number>>({});
 const breakdown = ref<BreakdownRow[]>([]);
 const trend = ref<TrendPoint[]>([]);
-const filterOptions = ref<FilterOption[] | null>(null);
-const filterSearch = ref('');
+const filterOptions = ref<FilterOptions | null>(null);
+const filterSearchKec = ref('');
+const filterSearchDesa = ref('');
+const filterSearchSls = ref('');
 
 // ── compare mode ──────────────────────────────────────────────────────────
 const compareMode = ref(false);
@@ -117,16 +129,21 @@ const currentPage = ref(1);
 
 // ── fetch ─────────────────────────────────────────────────────────────────
 async function fetchData() {
-    if (!filters.snapshot) return;
+    if (!filters.snapshot) {
+        return;
+    }
+
     loading.value = true;
+
     try {
         const params = new URLSearchParams({
             snapshot: filters.snapshot,
             role: filters.role,
             level: filters.level,
-            filter_level: filters.filter_level,
         });
-        filters.filter_codes.forEach((c) => params.append('filter_codes[]', c));
+        filters.filter_kec.forEach((c) => params.append('filter_kec[]', c));
+        filters.filter_desa.forEach((c) => params.append('filter_desa[]', c));
+        filters.filter_sls.forEach((c) => params.append('filter_sls[]', c));
 
         const res = await fetch(`/api/data?${params}`, {
             headers: {
@@ -151,16 +168,21 @@ watch(filters, fetchData, { deep: true });
 onMounted(fetchData);
 
 async function fetchCompare() {
-    if (!compareSnapshot.value || !filters.snapshot) return;
+    if (!compareSnapshot.value || !filters.snapshot) {
+        return;
+    }
+
     compareLoading.value = true;
+
     try {
         const params = new URLSearchParams({
             snapshot: compareSnapshot.value,
             role: filters.role,
             level: filters.level,
-            filter_level: filters.filter_level,
         });
-        filters.filter_codes.forEach((c) => params.append('filter_codes[]', c));
+        filters.filter_kec.forEach((c) => params.append('filter_kec[]', c));
+        filters.filter_desa.forEach((c) => params.append('filter_desa[]', c));
+        filters.filter_sls.forEach((c) => params.append('filter_sls[]', c));
         const res = await fetch(`/api/data?${params}`, {
             headers: {
                 Accept: 'application/json',
@@ -176,10 +198,15 @@ async function fetchCompare() {
 
 function toggleCompare() {
     compareMode.value = !compareMode.value;
+
     if (compareMode.value) {
-        if (!compareSnapshot.value && otherSnapshots.value.length)
+        if (!compareSnapshot.value && otherSnapshots.value.length) {
             compareSnapshot.value = otherSnapshots.value[0];
-        if (compareSnapshot.value) fetchCompare();
+        }
+
+        if (compareSnapshot.value) {
+            fetchCompare();
+        }
     } else {
         compareData.value = [];
         compareChartMode.value = 'top15';
@@ -188,86 +215,193 @@ function toggleCompare() {
 }
 
 watch(compareSnapshot, () => {
-    if (compareMode.value) fetchCompare();
+    if (compareMode.value) {
+        fetchCompare();
+    }
 });
 watch(
     filters,
     () => {
-        if (compareMode.value && compareSnapshot.value) fetchCompare();
+        if (compareMode.value && compareSnapshot.value) {
+            fetchCompare();
+        }
     },
     { deep: true },
 );
 
 // ── level switch ──────────────────────────────────────────────────────────
-const LEVEL_FILTER_MAP: Record<Level, FilterLevel> = {
-    kec: '',
-    desa: 'kec',
-    sls: 'desa',
-    by_pengawas: '',
-    by_pencacah: '',
-};
-
 function setLevel(l: Level) {
     filters.level = l;
-    filters.filter_codes = [];
-    filters.filter_level = LEVEL_FILTER_MAP[l];
-    filterSearch.value = '';
+    filters.filter_kec = [];
+    filters.filter_desa = [];
+    filters.filter_sls = [];
+    filterSearchKec.value = '';
+    filterSearchDesa.value = '';
+    filterSearchSls.value = '';
 }
 
-function toggleFilterCode(code: string) {
-    const idx = filters.filter_codes.indexOf(code);
-    if (idx === -1) filters.filter_codes.push(code);
-    else filters.filter_codes.splice(idx, 1);
+function toggleKec(code: string) {
+    const idx = filters.filter_kec.indexOf(code);
+
+    if (idx === -1) {
+        filters.filter_kec.push(code);
+    } else {
+        filters.filter_kec.splice(idx, 1);
+    }
+
+    filters.filter_desa = [];
+    filters.filter_sls = [];
 }
 
-function selectAllFilter() {
-    filters.filter_codes = filteredOptions.value.map((o) => o.code);
+function toggleDesa(code: string) {
+    const idx = filters.filter_desa.indexOf(code);
+
+    if (idx === -1) {
+        filters.filter_desa.push(code);
+    } else {
+        filters.filter_desa.splice(idx, 1);
+    }
+
+    filters.filter_sls = [];
 }
 
-function clearFilter() {
-    filters.filter_codes = [];
+function toggleSls(code: string) {
+    const idx = filters.filter_sls.indexOf(code);
+
+    if (idx === -1) {
+        filters.filter_sls.push(code);
+    } else {
+        filters.filter_sls.splice(idx, 1);
+    }
 }
 
-// ── filter option search ──────────────────────────────────────────────────
-const filteredOptions = computed(() => {
-    if (!filterOptions.value) return [];
-    const q = filterSearch.value.toLowerCase();
+function selectAllKec() {
+    filters.filter_kec = filteredKecOptions.value.map((o) => o.code);
+    filters.filter_desa = [];
+    filters.filter_sls = [];
+}
+function selectAllDesa() {
+    filters.filter_desa = filteredDesaOptions.value.map((o) => o.code);
+    filters.filter_sls = [];
+}
+function selectAllSls() {
+    filters.filter_sls = filteredSlsOptions.value.map((o) => o.code);
+}
+function clearAllFilters() {
+    filters.filter_kec = [];
+    filters.filter_desa = [];
+    filters.filter_sls = [];
+}
+
+const totalActiveFilters = computed(
+    () =>
+        filters.filter_kec.length +
+        filters.filter_desa.length +
+        filters.filter_sls.length,
+);
+
+// ── filter option search & computed options ───────────────────────────────
+const filteredKecOptions = computed(() => {
+    const opts = filterOptions.value?.kec ?? [];
+    const q = filterSearchKec.value.toLowerCase();
+
     return q
-        ? filterOptions.value.filter(
+        ? opts.filter(
+              (o) => o.label.toLowerCase().includes(q) || o.code.includes(q),
+          )
+        : opts;
+});
+
+const filteredDesaOptions = computed(() => {
+    const opts = filterOptions.value?.desa ?? [];
+    const q = filterSearchDesa.value.toLowerCase();
+
+    return q
+        ? opts.filter(
               (o) =>
                   o.label.toLowerCase().includes(q) ||
                   o.code.includes(q) ||
                   (o.kec ?? '').toLowerCase().includes(q),
           )
-        : filterOptions.value;
+        : opts;
 });
 
-// grouped desa for SLS filter
+const filteredSlsOptions = computed(() => {
+    const opts = filterOptions.value?.sls ?? [];
+    const q = filterSearchSls.value.toLowerCase();
+
+    return q
+        ? opts.filter(
+              (o) =>
+                  o.label.toLowerCase().includes(q) ||
+                  o.code.includes(q) ||
+                  (o.desa ?? '').toLowerCase().includes(q),
+          )
+        : opts;
+});
+
 const groupedDesaOptions = computed(() => {
-    if (filters.level !== 'sls' || !filterOptions.value) return null;
-    const groups: Record<string, FilterOption[]> = {};
-    for (const opt of filteredOptions.value) {
-        const kec = opt.kec ?? '—';
-        if (!groups[kec]) groups[kec] = [];
-        groups[kec].push(opt);
+    const opts = filteredDesaOptions.value;
+
+    if (!opts.length) {
+        return null;
     }
+
+    const groups: Record<string, FilterOption[]> = {};
+
+    for (const opt of opts) {
+        const key = opt.kec ?? '—';
+
+        if (!groups[key]) {
+            groups[key] = [];
+        }
+
+        groups[key].push(opt);
+    }
+
     return groups;
 });
 
+const groupedSlsOptions = computed(() => {
+    const opts = filteredSlsOptions.value;
+
+    if (!opts.length) {
+        return null;
+    }
+
+    const groups: Record<string, FilterOption[]> = {};
+
+    for (const opt of opts) {
+        const key = opt.desa ?? '—';
+
+        if (!groups[key]) {
+            groups[key] = [];
+        }
+
+        groups[key].push(opt);
+    }
+
+    return groups;
+});
+
+const showKecFilter = computed(
+    () => (filterOptions.value?.kec.length ?? 0) > 0,
+);
+const showDesaFilter = computed(
+    () => (filterOptions.value?.desa?.length ?? 0) > 0,
+);
+const showSlsFilter = computed(
+    () => (filterOptions.value?.sls?.length ?? 0) > 0,
+);
+
 // ── sort ──────────────────────────────────────────────────────────────────
-type SortKey =
-    | keyof Pick<
-          BreakdownRow,
-          'label' | 'total' | 'progress_pct' | 'approved_pct'
-      >
-    | keyof BreakdownRow['statuses'];
 const sortCol = ref<string>('label');
 const sortDir = ref<'asc' | 'desc'>('asc');
 
 function toggleSort(col: string) {
-    if (sortCol.value === col)
+    if (sortCol.value === col) {
         sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc';
-    else {
+    } else {
         sortCol.value = col;
         sortDir.value = 'desc';
     }
@@ -275,7 +409,11 @@ function toggleSort(col: string) {
 
 const searchedBreakdown = computed(() => {
     const q = tableSearch.value.trim().toLowerCase();
-    if (!q) return breakdown.value;
+
+    if (!q) {
+        return breakdown.value;
+    }
+
     return breakdown.value.filter(
         (row) =>
             row.label.toLowerCase().includes(q) ||
@@ -297,14 +435,18 @@ const sortedBreakdown = computed(() => {
                 ? (b.statuses[sortCol.value] ?? 0)
                 : (b as any)[sortCol.value]
         ) as number;
-        if (typeof va === 'string')
+
+        if (typeof va === 'string') {
             return sortDir.value === 'desc'
                 ? (vb as any).localeCompare(va)
                 : (va as any).localeCompare(vb as any);
+        }
+
         return sortDir.value === 'desc'
             ? (vb as number) - (va as number)
             : (va as number) - (vb as number);
     });
+
     return copy;
 });
 
@@ -315,6 +457,7 @@ const totalPages = computed(() =>
 );
 const paginatedRows = computed(() => {
     const s = (currentPage.value - 1) * pageSize.value;
+
     return sortedBreakdown.value.slice(s, s + pageSize.value);
 });
 const pageStart = computed(() =>
@@ -500,6 +643,7 @@ const trendSeries = computed(() => [
 const trendCategories = computed(() =>
     trend.value.map((t) => {
         const d = new Date(t.snapshot_at);
+
         return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     }),
 );
@@ -511,8 +655,10 @@ const trendMax = computed(() => {
                 Math.max(t.progress_pct, t.submitted_pct, t.approved_pct),
             ),
         );
+
         return Math.ceil((maxVal + 5) / 5) * 5 || 20;
     }
+
     return 100;
 });
 
@@ -544,8 +690,12 @@ const trendOptions = computed(() => ({
 
 // ── compare chart ─────────────────────────────────────────────────────────
 const compareBarData = computed(() => {
-    if (!compareData.value.length || !breakdown.value.length) return null;
+    if (!compareData.value.length || !breakdown.value.length) {
+        return null;
+    }
+
     let rows: BreakdownRow[];
+
     if (
         compareChartMode.value === 'custom' &&
         selectedCompareRegions.value.length
@@ -558,6 +708,7 @@ const compareBarData = computed(() => {
             .slice(0, TOP_N)
             .reverse();
     }
+
     return {
         categories: rows.map((r) => r.label.slice(0, 22)),
         snap1: rows.map((r) => r.progress_pct),
@@ -610,15 +761,9 @@ const LEVEL_LABELS: Record<Level, string> = {
     kec: 'Kecamatan',
     desa: 'Desa',
     sls: 'SLS',
+    subsls: 'Sub-SLS',
     by_pengawas: 'Per Pengawas',
     by_pencacah: 'Per Pencacah',
-};
-
-const FILTER_LEVEL_LABELS: Record<FilterLevel, string> = {
-    '': '',
-    kec: 'Kecamatan',
-    desa: 'Desa',
-    sls: 'SLS',
 };
 
 function fmtSnap(s: string) {
@@ -639,8 +784,7 @@ const sortIcon = (col: string) =>
     sortCol.value !== col ? '' : sortDir.value === 'desc' ? ' ↓' : ' ↑';
 
 const isPetugasLevel = computed(
-    () =>
-        filters.level === 'by_pengawas' || filters.level === 'by_pencacah',
+    () => filters.level === 'by_pengawas' || filters.level === 'by_pencacah',
 );
 
 // ── edit nama petugas ─────────────────────────────────────────────────────
@@ -654,8 +798,12 @@ function openEditName(row: BreakdownRow) {
 }
 
 async function saveEditName() {
-    if (!editNameRow.value) return;
+    if (!editNameRow.value) {
+        return;
+    }
+
     editNameSaving.value = true;
+
     try {
         await fetch('/api/petugas-names', {
             method: 'POST',
@@ -679,45 +827,38 @@ async function saveEditName() {
     }
 }
 
-async function resetEditName(row: BreakdownRow) {
-    await fetch(`/api/petugas-names/${encodeURIComponent(row.key)}`, {
-        method: 'DELETE',
-        headers: {
-            Accept: 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-XSRF-TOKEN': decodeURIComponent(
-                document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ?? '',
-            ),
-        },
-    });
-    fetchData();
-}
-
 // ── petugas per wilayah modal ─────────────────────────────────────────────
 const petugasModal = ref(false);
 const petugasRow = ref<BreakdownRow | null>(null);
-const petugasLevel = ref<'kec' | 'desa' | 'sls'>('kec');
+const petugasLevel = ref<'kec' | 'desa' | 'sls' | 'subsls'>('kec');
 const petugasBreakdown = ref<BreakdownRow[]>([]);
 const petugasLoading = ref(false);
 const petugasSearch = ref('');
 
 const petugasSearched = computed(() => {
     const q = petugasSearch.value.trim().toLowerCase();
-    if (!q) return petugasBreakdown.value;
+
+    if (!q) {
+        return petugasBreakdown.value;
+    }
+
     return petugasBreakdown.value.filter((r) =>
         r.label.toLowerCase().includes(q),
     );
 });
 
 async function fetchPetugasBreakdown() {
-    if (!petugasRow.value || !filters.snapshot) return;
+    if (!petugasRow.value || !filters.snapshot) {
+        return;
+    }
+
     petugasLoading.value = true;
+
     try {
         const params = new URLSearchParams({
             snapshot: filters.snapshot,
             role: filters.role,
             level: petugasLevel.value,
-            filter_level: '',
             petugas_username: petugasRow.value.key,
         });
         const res = await fetch(`/api/data?${params}`, {
@@ -734,7 +875,10 @@ async function fetchPetugasBreakdown() {
 }
 
 async function openPetugasModal(row: BreakdownRow) {
-    if (editNameRow.value?.key === row.key) return;
+    if (editNameRow.value?.key === row.key) {
+        return;
+    }
+
     petugasRow.value = row;
     petugasLevel.value = 'kec';
     petugasSearch.value = '';
@@ -743,18 +887,28 @@ async function openPetugasModal(row: BreakdownRow) {
 }
 
 watch(petugasLevel, () => {
-    if (petugasModal.value) fetchPetugasBreakdown();
+    if (petugasModal.value) {
+        fetchPetugasBreakdown();
+    }
 });
 
 function rowContext(row: BreakdownRow): string {
-    if (filters.level === 'desa' && row.nmkec) return row.nmkec;
-    if (filters.level === 'sls' && row.nmdesa)
+    if (filters.level === 'desa' && row.nmkec) {
+        return row.nmkec;
+    }
+
+    if (filters.level === 'sls' && row.nmdesa) {
         return `${row.nmkec ?? ''} / ${row.nmdesa}`;
-    if (
-        (filters.level === 'by_pengawas' || filters.level === 'by_pencacah') &&
-        row.desa_count !== undefined
-    )
+    }
+
+    if (filters.level === 'subsls' && row.nmsls) {
+        return `${row.nmkec ?? ''} / ${row.nmdesa ?? ''} / ${row.nmsls}`;
+    }
+
+    if (isPetugasLevel.value && row.desa_count !== undefined) {
         return `${row.kec_count} Kec, ${row.desa_count} Desa`;
+    }
+
     return '';
 }
 </script>
@@ -897,15 +1051,14 @@ function rowContext(row: BreakdownRow): string {
 
             <!-- Active filter badge -->
             <div
-                v-if="filters.filter_codes.length"
+                v-if="totalActiveFilters"
                 class="ml-auto flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
             >
-                {{ filters.filter_codes.length }}
-                {{ FILTER_LEVEL_LABELS[filters.filter_level] }} dipilih
+                {{ totalActiveFilters }} filter aktif
                 <button
                     class="ml-1 rounded-full hover:text-destructive focus:outline-none"
-                    @click="clearFilter"
-                    aria-label="Hapus filter"
+                    @click="clearAllFilters"
+                    aria-label="Hapus semua filter"
                 >
                     ✕
                 </button>
@@ -915,7 +1068,7 @@ function rowContext(row: BreakdownRow): string {
             <button
                 :class="[
                     'flex items-center justify-center rounded-md border border-input bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:ring-2 focus:ring-ring focus:outline-none',
-                    filters.filter_codes.length ? '' : 'ml-auto',
+                    totalActiveFilters ? '' : 'ml-auto',
                 ]"
                 :title="
                     isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'
@@ -938,106 +1091,235 @@ function rowContext(row: BreakdownRow): string {
         <!-- Region filter panel -->
         <div
             v-if="filterOptions !== null"
-            class="rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 dark:border-sidebar-border"
+            class="space-y-2 rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 dark:border-sidebar-border"
         >
-            <div class="mb-2 flex items-center justify-between gap-3">
-                <p
-                    class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+            <!-- Kecamatan filter -->
+            <div v-if="showKecFilter">
+                <div class="mb-1.5 flex items-center justify-between gap-2">
+                    <p
+                        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
+                        Filter Kecamatan
+                        <span
+                            v-if="filters.filter_kec.length"
+                            class="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-primary"
+                            >{{ filters.filter_kec.length }}</span
+                        >
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <input
+                            v-model="filterSearchKec"
+                            type="search"
+                            placeholder="Cari…"
+                            class="h-6 rounded-md border border-input bg-background px-2 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                        />
+                        <button
+                            class="text-xs text-primary underline-offset-2 hover:underline focus:outline-none"
+                            @click="selectAllKec"
+                        >
+                            Semua
+                        </button>
+                        <button
+                            class="text-xs text-muted-foreground underline-offset-2 hover:underline focus:outline-none"
+                            @click="filters.filter_kec = []"
+                        >
+                            Hapus
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
                 >
-                    Filter {{ FILTER_LEVEL_LABELS[filters.filter_level] }}
-                </p>
-                <div class="flex items-center gap-2">
-                    <input
-                        v-model="filterSearch"
-                        type="search"
-                        placeholder="Cari…"
-                        class="h-6 rounded-md border border-input bg-background px-2 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
-                        aria-label="Cari wilayah"
-                    />
-                    <button
-                        class="text-xs text-primary underline-offset-2 hover:underline focus:outline-none"
-                        @click="selectAllFilter"
+                    <label
+                        v-for="opt in filteredKecOptions"
+                        :key="opt.code"
+                        :class="[
+                            'flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-colors',
+                            filters.filter_kec.includes(opt.code)
+                                ? 'border-primary bg-primary/10 font-medium text-primary'
+                                : 'border-border bg-background text-foreground hover:border-primary/50',
+                        ]"
                     >
-                        Semua
-                    </button>
-                    <button
-                        class="text-xs text-muted-foreground underline-offset-2 hover:underline focus:outline-none"
-                        @click="clearFilter"
-                    >
-                        Hapus
-                    </button>
+                        <input
+                            type="checkbox"
+                            class="sr-only"
+                            :checked="filters.filter_kec.includes(opt.code)"
+                            @change="toggleKec(opt.code)"
+                            :aria-label="opt.label"
+                        />
+                        <span class="flex-1 truncate">{{ opt.label }}</span>
+                        <span
+                            class="shrink-0 text-muted-foreground tabular-nums"
+                            >{{ opt.total.toLocaleString('id-ID') }}</span
+                        >
+                    </label>
                 </div>
             </div>
 
-            <!-- Kecamatan filter (flat grid) -->
-            <div
-                v-if="filters.level === 'desa'"
-                class="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
-            >
-                <label
-                    v-for="opt in filteredOptions"
-                    :key="opt.code"
-                    :class="[
-                        'flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-colors',
-                        filters.filter_codes.includes(opt.code)
-                            ? 'border-primary bg-primary/10 font-medium text-primary'
-                            : 'border-border bg-background text-foreground hover:border-primary/50',
-                    ]"
+            <!-- Desa filter (grouped by kec) -->
+            <div v-if="showDesaFilter">
+                <div class="mb-1.5 flex items-center justify-between gap-2">
+                    <p
+                        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
+                        Filter Desa
+                        <span
+                            v-if="filters.filter_desa.length"
+                            class="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-primary"
+                            >{{ filters.filter_desa.length }}</span
+                        >
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <input
+                            v-model="filterSearchDesa"
+                            type="search"
+                            placeholder="Cari…"
+                            class="h-6 rounded-md border border-input bg-background px-2 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                        />
+                        <button
+                            class="text-xs text-primary underline-offset-2 hover:underline focus:outline-none"
+                            @click="selectAllDesa"
+                        >
+                            Semua
+                        </button>
+                        <button
+                            class="text-xs text-muted-foreground underline-offset-2 hover:underline focus:outline-none"
+                            @click="filters.filter_desa = []"
+                        >
+                            Hapus
+                        </button>
+                    </div>
+                </div>
+                <div
+                    v-if="groupedDesaOptions"
+                    class="max-h-48 space-y-2 overflow-y-auto pr-1"
                 >
-                    <input
-                        type="checkbox"
-                        class="sr-only"
-                        :checked="filters.filter_codes.includes(opt.code)"
-                        @change="toggleFilterCode(opt.code)"
-                        :aria-label="opt.label"
-                    />
-                    <span class="flex-1 truncate">{{ opt.label }}</span>
-                    <span class="shrink-0 text-muted-foreground tabular-nums">{{
-                        opt.total.toLocaleString('id-ID')
-                    }}</span>
-                </label>
+                    <div
+                        v-for="(items, kecName) in groupedDesaOptions"
+                        :key="kecName"
+                    >
+                        <p
+                            class="mb-1 text-xs font-semibold text-muted-foreground"
+                        >
+                            {{ kecName }}
+                        </p>
+                        <div
+                            class="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4"
+                        >
+                            <label
+                                v-for="opt in items"
+                                :key="opt.code"
+                                :class="[
+                                    'flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors',
+                                    filters.filter_desa.includes(opt.code)
+                                        ? 'border-primary bg-primary/10 font-medium text-primary'
+                                        : 'border-border bg-background text-foreground hover:border-primary/50',
+                                ]"
+                            >
+                                <input
+                                    type="checkbox"
+                                    class="sr-only"
+                                    :checked="
+                                        filters.filter_desa.includes(opt.code)
+                                    "
+                                    @change="toggleDesa(opt.code)"
+                                    :aria-label="opt.label"
+                                />
+                                <span class="flex-1 truncate">{{
+                                    opt.label
+                                }}</span>
+                                <span
+                                    class="shrink-0 text-muted-foreground tabular-nums"
+                                    >{{
+                                        opt.total.toLocaleString('id-ID')
+                                    }}</span
+                                >
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Desa filter (grouped by kecamatan) -->
-            <div
-                v-else-if="filters.level === 'sls' && groupedDesaOptions"
-                class="max-h-52 space-y-3 overflow-y-auto pr-1"
-            >
-                <div
-                    v-for="(items, kecName) in groupedDesaOptions"
-                    :key="kecName"
-                >
-                    <p class="mb-1 text-xs font-semibold text-muted-foreground">
-                        {{ kecName }}
-                    </p>
-                    <div
-                        class="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4"
+            <!-- SLS filter (grouped by desa, only for subsls level) -->
+            <div v-if="showSlsFilter">
+                <div class="mb-1.5 flex items-center justify-between gap-2">
+                    <p
+                        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                     >
-                        <label
-                            v-for="opt in items"
-                            :key="opt.code"
-                            :class="[
-                                'flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors',
-                                filters.filter_codes.includes(opt.code)
-                                    ? 'border-primary bg-primary/10 font-medium text-primary'
-                                    : 'border-border bg-background text-foreground hover:border-primary/50',
-                            ]"
+                        Filter SLS
+                        <span
+                            v-if="filters.filter_sls.length"
+                            class="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-primary"
+                            >{{ filters.filter_sls.length }}</span
                         >
-                            <input
-                                type="checkbox"
-                                class="sr-only"
-                                :checked="
-                                    filters.filter_codes.includes(opt.code)
-                                "
-                                @change="toggleFilterCode(opt.code)"
-                                :aria-label="opt.label"
-                            />
-                            <span class="flex-1 truncate">{{ opt.label }}</span>
-                            <span
-                                class="shrink-0 text-muted-foreground tabular-nums"
-                                >{{ opt.total.toLocaleString('id-ID') }}</span
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <input
+                            v-model="filterSearchSls"
+                            type="search"
+                            placeholder="Cari…"
+                            class="h-6 rounded-md border border-input bg-background px-2 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                        />
+                        <button
+                            class="text-xs text-primary underline-offset-2 hover:underline focus:outline-none"
+                            @click="selectAllSls"
+                        >
+                            Semua
+                        </button>
+                        <button
+                            class="text-xs text-muted-foreground underline-offset-2 hover:underline focus:outline-none"
+                            @click="filters.filter_sls = []"
+                        >
+                            Hapus
+                        </button>
+                    </div>
+                </div>
+                <div
+                    v-if="groupedSlsOptions"
+                    class="max-h-48 space-y-2 overflow-y-auto pr-1"
+                >
+                    <div
+                        v-for="(items, desaName) in groupedSlsOptions"
+                        :key="desaName"
+                    >
+                        <p
+                            class="mb-1 text-xs font-semibold text-muted-foreground"
+                        >
+                            {{ desaName }}
+                        </p>
+                        <div
+                            class="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4"
+                        >
+                            <label
+                                v-for="opt in items"
+                                :key="opt.code"
+                                :class="[
+                                    'flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors',
+                                    filters.filter_sls.includes(opt.code)
+                                        ? 'border-primary bg-primary/10 font-medium text-primary'
+                                        : 'border-border bg-background text-foreground hover:border-primary/50',
+                                ]"
                             >
-                        </label>
+                                <input
+                                    type="checkbox"
+                                    class="sr-only"
+                                    :checked="
+                                        filters.filter_sls.includes(opt.code)
+                                    "
+                                    @change="toggleSls(opt.code)"
+                                    :aria-label="opt.label"
+                                />
+                                <span class="flex-1 truncate">{{
+                                    opt.label
+                                }}</span>
+                                <span
+                                    class="shrink-0 text-muted-foreground tabular-nums"
+                                    >{{
+                                        opt.total.toLocaleString('id-ID')
+                                    }}</span
+                                >
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1094,7 +1376,12 @@ function rowContext(row: BreakdownRow): string {
                 class="rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 dark:border-sidebar-border"
             >
                 <p class="text-sm text-muted-foreground">{{ card.label }}</p>
-                <p :class="['mt-1 text-2xl font-bold tabular-nums', card.color]">
+                <p
+                    :class="[
+                        'mt-1 text-2xl font-bold tabular-nums',
+                        card.color,
+                    ]"
+                >
                     {{
                         card.fmt === 'p'
                             ? card.value.toFixed(1) + '%'
@@ -1181,7 +1468,9 @@ function rowContext(row: BreakdownRow): string {
                     {{ LEVEL_LABELS[filters.level] }}
                 </h3>
                 <!-- Top15 / Custom toggle -->
-                <div class="flex overflow-hidden rounded-md border border-amber-400/60 text-xs">
+                <div
+                    class="flex overflow-hidden rounded-md border border-amber-400/60 text-xs"
+                >
                     <button
                         :class="[
                             'px-2.5 py-0.5 font-medium transition-colors',
@@ -1291,9 +1580,7 @@ function rowContext(row: BreakdownRow): string {
                         <span v-if="tableSearch">
                             · {{ totalRows }} hasil pencarian</span
                         >
-                        <span v-else-if="filters.filter_codes.length">
-                            · difilter</span
-                        >
+                        <span v-else-if="totalActiveFilters"> · difilter</span>
                     </p>
                 </div>
                 <!-- Search + Page size -->
@@ -1392,7 +1679,9 @@ function rowContext(row: BreakdownRow): string {
                             <th
                                 v-if="compareMode && compareData.length"
                                 class="px-2 py-2 text-right font-semibold text-amber-600 dark:text-amber-400"
-                                :title="'Selisih vs ' + fmtSnap(compareSnapshot)"
+                                :title="
+                                    'Selisih vs ' + fmtSnap(compareSnapshot)
+                                "
                                 scope="col"
                             >
                                 Δ%
@@ -1438,7 +1727,10 @@ function rowContext(row: BreakdownRow): string {
                             >
                                 <!-- Inline edit form (petugas level) -->
                                 <div
-                                    v-if="isPetugasLevel && editNameRow?.key === row.key"
+                                    v-if="
+                                        isPetugasLevel &&
+                                        editNameRow?.key === row.key
+                                    "
                                     class="flex items-center gap-1.5"
                                 >
                                     <input
@@ -1536,9 +1828,8 @@ function rowContext(row: BreakdownRow): string {
                                         0
                                             ? 'text-emerald-600 dark:text-emerald-400'
                                             : row.progress_pct -
-                                                    (compareMap.get(
-                                                        row.key,
-                                                    ) ?? 0) <
+                                                    (compareMap.get(row.key) ??
+                                                        0) <
                                                 0
                                               ? 'text-red-500'
                                               : 'text-muted-foreground',
@@ -1607,7 +1898,13 @@ function rowContext(row: BreakdownRow): string {
                         </tr>
                         <tr v-if="!paginatedRows.length">
                             <td
-                :colspan="4 + (compareMode && compareData.length ? 1 : 0) + activeStatusCols.length"
+                                :colspan="
+                                    4 +
+                                    (compareMode && compareData.length
+                                        ? 1
+                                        : 0) +
+                                    activeStatusCols.length
+                                "
                                 class="px-4 py-8 text-center text-sm text-muted-foreground"
                             >
                                 Tidak ada data untuk filter yang dipilih.
@@ -1699,7 +1996,9 @@ function rowContext(row: BreakdownRow): string {
                         <h2 class="text-base font-semibold">
                             {{ petugasRow.label }}
                         </h2>
-                        <p class="mt-0.5 font-mono text-xs text-muted-foreground">
+                        <p
+                            class="mt-0.5 font-mono text-xs text-muted-foreground"
+                        >
                             {{ petugasRow.key }} ·
                             {{ petugasRow.total.toLocaleString('id-ID') }}
                             assignment ·
@@ -1715,9 +2014,16 @@ function rowContext(row: BreakdownRow): string {
                 </div>
 
                 <!-- Level tabs -->
-                <div class="flex gap-1 border-b border-sidebar-border/70 px-5 py-2">
+                <div
+                    class="flex gap-1 border-b border-sidebar-border/70 px-5 py-2"
+                >
                     <button
-                        v-for="(lbl, lvl) in { kec: 'Kecamatan', desa: 'Desa', sls: 'SLS' }"
+                        v-for="(lbl, lvl) in {
+                            kec: 'Kecamatan',
+                            desa: 'Desa',
+                            sls: 'SLS',
+                            subsls: 'Sub-SLS',
+                        }"
                         :key="lvl"
                         :class="[
                             'rounded-full px-3 py-0.5 text-xs font-medium transition-colors',
@@ -1725,7 +2031,13 @@ function rowContext(row: BreakdownRow): string {
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-muted text-muted-foreground hover:bg-muted/80',
                         ]"
-                        @click="petugasLevel = lvl as 'kec' | 'desa' | 'sls'"
+                        @click="
+                            petugasLevel = lvl as
+                                | 'kec'
+                                | 'desa'
+                                | 'sls'
+                                | 'subsls'
+                        "
                     >
                         {{ lbl }}
                     </button>
@@ -1771,7 +2083,20 @@ function rowContext(row: BreakdownRow): string {
                                 <td class="px-4 py-2.5 font-medium">
                                     {{ r.label }}
                                     <span
-                                        v-if="r.nmkec"
+                                        v-if="r.nmsls"
+                                        class="block text-xs text-muted-foreground"
+                                    >
+                                        {{ r.nmkec }} / {{ r.nmdesa }} /
+                                        {{ r.nmsls }}
+                                    </span>
+                                    <span
+                                        v-else-if="r.nmdesa"
+                                        class="block text-xs text-muted-foreground"
+                                    >
+                                        {{ r.nmkec }} / {{ r.nmdesa }}
+                                    </span>
+                                    <span
+                                        v-else-if="r.nmkec"
                                         class="block text-xs text-muted-foreground"
                                     >
                                         {{ r.nmkec }}

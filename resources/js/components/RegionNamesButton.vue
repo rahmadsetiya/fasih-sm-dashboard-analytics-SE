@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { MapPin } from '@lucide/vue';
+import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 import {
     Dialog,
@@ -9,10 +9,7 @@ import {
     DialogTitle,
     DialogDescription,
 } from '@/components/ui/dialog';
-import {
-    SidebarMenuButton,
-    SidebarMenuItem,
-} from '@/components/ui/sidebar';
+import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 
 const open = ref(false);
 const csvText = ref('');
@@ -22,7 +19,10 @@ const count = ref<number | null>(null);
 async function fetchCount() {
     try {
         const res = await fetch('/api/region-names', {
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         });
         const data = await res.json();
         count.value = data.length;
@@ -33,20 +33,27 @@ async function fetchCount() {
 
 function onOpen(val: boolean) {
     open.value = val;
-    if (val) fetchCount();
+
+    if (val) {
+        fetchCount();
+    }
 }
 
 function getCsrf(): string {
     const m = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+
     return m ? decodeURIComponent(m[1]) : '';
 }
 
 async function importCsv() {
     if (!csvText.value.trim()) {
         toast.error('Paste data CSV terlebih dahulu.');
+
         return;
     }
+
     loading.value = true;
+
     try {
         const res = await fetch('/api/region-names/import', {
             method: 'POST',
@@ -59,6 +66,7 @@ async function importCsv() {
             body: JSON.stringify({ csv: csvText.value }),
         });
         const data = await res.json();
+
         if (res.ok) {
             toast.success(data.message);
             csvText.value = '';
@@ -72,10 +80,17 @@ async function importCsv() {
 }
 
 async function clearAll() {
-    if (!confirm('Hapus semua nama wilayah yang tersimpan?')) return;
+    if (!confirm('Hapus semua nama wilayah yang tersimpan?')) {
+        return;
+    }
+
     const res = await fetch('/api/region-names/all', {
         method: 'DELETE',
-        headers: { Accept: 'application/json', 'X-XSRF-TOKEN': getCsrf(), 'X-Requested-With': 'XMLHttpRequest' },
+        headers: {
+            Accept: 'application/json',
+            'X-XSRF-TOKEN': getCsrf(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
     });
     const data = await res.json();
     toast.success(data.message);
@@ -99,9 +114,13 @@ async function clearAll() {
             <DialogHeader>
                 <DialogTitle>Import Nama Wilayah</DialogTitle>
                 <DialogDescription>
-                    Paste data CSV dengan format <code class="rounded bg-muted px-1 text-xs">kode,nama</code>
+                    Paste data CSV dengan format
+                    <code class="rounded bg-muted px-1 text-xs">kode,nama</code>
                     (satu baris per wilayah, tanpa header).
-                    <span v-if="count !== null" class="ml-1 font-medium text-foreground">
+                    <span
+                        v-if="count !== null"
+                        class="ml-1 font-medium text-foreground"
+                    >
                         {{ count }} nama tersimpan.
                     </span>
                 </DialogDescription>
@@ -109,16 +128,20 @@ async function clearAll() {
 
             <div class="space-y-1.5">
                 <p class="text-xs text-muted-foreground">Contoh:</p>
-                <pre class="rounded-md bg-muted px-3 py-2 text-xs text-foreground">7316010,Maiwa
+                <pre
+                    class="rounded-md bg-muted px-3 py-2 text-xs text-foreground"
+                >
+7316010,Maiwa
 7316020,Enrekang
-7316030,Curio</pre>
+7316030,Curio</pre
+                >
             </div>
 
             <textarea
                 v-model="csvText"
                 rows="8"
                 placeholder="7316010,Maiwa&#10;7316020,Enrekang&#10;..."
-                class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y font-mono"
+                class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
                 aria-label="Data CSV nama wilayah"
             />
 
@@ -126,7 +149,7 @@ async function clearAll() {
                 <button
                     v-if="count && count > 0"
                     type="button"
-                    class="text-xs text-destructive underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    class="rounded text-xs text-destructive underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     @click="clearAll"
                 >
                     Hapus semua ({{ count }})
