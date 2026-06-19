@@ -54,6 +54,8 @@ interface FilterOption {
     desa_code?: string;
 }
 interface FilterOptions {
+    prov: { code: string; label: string }[];
+    kab: { code: string; label: string }[];
     kec: FilterOption[];
     desa: FilterOption[] | null;
     sls: FilterOption[] | null;
@@ -392,6 +394,7 @@ const showDesaFilter = computed(
 );
 
 // ── filter dropdowns ──────────────────────────────────────────────────────
+const filterPanelOpen = ref(false);
 const openDropdown = ref<'kec' | 'desa' | 'sls' | null>(null);
 
 function toggleDropdown(name: 'kec' | 'desa' | 'sls') {
@@ -502,7 +505,7 @@ const STATUS_META: Record<
     { short: string; color: string; title: string }
 > = {
     OPEN: { short: 'Open', color: '', title: 'Belum diisi' },
-    DRAFT: { short: 'Draft', color: '#6b7280', title: 'Sedang diisi' },
+    DRAFT: { short: 'Draft', color: '#f97316', title: 'Sedang diisi' },
     'SUBMITTED BY Pencacah': {
         short: 'Sub.P',
         color: '#2563eb',
@@ -567,8 +570,29 @@ const cFontMd = computed(
 const donutSeries = computed(() =>
     STATUS_COLS.map((c) => statusTotals.value[c] ?? 0),
 );
-const donutColors = STATUS_COLS.map((c) => STATUS_META[c].color);
+const donutColors = computed(() =>
+    STATUS_COLS.map((c) => {
+        if (c === 'OPEN') {
+            return isDark.value ? '#71717a' : '#a1a1aa';
+        }
+
+        return STATUS_META[c].color;
+    }),
+);
 const donutLabels = STATUS_COLS.map((c) => STATUS_META[c].title);
+
+// Dynamic font sizes based on estimated donut inner radius
+const donutWidth = computed(() =>
+    Math.min(260, vw.value >= 768 ? (vw.value - 48) / 3 : vw.value - 32),
+);
+const donutInnerR = computed(() => (donutWidth.value / 2) * 0.62);
+const donutLabelFont = computed(
+    () => `${Math.max(8, Math.min(11, Math.round(donutInnerR.value / 7)))}px`,
+);
+const donutValueFont = computed(
+    () =>
+        `${Math.max(11, Math.min(18, Math.round(donutInnerR.value / 4.5)))}px`,
+);
 
 const donutOptions = computed(() => ({
     chart: {
@@ -578,7 +602,7 @@ const donutOptions = computed(() => ({
     },
     theme: { mode: chartMode.value },
     labels: donutLabels,
-    colors: donutColors,
+    colors: donutColors.value,
     legend: { position: 'bottom' as const, fontSize: cFontSm.value },
     dataLabels: { enabled: false },
     plotOptions: {
@@ -587,10 +611,22 @@ const donutOptions = computed(() => ({
                 size: '62%',
                 labels: {
                     show: true,
+                    name: {
+                        show: true,
+                        fontSize: donutLabelFont.value,
+                        offsetY: -4,
+                    },
+                    value: {
+                        show: true,
+                        fontSize: donutValueFont.value,
+                        offsetY: 4,
+                        formatter: (v: string) =>
+                            Number(v).toLocaleString('id-ID'),
+                    },
                     total: {
                         show: true,
-                        label: 'Total Assignment',
-                        fontSize: cFontMd.value,
+                        label: 'Total',
+                        fontSize: donutLabelFont.value,
                         formatter: () =>
                             metrics.value.total_rt.toLocaleString('id-ID'),
                     },
@@ -606,11 +642,10 @@ const TOP_N = 15;
 const barTopData = computed(() =>
     [...breakdown.value]
         .sort((a, b) => b.progress_pct - a.progress_pct)
-        .slice(0, TOP_N)
-        .reverse(),
+        .slice(0, TOP_N),
 );
 const barCategories = computed(() =>
-    barTopData.value.map((r) => r.label.slice(0, 22)),
+    barTopData.value.map((r) => r.label.slice(0, 18)),
 );
 const barSeries = computed(() => [
     { name: 'Progress %', data: barTopData.value.map((r) => r.progress_pct) },
@@ -625,18 +660,23 @@ const barOptions = computed(() => ({
     },
     theme: { mode: chartMode.value },
     plotOptions: {
-        bar: { horizontal: true, barHeight: '40%', borderRadius: 3 },
+        bar: { horizontal: false, columnWidth: '65%', borderRadius: 3 },
     },
     colors: ['#059669', '#1d4ed8'],
     xaxis: {
         categories: barCategories.value,
+        labels: {
+            rotate: -45,
+            style: { fontSize: cFontXs.value },
+        },
+    },
+    yaxis: {
         max: 100,
         labels: {
             formatter: (v: number) => v + '%',
-            style: { fontSize: cFontSm.value },
+            style: { fontSize: cFontXs.value },
         },
     },
-    yaxis: { labels: { style: { fontSize: cFontSm.value } } },
     tooltip: { y: { formatter: (v: number) => v.toFixed(1) + '%' } },
     dataLabels: { enabled: false },
     legend: { position: 'top' as const, fontSize: cFontMd.value },
@@ -1095,158 +1135,123 @@ function rowContext(row: BreakdownRow): string {
             >
         </div>
 
-        <!-- Region filter dropdowns -->
+        <!-- Filter Wilayah — stacked cascading panel -->
         <div
             v-if="filterOptions !== null"
-            class="flex flex-wrap items-center gap-2 rounded-xl border border-sidebar-border/70 bg-card px-3 py-2 dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border"
         >
-            <span class="text-xs font-medium text-muted-foreground"
-                >Filter:</span
+            <!-- Toggle header -->
+            <button
+                class="flex w-full items-center justify-between px-4 py-2.5 text-sm font-semibold"
+                @click="filterPanelOpen = !filterPanelOpen"
             >
-
-            <!-- Kecamatan dropdown -->
-            <div v-if="showKecFilter" class="relative">
-                <button
-                    :class="[
-                        'flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
-                        filters.filter_kec.length
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-input bg-background text-foreground hover:bg-muted',
-                    ]"
-                    @click="toggleDropdown('kec')"
-                >
-                    Kecamatan
+                <div class="flex items-center gap-2">
+                    <span>Filter Wilayah</span>
                     <span
-                        v-if="filters.filter_kec.length"
-                        class="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground"
-                        >{{ filters.filter_kec.length }}</span
+                        v-if="totalActiveFilters"
+                        class="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground"
+                        >{{ totalActiveFilters }}</span
                     >
-                    <span v-else class="text-muted-foreground opacity-60"
-                        >▾</span
+                </div>
+                <span class="text-xs text-muted-foreground">{{
+                    filterPanelOpen ? '▲' : '▼'
+                }}</span>
+            </button>
+
+            <div
+                v-if="filterPanelOpen"
+                class="space-y-3 border-t border-sidebar-border/70 px-4 py-3 dark:border-sidebar-border"
+            >
+                <!-- PROVINSI (readonly) -->
+                <div v-if="filterOptions.prov.length">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
                     >
-                </button>
-                <div
-                    v-if="openDropdown === 'kec'"
-                    class="absolute top-full left-0 z-20 mt-1 w-64 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
-                >
+                        Provinsi
+                    </p>
                     <div
-                        class="flex items-center gap-1 border-b border-border px-2 py-1.5"
+                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
                     >
-                        <input
-                            v-model="filterSearchKec"
-                            type="search"
-                            placeholder="Cari kecamatan…"
-                            autofocus
-                            class="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                        />
-                        <button
-                            class="shrink-0 text-xs text-primary hover:underline focus:outline-none"
-                            @click="selectAllKec"
-                        >
-                            Semua
-                        </button>
-                        <button
-                            class="shrink-0 text-xs text-muted-foreground hover:underline focus:outline-none"
-                            @click="
-                                filters.filter_kec = [];
-                                filters.filter_desa = [];
-                                filters.filter_sls = [];
-                            "
-                        >
-                            Hapus
-                        </button>
+                        <span>{{ filterOptions.prov[0]?.label ?? '—' }}</span>
+                        <span class="text-xs opacity-40">⬍</span>
                     </div>
-                    <div class="max-h-60 overflow-y-auto py-1">
-                        <label
-                            v-for="opt in filteredKecOptions"
-                            :key="opt.code"
-                            class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                </div>
+
+                <!-- KABUPATEN/KOTA (readonly) -->
+                <div v-if="filterOptions.kab.length">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                    >
+                        Kabupaten/Kota
+                    </p>
+                    <div
+                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
+                    >
+                        <span>{{ filterOptions.kab[0]?.label ?? '—' }}</span>
+                        <span class="text-xs opacity-40">⬍</span>
+                    </div>
+                </div>
+
+                <!-- KECAMATAN -->
+                <div v-if="showKecFilter" class="relative">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                    >
+                        Kecamatan
+                    </p>
+                    <button
+                        :class="[
+                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
+                            filters.filter_kec.length
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-input bg-background text-foreground hover:bg-muted',
+                        ]"
+                        @click="toggleDropdown('kec')"
+                    >
+                        <span class="truncate text-left text-sm">{{
+                            filters.filter_kec.length
+                                ? `${filters.filter_kec.length} dipilih`
+                                : 'Pilih wilayah'
+                        }}</span>
+                        <span
+                            class="ml-2 shrink-0 text-xs text-muted-foreground"
+                            >⬍</span
+                        >
+                    </button>
+                    <div
+                        v-if="openDropdown === 'kec'"
+                        class="absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+                    >
+                        <div
+                            class="flex items-center gap-1 border-b border-border px-2 py-1.5"
                         >
                             <input
-                                type="checkbox"
-                                class="rounded accent-primary"
-                                :checked="filters.filter_kec.includes(opt.code)"
-                                @change="toggleKec(opt.code)"
+                                v-model="filterSearchKec"
+                                type="search"
+                                placeholder="Cari kecamatan…"
+                                autofocus
+                                class="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
                             />
-                            <span class="flex-1 truncate">{{ opt.label }}</span>
-                            <span
-                                class="shrink-0 text-muted-foreground tabular-nums"
-                                >{{ opt.total.toLocaleString('id-ID') }}</span
+                            <button
+                                class="shrink-0 text-xs text-primary hover:underline focus:outline-none"
+                                @click="selectAllKec"
                             >
-                        </label>
-                        <p
-                            v-if="!filteredKecOptions.length"
-                            class="px-3 py-2 text-xs text-muted-foreground"
-                        >
-                            Tidak ada hasil
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Desa dropdown -->
-            <div v-if="showDesaFilter" class="relative">
-                <button
-                    :class="[
-                        'flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
-                        filters.filter_desa.length
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-input bg-background text-foreground hover:bg-muted',
-                    ]"
-                    @click="toggleDropdown('desa')"
-                >
-                    Desa
-                    <span
-                        v-if="filters.filter_desa.length"
-                        class="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground"
-                        >{{ filters.filter_desa.length }}</span
-                    >
-                    <span v-else class="text-muted-foreground opacity-60"
-                        >▾</span
-                    >
-                </button>
-                <div
-                    v-if="openDropdown === 'desa'"
-                    class="absolute top-full left-0 z-20 mt-1 w-72 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
-                >
-                    <div
-                        class="flex items-center gap-1 border-b border-border px-2 py-1.5"
-                    >
-                        <input
-                            v-model="filterSearchDesa"
-                            type="search"
-                            placeholder="Cari desa…"
-                            autofocus
-                            class="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                        />
-                        <button
-                            class="shrink-0 text-xs text-primary hover:underline focus:outline-none"
-                            @click="selectAllDesa"
-                        >
-                            Semua
-                        </button>
-                        <button
-                            class="shrink-0 text-xs text-muted-foreground hover:underline focus:outline-none"
-                            @click="
-                                filters.filter_desa = [];
-                                filters.filter_sls = [];
-                            "
-                        >
-                            Hapus
-                        </button>
-                    </div>
-                    <div class="max-h-60 overflow-y-auto py-1">
-                        <template
-                            v-for="(items, kecName) in groupedDesaOptions ?? {}"
-                            :key="kecName"
-                        >
-                            <p
-                                class="px-3 pt-2 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                Semua
+                            </button>
+                            <button
+                                class="shrink-0 text-xs text-muted-foreground hover:underline focus:outline-none"
+                                @click="
+                                    filters.filter_kec = [];
+                                    filters.filter_desa = [];
+                                    filters.filter_sls = [];
+                                "
                             >
-                                {{ kecName }}
-                            </p>
+                                Hapus
+                            </button>
+                        </div>
+                        <div class="max-h-52 overflow-y-auto py-1">
                             <label
-                                v-for="opt in items"
+                                v-for="opt in filteredKecOptions"
                                 :key="opt.code"
                                 class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
                             >
@@ -1254,9 +1259,9 @@ function rowContext(row: BreakdownRow): string {
                                     type="checkbox"
                                     class="rounded accent-primary"
                                     :checked="
-                                        filters.filter_desa.includes(opt.code)
+                                        filters.filter_kec.includes(opt.code)
                                     "
-                                    @change="toggleDesa(opt.code)"
+                                    @change="toggleKec(opt.code)"
                                 />
                                 <span class="flex-1 truncate">{{
                                     opt.label
@@ -1268,117 +1273,228 @@ function rowContext(row: BreakdownRow): string {
                                     }}</span
                                 >
                             </label>
-                        </template>
-                        <p
-                            v-if="!filteredDesaOptions.length"
-                            class="px-3 py-2 text-xs text-muted-foreground"
-                        >
-                            Tidak ada hasil
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SLS dropdown -->
-            <div v-if="showSlsFilter" class="relative">
-                <button
-                    :class="[
-                        'flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
-                        filters.filter_sls.length
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-input bg-background text-foreground hover:bg-muted',
-                    ]"
-                    @click="toggleDropdown('sls')"
-                >
-                    SLS
-                    <span
-                        v-if="filters.filter_sls.length"
-                        class="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground"
-                        >{{ filters.filter_sls.length }}</span
-                    >
-                    <span v-else class="text-muted-foreground opacity-60"
-                        >▾</span
-                    >
-                </button>
-                <div
-                    v-if="openDropdown === 'sls'"
-                    class="absolute top-full left-0 z-20 mt-1 w-72 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
-                >
-                    <div
-                        class="flex items-center gap-1 border-b border-border px-2 py-1.5"
-                    >
-                        <input
-                            v-model="filterSearchSls"
-                            type="search"
-                            placeholder="Cari SLS…"
-                            autofocus
-                            class="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                        />
-                        <button
-                            class="shrink-0 text-xs text-primary hover:underline focus:outline-none"
-                            @click="selectAllSls"
-                        >
-                            Semua
-                        </button>
-                        <button
-                            class="shrink-0 text-xs text-muted-foreground hover:underline focus:outline-none"
-                            @click="filters.filter_sls = []"
-                        >
-                            Hapus
-                        </button>
-                    </div>
-                    <div class="max-h-60 overflow-y-auto py-1">
-                        <template
-                            v-for="(items, desaName) in groupedSlsOptions ?? {}"
-                            :key="desaName"
-                        >
                             <p
-                                class="px-3 pt-2 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                v-if="!filteredKecOptions.length"
+                                class="px-3 py-2 text-xs text-muted-foreground"
                             >
-                                {{ desaName }}
+                                Tidak ada hasil
                             </p>
-                            <label
-                                v-for="opt in items"
-                                :key="opt.code"
-                                class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                            >
-                                <input
-                                    type="checkbox"
-                                    class="rounded accent-primary"
-                                    :checked="
-                                        filters.filter_sls.includes(opt.code)
-                                    "
-                                    @change="toggleSls(opt.code)"
-                                />
-                                <span class="flex-1 truncate">{{
-                                    opt.label
-                                }}</span>
-                                <span
-                                    class="shrink-0 text-muted-foreground tabular-nums"
-                                    >{{
-                                        opt.total.toLocaleString('id-ID')
-                                    }}</span
-                                >
-                            </label>
-                        </template>
-                        <p
-                            v-if="!filteredSlsOptions.length"
-                            class="px-3 py-2 text-xs text-muted-foreground"
-                        >
-                            Tidak ada hasil
-                        </p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Clear all -->
-            <button
-                v-if="totalActiveFilters"
-                class="flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:text-destructive focus:outline-none"
-                @click="clearAllFilters"
-            >
-                ✕ Hapus semua
-            </button>
+                <!-- DESA -->
+                <div v-if="showDesaFilter" class="relative">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                    >
+                        Desa
+                    </p>
+                    <button
+                        :class="[
+                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
+                            filters.filter_desa.length
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-input bg-background text-foreground hover:bg-muted',
+                        ]"
+                        @click="toggleDropdown('desa')"
+                    >
+                        <span class="truncate text-left text-sm">{{
+                            filters.filter_desa.length
+                                ? `${filters.filter_desa.length} dipilih`
+                                : 'Pilih wilayah'
+                        }}</span>
+                        <span
+                            class="ml-2 shrink-0 text-xs text-muted-foreground"
+                            >⬍</span
+                        >
+                    </button>
+                    <div
+                        v-if="openDropdown === 'desa'"
+                        class="absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+                    >
+                        <div
+                            class="flex items-center gap-1 border-b border-border px-2 py-1.5"
+                        >
+                            <input
+                                v-model="filterSearchDesa"
+                                type="search"
+                                placeholder="Cari desa…"
+                                autofocus
+                                class="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                            />
+                            <button
+                                class="shrink-0 text-xs text-primary hover:underline focus:outline-none"
+                                @click="selectAllDesa"
+                            >
+                                Semua
+                            </button>
+                            <button
+                                class="shrink-0 text-xs text-muted-foreground hover:underline focus:outline-none"
+                                @click="
+                                    filters.filter_desa = [];
+                                    filters.filter_sls = [];
+                                "
+                            >
+                                Hapus
+                            </button>
+                        </div>
+                        <div class="max-h-52 overflow-y-auto py-1">
+                            <template
+                                v-for="(items, kecName) in groupedDesaOptions ??
+                                {}"
+                                :key="kecName"
+                            >
+                                <p
+                                    class="px-3 pt-2 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                >
+                                    {{ kecName }}
+                                </p>
+                                <label
+                                    v-for="opt in items"
+                                    :key="opt.code"
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        class="rounded accent-primary"
+                                        :checked="
+                                            filters.filter_desa.includes(
+                                                opt.code,
+                                            )
+                                        "
+                                        @change="toggleDesa(opt.code)"
+                                    />
+                                    <span class="flex-1 truncate">{{
+                                        opt.label
+                                    }}</span>
+                                    <span
+                                        class="shrink-0 text-muted-foreground tabular-nums"
+                                        >{{
+                                            opt.total.toLocaleString('id-ID')
+                                        }}</span
+                                    >
+                                </label>
+                            </template>
+                            <p
+                                v-if="!filteredDesaOptions.length"
+                                class="px-3 py-2 text-xs text-muted-foreground"
+                            >
+                                Tidak ada hasil
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLS -->
+                <div v-if="showSlsFilter" class="relative">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                    >
+                        SLS
+                    </p>
+                    <button
+                        :class="[
+                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
+                            filters.filter_sls.length
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-input bg-background text-foreground hover:bg-muted',
+                        ]"
+                        @click="toggleDropdown('sls')"
+                    >
+                        <span class="truncate text-left text-sm">{{
+                            filters.filter_sls.length
+                                ? `${filters.filter_sls.length} dipilih`
+                                : 'Pilih wilayah'
+                        }}</span>
+                        <span
+                            class="ml-2 shrink-0 text-xs text-muted-foreground"
+                            >⬍</span
+                        >
+                    </button>
+                    <div
+                        v-if="openDropdown === 'sls'"
+                        class="absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+                    >
+                        <div
+                            class="flex items-center gap-1 border-b border-border px-2 py-1.5"
+                        >
+                            <input
+                                v-model="filterSearchSls"
+                                type="search"
+                                placeholder="Cari SLS…"
+                                autofocus
+                                class="h-6 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                            />
+                            <button
+                                class="shrink-0 text-xs text-primary hover:underline focus:outline-none"
+                                @click="selectAllSls"
+                            >
+                                Semua
+                            </button>
+                            <button
+                                class="shrink-0 text-xs text-muted-foreground hover:underline focus:outline-none"
+                                @click="filters.filter_sls = []"
+                            >
+                                Hapus
+                            </button>
+                        </div>
+                        <div class="max-h-52 overflow-y-auto py-1">
+                            <template
+                                v-for="(items, desaName) in groupedSlsOptions ??
+                                {}"
+                                :key="desaName"
+                            >
+                                <p
+                                    class="px-3 pt-2 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                >
+                                    {{ desaName }}
+                                </p>
+                                <label
+                                    v-for="opt in items"
+                                    :key="opt.code"
+                                    class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        class="rounded accent-primary"
+                                        :checked="
+                                            filters.filter_sls.includes(
+                                                opt.code,
+                                            )
+                                        "
+                                        @change="toggleSls(opt.code)"
+                                    />
+                                    <span class="flex-1 truncate">{{
+                                        opt.label
+                                    }}</span>
+                                    <span
+                                        class="shrink-0 text-muted-foreground tabular-nums"
+                                        >{{
+                                            opt.total.toLocaleString('id-ID')
+                                        }}</span
+                                    >
+                                </label>
+                            </template>
+                            <p
+                                v-if="!filteredSlsOptions.length"
+                                class="px-3 py-2 text-xs text-muted-foreground"
+                            >
+                                Tidak ada hasil
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reset button -->
+                <button
+                    v-if="totalActiveFilters"
+                    class="w-full rounded-md border border-input py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted focus:outline-none"
+                    @click="clearAllFilters"
+                >
+                    Reset
+                </button>
+            </div>
         </div>
 
         <!-- Backdrop to close dropdowns on outside click -->
@@ -1489,7 +1605,7 @@ function rowContext(row: BreakdownRow): string {
                 <VueApexCharts
                     v-if="barSeries[0]?.data.length"
                     type="bar"
-                    height="260"
+                    height="300"
                     :options="barOptions"
                     :series="barSeries"
                 />

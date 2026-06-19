@@ -259,12 +259,12 @@ class DashboardController extends Controller
     private function calcFilterOptions(
         string $table, string $snapshot, string $level,
         array $filterKec, array $filterDesa, array $filterSls
-    ): ?array {
-        if ($level === 'kec') {
-            return null;
-        }
-
+    ): array {
         $base = fn () => DB::connection('fasih')->table($table)->where('snapshot_at', $snapshot);
+
+        // Provinsi & kabupaten (informational — usually single values)
+        $provRow = $base()->selectRaw('kdprov as code, nmprov as label')->groupBy('kdprov', 'nmprov')->first();
+        $kabRow = $base()->selectRaw('kdkab as code, nmkab as label')->groupBy('kdkab', 'nmkab')->first();
 
         $kecOpts = $base()
             ->selectRaw('kdkec as code, nmkec as label, SUM(region_total) as total')
@@ -278,9 +278,15 @@ class DashboardController extends Controller
             ])
             ->values()->all();
 
-        $result = ['kec' => $kecOpts, 'desa' => null, 'sls' => null];
+        $result = [
+            'prov' => $provRow ? [['code' => $provRow->code, 'label' => $provRow->label]] : [],
+            'kab' => $kabRow ? [['code' => $kabRow->code,  'label' => $kabRow->label]] : [],
+            'kec' => $kecOpts,
+            'desa' => null,
+            'sls' => null,
+        ];
 
-        if (in_array($level, ['sls', 'subsls', 'by_pengawas', 'by_pencacah'])) {
+        if (in_array($level, ['desa', 'sls', 'subsls', 'by_pengawas', 'by_pencacah'])) {
             $desaQ = $base()
                 ->selectRaw('kdkec as kec_code, nmkec as kec, kddes as code, nmdesa as label, SUM(region_total) as total')
                 ->groupBy('kdkec', 'nmkec', 'kddes', 'nmdesa')
