@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { BarChart3 } from '@lucide/vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BarChart3, Users } from '@lucide/vue';
+import { computed } from 'vue';
 import { dashboard } from '@/routes';
 import AppLogo from '@/components/AppLogo.vue';
 import ImportDbButton from '@/components/ImportDbButton.vue';
@@ -18,11 +19,22 @@ import {
 } from '@/components/ui/sidebar';
 import type { NavItem } from '@/types';
 
+const page = usePage<{ auth: { user: { is_admin: boolean } } }>();
+const isAdmin = computed(() => page.props.auth?.user?.is_admin ?? false);
+
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard FASIH',
         href: '/',
         icon: BarChart3,
+    },
+];
+
+const adminNavItems: NavItem[] = [
+    {
+        title: 'Manajemen User',
+        href: '/admin/users',
+        icon: Users,
     },
 ];
 
@@ -45,6 +57,7 @@ const footerNavItems: NavItem[] = [];
 
         <SidebarContent>
             <NavMain :items="mainNavItems" />
+            <NavMain v-if="isAdmin" :items="adminNavItems" />
         </SidebarContent>
 
         <SidebarFooter>

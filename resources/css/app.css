@@ -163,6 +163,9 @@
 }
 
 @layer base {
+    html {
+        font-size: clamp(15px, 1.15vw, 20px);
+    }
     * {
         @apply border-border outline-ring/50;
     }
