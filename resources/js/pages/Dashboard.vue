@@ -507,35 +507,35 @@ const STATUS_META: Record<
     { short: string; color: string; title: string }
 > = {
     OPEN: { short: 'Open', color: '', title: 'Belum diisi' },
-    DRAFT: { short: 'Draft', color: '#f97316', title: 'Sedang diisi' },
+    DRAFT: { short: 'Draft', color: '#FFD45A', title: 'Sedang diisi' },
     'SUBMITTED BY Pencacah': {
         short: 'Sub.P',
-        color: '#2563eb',
+        color: '#FF8B5A',
         title: 'Diserahkan Pencacah',
     },
     'APPROVED BY Pengawas': {
         short: 'App.P',
-        color: '#16a34a',
+        color: '#22c55e',
         title: 'Disetujui Pengawas',
     },
     'REJECTED BY Pengawas': {
         short: 'Rej.P',
-        color: '#dc2626',
+        color: '#FF5A5A',
         title: 'Ditolak Pengawas',
     },
     'EDITED BY Pengawas': {
         short: 'Edit.P',
-        color: '#d97706',
+        color: '#FFA95A',
         title: 'Diedit Pengawas',
     },
     'REVOKED BY Pengawas': {
         short: 'Rev.P',
-        color: '#be185d',
+        color: '#dc2626',
         title: 'Dicabut Pengawas',
     },
     'SUBMITTED RESPONDENT': {
         short: 'Sub.R',
-        color: '#4f46e5',
+        color: '#a78bfa',
         title: 'Submit Responden',
     },
 };
@@ -675,7 +675,7 @@ const barOptions = computed(() => ({
             dataLabels: { position: 'top' },
         },
     },
-    colors: ['#059669', '#1d4ed8'],
+    colors: ['#FFA95A', '#22c55e'],
     xaxis: {
         categories: barCategories.value,
         labels: {
@@ -736,7 +736,7 @@ const trendOptions = computed(() => ({
     },
     theme: { mode: chartMode.value },
     stroke: { curve: 'smooth' as const, width: 2.5 },
-    colors: ['#059669', '#7c3aed', '#1d4ed8'],
+    colors: ['#FFA95A', '#FF8B5A', '#22c55e'],
     xaxis: {
         categories: trendCategories.value,
         labels: { rotate: -30, style: { fontSize: cFontXs.value } },
@@ -806,7 +806,7 @@ const compareBarOptions = computed(() => ({
     plotOptions: {
         bar: { horizontal: true, barHeight: '45%', borderRadius: 2 },
     },
-    colors: ['#2563eb', '#f59e0b'],
+    colors: ['#FFA95A', '#FFD45A'],
     xaxis: {
         categories: compareBarData.value?.categories ?? [],
         max: 100,
@@ -1580,8 +1580,9 @@ function rowContext(row: BreakdownRow): string {
                         label: 'Progress',
                         value: metrics.progress_pct,
                         fmt: 'p',
-                        color: 'text-orange-600 dark:text-orange-400',
-                        ring: 'border-orange-500/30 bg-orange-500/5 dark:bg-orange-500/10',
+                        color: '',
+                        hex: '#FFA95A',
+                        ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
                         tooltip:
                             'Progress = (Total − OPEN) ÷ Total × 100%. Semua status yang sudah diproses (bukan OPEN) dihitung sebagai progress.',
                     },
@@ -1589,15 +1590,17 @@ function rowContext(row: BreakdownRow): string {
                         label: 'Submitted',
                         value: metrics.submitted_pct,
                         fmt: 'p',
-                        color: 'text-blue-600 dark:text-blue-400',
-                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
+                        color: '',
+                        hex: '#FF8B5A',
+                        ring: 'border-[#FF8B5A]/40 bg-[#FF8B5A]/8 dark:bg-[#FF8B5A]/12',
                         tooltip: '',
                     },
                     {
                         label: 'Approved',
                         value: metrics.approved_pct,
                         fmt: 'p',
-                        color: 'text-green-600 dark:text-green-400',
+                        color: '',
+                        hex: '#22c55e',
                         ring: 'border-green-500/30 bg-green-500/5 dark:bg-green-500/10',
                         tooltip: '',
                     },
@@ -1605,8 +1608,9 @@ function rowContext(row: BreakdownRow): string {
                         label: 'Rejected',
                         value: metrics.rejected_pct,
                         fmt: 'p',
-                        color: 'text-red-600 dark:text-red-400',
-                        ring: 'border-red-500/30 bg-red-500/5 dark:bg-red-500/10',
+                        color: '',
+                        hex: '#FF5A5A',
+                        ring: 'border-[#FF5A5A]/40 bg-[#FF5A5A]/8 dark:bg-[#FF5A5A]/12',
                         tooltip: '',
                     },
                 ]"
@@ -1634,6 +1638,9 @@ function rowContext(row: BreakdownRow): string {
                         'mt-1 text-2xl font-bold tabular-nums',
                         card.color,
                     ]"
+                    :style="
+                        (card as any).hex ? { color: (card as any).hex } : {}
+                    "
                 >
                     {{
                         card.fmt === 'p'
@@ -2054,7 +2061,7 @@ function rowContext(row: BreakdownRow): string {
                                         aria-valuemax="100"
                                     >
                                         <div
-                                            class="h-full rounded-full bg-emerald-500 transition-all"
+                                            class="h-full rounded-full bg-[#FFA95A] transition-all"
                                             :style="{
                                                 width:
                                                     pct(row.progress_pct) + '%',
@@ -2110,7 +2117,7 @@ function rowContext(row: BreakdownRow): string {
                                         aria-valuemax="100"
                                     >
                                         <div
-                                            class="h-full rounded-full bg-blue-500 transition-all"
+                                            class="h-full rounded-full bg-[#22c55e] transition-all"
                                             :style="{
                                                 width:
                                                     pct(row.approved_pct) + '%',

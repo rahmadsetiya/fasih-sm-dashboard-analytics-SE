@@ -24,15 +24,6 @@ interface RingkasanMetrics {
     submitted_pct: number;
     rejected_pct: number;
 }
-interface KecRow {
-    kdkec: string;
-    nmkec: string;
-    total_desa: number;
-    total: number;
-    progress_pct: number;
-    approved_pct: number;
-    statuses: Record<string, number>;
-}
 interface TrendPoint {
     snapshot_at: string;
     progress_pct: number;
@@ -62,7 +53,6 @@ const metrics = ref<RingkasanMetrics>({
     rejected_pct: 0,
 });
 const statusTotals = ref<Record<string, number>>({});
-const kecamatan = ref<KecRow[]>([]);
 const trend = ref<TrendPoint[]>([]);
 
 const isDark = useDark();
@@ -70,7 +60,9 @@ const chartBg = computed(() => (isDark.value ? '#18181b' : '#ffffff'));
 const chartMode = computed(() =>
     isDark.value ? ('dark' as const) : ('light' as const),
 );
-const { width: vw } = useWindowSize();
+const { width: vw, height: vh } = useWindowSize();
+// Approx overhead: header(84) + count cards(76) + progress cards(96) + 4 gaps(48) + padding(32)
+const chartH = computed(() => Math.max(160, vh.value - 380));
 const cFontXs = computed(
     () =>
         `${Math.max(10, Math.min(14, Math.round(10 + (vw.value - 1000) / 200)))}px`,
@@ -107,7 +99,6 @@ async function fetchData() {
         provName.value = data.prov_name;
         metrics.value = data.metrics;
         statusTotals.value = data.status_totals;
-        kecamatan.value = data.kecamatan;
         trend.value = data.trend;
     } finally {
         loading.value = false;
@@ -116,33 +107,6 @@ async function fetchData() {
 
 watch(snapshot, fetchData);
 onMounted(fetchData);
-
-// ── sort ──────────────────────────────────────────────────────────────────
-const sortCol = ref('total');
-const sortDir = ref<'asc' | 'desc'>('desc');
-
-function toggleSort(col: string) {
-    if (sortCol.value === col) {
-        sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc';
-    } else {
-        sortCol.value = col;
-        sortDir.value = 'desc';
-    }
-}
-const sortIcon = (col: string) =>
-    sortCol.value !== col ? '' : sortDir.value === 'desc' ? ' ↓' : ' ↑';
-
-const sortedKec = computed(() => {
-    const copy = [...kecamatan.value];
-    copy.sort((a, b) => {
-        const va = (a as any)[sortCol.value] as number;
-        const vb = (b as any)[sortCol.value] as number;
-
-        return sortDir.value === 'desc' ? vb - va : va - vb;
-    });
-
-    return copy;
-});
 
 // ── chart: donut ──────────────────────────────────────────────────────────
 const STATUS_COLS = [
@@ -174,13 +138,13 @@ const STATUS_COLORS = computed(() =>
         return (
             (
                 {
-                    DRAFT: '#f97316',
-                    'SUBMITTED BY Pencacah': '#2563eb',
-                    'APPROVED BY Pengawas': '#16a34a',
-                    'REJECTED BY Pengawas': '#dc2626',
-                    'EDITED BY Pengawas': '#d97706',
-                    'REVOKED BY Pengawas': '#be185d',
-                    'SUBMITTED RESPONDENT': '#4f46e5',
+                    DRAFT: '#FFD45A',
+                    'SUBMITTED BY Pencacah': '#FF8B5A',
+                    'APPROVED BY Pengawas': '#22c55e',
+                    'REJECTED BY Pengawas': '#FF5A5A',
+                    'EDITED BY Pengawas': '#FFA95A',
+                    'REVOKED BY Pengawas': '#dc2626',
+                    'SUBMITTED RESPONDENT': '#a78bfa',
                 } as Record<string, string>
             )[c] ?? '#6b7280'
         );
@@ -284,7 +248,7 @@ const trendOptions = computed(() => ({
     },
     theme: { mode: chartMode.value },
     stroke: { curve: 'smooth' as const, width: 2.5 },
-    colors: ['#059669', '#7c3aed', '#1d4ed8'],
+    colors: ['#FFA95A', '#FF8B5A', '#22c55e'],
     xaxis: {
         categories: trendCategories.value,
         labels: { rotate: -30, style: { fontSize: cFontXs.value } },
@@ -314,22 +278,6 @@ function fmtSnap(s: string) {
 function pct(v: number) {
     return Math.min(100, Math.max(0, v));
 }
-
-const activeStatusCols = computed(() =>
-    STATUS_COLS.filter((col) =>
-        kecamatan.value.some((r) => (r.statuses[col] ?? 0) > 0),
-    ),
-);
-const STATUS_META: Record<string, { short: string; color: string }> = {
-    OPEN: { short: 'Open', color: '' },
-    DRAFT: { short: 'Draft', color: '#f97316' },
-    'SUBMITTED BY Pencacah': { short: 'Sub.P', color: '#2563eb' },
-    'APPROVED BY Pengawas': { short: 'App.P', color: '#16a34a' },
-    'REJECTED BY Pengawas': { short: 'Rej.P', color: '#dc2626' },
-    'EDITED BY Pengawas': { short: 'Edit.P', color: '#d97706' },
-    'REVOKED BY Pengawas': { short: 'Rev.P', color: '#be185d' },
-    'SUBMITTED RESPONDENT': { short: 'Sub.R', color: '#4f46e5' },
-};
 </script>
 
 <template>
@@ -367,7 +315,7 @@ const STATUS_META: Record<string, { short: string; color: string }> = {
     </div>
 
     <!-- main -->
-    <div v-else class="flex h-full flex-1 flex-col gap-3 overflow-x-auto p-4">
+    <div v-else class="flex h-full flex-1 flex-col gap-3 overflow-hidden p-4">
         <!-- header kabupaten -->
         <div
             class="rounded-xl border border-sidebar-border/70 bg-card px-5 py-4 dark:border-sidebar-border"
@@ -494,33 +442,33 @@ const STATUS_META: Record<string, { short: string; color: string }> = {
                     {
                         label: 'Progress',
                         value: metrics.progress_pct,
-                        color: 'text-orange-600 dark:text-orange-400',
-                        bar: 'bg-orange-500',
-                        ring: 'border-orange-500/30 bg-orange-500/5 dark:bg-orange-500/10',
+                        hex: '#FFA95A',
+                        bar: 'bg-[#FFA95A]',
+                        ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
                         tooltip: 'Progress = (Total − OPEN) ÷ Total × 100%',
                     },
                     {
                         label: 'Submitted',
                         value: metrics.submitted_pct,
-                        color: 'text-blue-600 dark:text-blue-400',
-                        bar: 'bg-blue-500',
-                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
+                        hex: '#FF8B5A',
+                        bar: 'bg-[#FF8B5A]',
+                        ring: 'border-[#FF8B5A]/40 bg-[#FF8B5A]/8 dark:bg-[#FF8B5A]/12',
                         tooltip: '',
                     },
                     {
                         label: 'Approved',
                         value: metrics.approved_pct,
-                        color: 'text-green-600 dark:text-green-400',
-                        bar: 'bg-green-500',
+                        hex: '#22c55e',
+                        bar: 'bg-[#22c55e]',
                         ring: 'border-green-500/30 bg-green-500/5 dark:bg-green-500/10',
                         tooltip: '',
                     },
                     {
                         label: 'Rejected',
                         value: metrics.rejected_pct,
-                        color: 'text-red-600 dark:text-red-400',
-                        bar: 'bg-red-500',
-                        ring: 'border-red-500/30 bg-red-500/5 dark:bg-red-500/10',
+                        hex: '#FF5A5A',
+                        bar: 'bg-[#FF5A5A]',
+                        ring: 'border-[#FF5A5A]/40 bg-[#FF5A5A]/8 dark:bg-[#FF5A5A]/12',
                         tooltip: '',
                     },
                 ]"
@@ -539,10 +487,8 @@ const STATUS_META: Record<string, { short: string; color: string }> = {
                     >
                 </p>
                 <p
-                    :class="[
-                        'mt-1 text-3xl font-bold tabular-nums',
-                        card.color,
-                    ]"
+                    class="mt-1 text-3xl font-bold tabular-nums"
+                    :style="{ color: (card as any).hex }"
                 >
                     {{ card.value.toFixed(1) }}%
                 </p>
@@ -559,23 +505,25 @@ const STATUS_META: Record<string, { short: string; color: string }> = {
             </div>
         </div>
 
-        <!-- Charts row -->
-        <div class="grid gap-3 md:grid-cols-3">
+        <!-- Charts row — flex-1 to fill remaining screen height -->
+        <div class="grid min-h-0 flex-1 gap-3 md:grid-cols-3">
             <!-- Donut -->
             <div
-                class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
             >
-                <h3 class="mb-1 text-sm font-semibold">Komposisi Status</h3>
+                <h3 class="mb-1 shrink-0 text-sm font-semibold">
+                    Komposisi Status
+                </h3>
                 <VueApexCharts
                     v-if="donutSeries.some((v) => v > 0)"
                     type="donut"
-                    height="260"
+                    :height="chartH"
                     :options="donutOptions"
                     :series="donutSeries"
                 />
                 <div
                     v-else
-                    class="flex h-52 items-center justify-center text-sm text-muted-foreground"
+                    class="flex flex-1 items-center justify-center text-sm text-muted-foreground"
                 >
                     Tidak ada data
                 </div>
@@ -583,200 +531,30 @@ const STATUS_META: Record<string, { short: string; color: string }> = {
 
             <!-- Trend -->
             <div
-                class="col-span-2 rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
             >
-                <h3 class="mb-1 text-sm font-semibold">
+                <h3 class="mb-1 shrink-0 text-sm font-semibold">
                     Tren Progress Over Time
                 </h3>
                 <VueApexCharts
                     v-if="trend.length >= 1"
                     type="line"
-                    :height="trend.length === 1 ? 120 : 260"
+                    :height="chartH"
                     :options="trendOptions"
                     :series="trendSeries"
                 />
                 <div
                     v-else
-                    class="flex h-52 items-center justify-center text-sm text-muted-foreground"
+                    class="flex flex-1 items-center justify-center text-sm text-muted-foreground"
                 >
                     Tidak ada data tren
                 </div>
                 <p
                     v-if="trend.length === 1"
-                    class="mt-1 text-center text-xs text-muted-foreground"
+                    class="mt-1 shrink-0 text-center text-xs text-muted-foreground"
                 >
                     Hanya 1 snapshot — tambah snapshot lebih untuk melihat tren
                 </p>
-            </div>
-        </div>
-
-        <!-- Kecamatan table -->
-        <div
-            class="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border"
-        >
-            <div
-                class="flex items-center justify-between border-b border-sidebar-border/70 px-4 py-3 dark:border-sidebar-border"
-            >
-                <h3 class="text-sm font-semibold">Rincian per Kecamatan</h3>
-                <span class="text-xs text-muted-foreground"
-                    >{{ kecamatan.length }} kecamatan</span
-                >
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-max text-sm" role="grid">
-                    <thead>
-                        <tr
-                            class="border-b border-sidebar-border/70 bg-muted/40 text-left text-xs text-muted-foreground dark:border-sidebar-border"
-                        >
-                            <th
-                                class="cursor-pointer px-4 py-2 font-semibold"
-                                @click="toggleSort('nmkec')"
-                                scope="col"
-                            >
-                                Kecamatan{{ sortIcon('nmkec') }}
-                            </th>
-                            <th
-                                class="cursor-pointer px-3 py-2 text-right font-semibold"
-                                @click="toggleSort('total_desa')"
-                                scope="col"
-                            >
-                                Desa{{ sortIcon('total_desa') }}
-                            </th>
-                            <th
-                                class="cursor-pointer px-3 py-2 text-right font-semibold"
-                                @click="toggleSort('total')"
-                                scope="col"
-                            >
-                                Assignment{{ sortIcon('total') }}
-                            </th>
-                            <th
-                                class="cursor-pointer px-3 py-2 font-semibold"
-                                @click="toggleSort('progress_pct')"
-                                scope="col"
-                            >
-                                Progress{{ sortIcon('progress_pct') }}
-                            </th>
-                            <th
-                                class="cursor-pointer px-3 py-2 font-semibold"
-                                @click="toggleSort('approved_pct')"
-                                scope="col"
-                            >
-                                Approved{{ sortIcon('approved_pct') }}
-                            </th>
-                            <th
-                                v-for="col in activeStatusCols"
-                                :key="col"
-                                class="px-2 py-2 text-right font-semibold"
-                                :title="col"
-                                scope="col"
-                            >
-                                {{ STATUS_META[col]?.short ?? col }}
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="row in sortedKec"
-                            :key="row.kdkec"
-                            class="border-b border-sidebar-border/30 hover:bg-muted/30 dark:border-sidebar-border/20"
-                        >
-                            <td class="px-4 py-2.5 font-medium">
-                                {{ row.nmkec }}
-                            </td>
-                            <td
-                                class="px-3 py-2.5 text-right text-muted-foreground tabular-nums"
-                            >
-                                {{ row.total_desa }}
-                            </td>
-                            <td
-                                class="px-3 py-2.5 text-right font-medium tabular-nums"
-                            >
-                                {{ row.total.toLocaleString('id-ID') }}
-                            </td>
-                            <!-- Progress bar -->
-                            <td class="min-w-36 px-3 py-2.5">
-                                <div class="flex items-center gap-2">
-                                    <div
-                                        class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
-                                        role="progressbar"
-                                        :aria-valuenow="row.progress_pct"
-                                        aria-valuemin="0"
-                                        aria-valuemax="100"
-                                    >
-                                        <div
-                                            class="h-full rounded-full bg-emerald-500 transition-all"
-                                            :style="{
-                                                width:
-                                                    pct(row.progress_pct) + '%',
-                                            }"
-                                        />
-                                    </div>
-                                    <span
-                                        class="w-12 text-right text-xs font-medium tabular-nums"
-                                        >{{ row.progress_pct }}%</span
-                                    >
-                                </div>
-                            </td>
-                            <!-- Approved bar -->
-                            <td class="min-w-32 px-3 py-2.5">
-                                <div class="flex items-center gap-2">
-                                    <div
-                                        class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
-                                        role="progressbar"
-                                        :aria-valuenow="row.approved_pct"
-                                        aria-valuemin="0"
-                                        aria-valuemax="100"
-                                    >
-                                        <div
-                                            class="h-full rounded-full bg-blue-500 transition-all"
-                                            :style="{
-                                                width:
-                                                    pct(row.approved_pct) + '%',
-                                            }"
-                                        />
-                                    </div>
-                                    <span
-                                        class="w-12 text-right text-xs font-medium tabular-nums"
-                                        >{{ row.approved_pct }}%</span
-                                    >
-                                </div>
-                            </td>
-                            <!-- Status cols -->
-                            <td
-                                v-for="col in activeStatusCols"
-                                :key="col"
-                                class="px-2 py-2.5 text-right text-xs tabular-nums"
-                            >
-                                <span
-                                    v-if="row.statuses[col]"
-                                    class="inline-block min-w-6 rounded px-1 font-medium"
-                                    :style="
-                                        STATUS_META[col]?.color
-                                            ? { color: STATUS_META[col].color }
-                                            : {}
-                                    "
-                                >
-                                    {{
-                                        row.statuses[col].toLocaleString(
-                                            'id-ID',
-                                        )
-                                    }}
-                                </span>
-                                <span v-else class="text-muted-foreground/40"
-                                    >—</span
-                                >
-                            </td>
-                        </tr>
-                        <tr v-if="!kecamatan.length">
-                            <td
-                                :colspan="5 + activeStatusCols.length"
-                                class="px-4 py-8 text-center text-sm text-muted-foreground"
-                            >
-                                Tidak ada data untuk snapshot yang dipilih.
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
