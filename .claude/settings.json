@@ -1,17 +1,23 @@
 {
-    "hooks": {
-        "PostToolUse": [
-            {
-                "matcher": "Write|Edit",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "node .claude/hooks/format.js",
-                        "timeout": 30,
-                        "statusMessage": "Formatting…"
-                    }
-                ]
-            }
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/format.js",
+            "timeout": 30,
+            "statusMessage": "Formatting…"
+          }
         ]
-    }
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": false,
+    "caveman@caveman": true,
+    "ecc@ecc": false,
+    "github@claude-plugins-official": false
+  }
 }

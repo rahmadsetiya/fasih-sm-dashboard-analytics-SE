@@ -60,9 +60,7 @@ const chartBg = computed(() => (isDark.value ? '#18181b' : '#ffffff'));
 const chartMode = computed(() =>
     isDark.value ? ('dark' as const) : ('light' as const),
 );
-const { width: vw, height: vh } = useWindowSize();
-// Approx overhead: header(84) + count cards(76) + progress cards(96) + 4 gaps(48) + padding(32)
-const chartH = computed(() => Math.max(160, vh.value - 380));
+const { width: vw } = useWindowSize();
 const cFontXs = computed(
     () =>
         `${Math.max(10, Math.min(14, Math.round(10 + (vw.value - 1000) / 200)))}px`,
@@ -151,66 +149,19 @@ const STATUS_COLORS = computed(() =>
     }),
 );
 
-const donutWidth = computed(() =>
-    Math.min(260, vw.value >= 768 ? (vw.value - 48) / 3 : vw.value - 32),
+const statusRows = computed(() =>
+    STATUS_COLS.map((col, i) => ({
+        label: STATUS_LABELS[i],
+        color: STATUS_COLORS.value[i],
+        count: statusTotals.value[col] ?? 0,
+        pct:
+            metrics.value.total_assignment > 0
+                ? ((statusTotals.value[col] ?? 0) /
+                      metrics.value.total_assignment) *
+                  100
+                : 0,
+    })),
 );
-const donutInnerR = computed(() => (donutWidth.value / 2) * 0.62);
-const donutLabelFont = computed(
-    () => `${Math.max(8, Math.min(11, Math.round(donutInnerR.value / 7)))}px`,
-);
-const donutValueFont = computed(
-    () =>
-        `${Math.max(11, Math.min(18, Math.round(donutInnerR.value / 4.5)))}px`,
-);
-
-const donutSeries = computed(() =>
-    STATUS_COLS.map((c) => statusTotals.value[c] ?? 0),
-);
-const donutOptions = computed(() => ({
-    chart: {
-        type: 'donut' as const,
-        background: chartBg.value,
-        toolbar: { show: false },
-    },
-    theme: { mode: chartMode.value },
-    labels: STATUS_LABELS,
-    colors: STATUS_COLORS.value,
-    legend: { position: 'bottom' as const, fontSize: cFontSm.value },
-    dataLabels: { enabled: false },
-    plotOptions: {
-        pie: {
-            donut: {
-                size: '62%',
-                labels: {
-                    show: true,
-                    name: {
-                        show: true,
-                        fontSize: donutLabelFont.value,
-                        offsetY: -4,
-                    },
-                    value: {
-                        show: true,
-                        fontSize: donutValueFont.value,
-                        offsetY: 4,
-                        formatter: (v: string) =>
-                            Number(v).toLocaleString('id-ID'),
-                    },
-                    total: {
-                        show: true,
-                        label: 'Total',
-                        fontSize: donutLabelFont.value,
-                        formatter: () =>
-                            metrics.value.total_assignment.toLocaleString(
-                                'id-ID',
-                            ),
-                    },
-                },
-            },
-        },
-    },
-    stroke: { width: 0 },
-    tooltip: { y: { formatter: (v: number) => v.toLocaleString('id-ID') } },
-}));
 
 // ── chart: trend ──────────────────────────────────────────────────────────
 const trendSeries = computed(() => [
@@ -315,10 +266,10 @@ function pct(v: number) {
     </div>
 
     <!-- main -->
-    <div v-else class="flex h-full flex-1 flex-col gap-3 overflow-hidden p-4">
+    <div v-else class="flex flex-col gap-3 p-4">
         <!-- header kabupaten -->
         <div
-            class="rounded-xl border border-sidebar-border/70 bg-card px-5 py-4 dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card px-4 py-2.5 dark:border-sidebar-border"
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -327,7 +278,7 @@ function pct(v: number) {
                     >
                         {{ provName }}
                     </p>
-                    <h1 class="text-2xl font-bold tracking-tight">
+                    <h1 class="text-xl font-bold tracking-tight">
                         KABUPATEN {{ kabName }}
                     </h1>
                     <p class="mt-0.5 text-xs text-muted-foreground">
@@ -421,12 +372,12 @@ function pct(v: number) {
                     },
                 ]"
                 :key="card.label"
-                class="rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 dark:border-sidebar-border"
+                class="rounded-xl border border-sidebar-border/70 bg-card px-3 py-2 dark:border-sidebar-border"
             >
                 <p class="text-xs text-muted-foreground">{{ card.label }}</p>
                 <p
                     :class="[
-                        'mt-1 text-2xl font-bold tabular-nums',
+                        'mt-1 text-xl font-bold tabular-nums',
                         card.color,
                     ]"
                 >
@@ -473,10 +424,10 @@ function pct(v: number) {
                     },
                 ]"
                 :key="card.label"
-                :class="['rounded-xl border px-5 py-4', card.ring]"
+                :class="['rounded-xl border px-4 py-2.5', card.ring]"
             >
                 <p
-                    class="flex items-center gap-1 text-sm text-muted-foreground"
+                    class="flex items-center gap-1 text-xs text-muted-foreground"
                     :title="card.tooltip || undefined"
                 >
                     {{ card.label }}
@@ -487,14 +438,14 @@ function pct(v: number) {
                     >
                 </p>
                 <p
-                    class="mt-1 text-3xl font-bold tabular-nums"
+                    class="mt-1 text-2xl font-bold tabular-nums"
                     :style="{ color: (card as any).hex }"
                 >
                     {{ card.value.toFixed(1) }}%
                 </p>
                 <!-- Progress bar -->
                 <div
-                    class="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
+                    class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted"
                 >
                     <div
                         class="h-full rounded-full transition-all"
@@ -505,22 +456,79 @@ function pct(v: number) {
             </div>
         </div>
 
-        <!-- Charts row — flex-1 to fill remaining screen height -->
-        <div class="grid min-h-0 flex-1 gap-3 md:grid-cols-3">
-            <!-- Donut -->
+        <!-- Charts row -->
+        <div class="grid gap-3 md:grid-cols-3">
+            <!-- Status Table -->
             <div
                 class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
             >
-                <h3 class="mb-1 shrink-0 text-sm font-semibold">
+                <h3 class="mb-2 shrink-0 text-sm font-semibold">
                     Komposisi Status
                 </h3>
-                <VueApexCharts
-                    v-if="donutSeries.some((v) => v > 0)"
-                    type="donut"
-                    :height="chartH"
-                    :options="donutOptions"
-                    :series="donutSeries"
-                />
+                <div
+                    v-if="Object.keys(statusTotals).length > 0"
+                    class="min-h-0 flex-1 overflow-y-auto"
+                >
+                    <table class="w-full text-xs">
+                        <tbody>
+                            <tr
+                                v-for="(row, i) in statusRows"
+                                :key="i"
+                                :class="[
+                                    'border-b border-border/40 last:border-0',
+                                    row.count === 0 ? 'opacity-40' : '',
+                                ]"
+                            >
+                                <td class="py-1.5 pr-2">
+                                    <div class="flex items-center gap-1.5">
+                                        <span
+                                            class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                                            :style="{
+                                                backgroundColor: row.color,
+                                            }"
+                                        />
+                                        <span class="text-foreground">{{
+                                            row.label
+                                        }}</span>
+                                    </div>
+                                </td>
+                                <td
+                                    class="py-1.5 pr-2 text-right font-medium tabular-nums"
+                                >
+                                    {{ row.count.toLocaleString('id-ID') }}
+                                </td>
+                                <td
+                                    class="w-12 py-1.5 text-right text-muted-foreground tabular-nums"
+                                >
+                                    {{ row.pct.toFixed(1) }}%
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="border-t border-border">
+                            <tr>
+                                <td
+                                    class="pt-2 text-xs font-semibold text-muted-foreground"
+                                >
+                                    Total
+                                </td>
+                                <td
+                                    class="pt-2 text-right text-xs font-bold tabular-nums"
+                                >
+                                    {{
+                                        metrics.total_assignment.toLocaleString(
+                                            'id-ID',
+                                        )
+                                    }}
+                                </td>
+                                <td
+                                    class="pt-2 text-right text-xs text-muted-foreground"
+                                >
+                                    100%
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
                 <div
                     v-else
                     class="flex flex-1 items-center justify-center text-sm text-muted-foreground"
@@ -539,13 +547,14 @@ function pct(v: number) {
                 <VueApexCharts
                     v-if="trend.length >= 1"
                     type="line"
-                    :height="chartH"
+                    :height="360"
                     :options="trendOptions"
                     :series="trendSeries"
                 />
                 <div
                     v-else
-                    class="flex flex-1 items-center justify-center text-sm text-muted-foreground"
+                    class="flex items-center justify-center text-sm text-muted-foreground"
+                    style="height: 360px"
                 >
                     Tidak ada data tren
                 </div>
