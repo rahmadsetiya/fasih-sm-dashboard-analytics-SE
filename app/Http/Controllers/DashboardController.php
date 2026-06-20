@@ -114,7 +114,8 @@ class DashboardController extends Controller
             SUM(region_total)                    as total_rt,
             SUM("OPEN")                          as total_open,
             SUM("APPROVED BY Pengawas")          as total_approved,
-            SUM("SUBMITTED BY Pencacah")         as total_submitted
+            SUM("SUBMITTED BY Pencacah")         as total_submitted,
+            SUM("REJECTED BY Pengawas")          as total_rejected
         ')->first();
 
         $totalPencacah = (clone $baseC)->distinct()->count('username');
@@ -123,6 +124,7 @@ class DashboardController extends Controller
         $open = (int) ($m->total_open ?: 0);
         $approved = (int) ($m->total_approved ?: 0);
         $submitted = (int) ($m->total_submitted ?: 0);
+        $rejected = (int) ($m->total_rejected ?: 0);
 
         // Status totals
         $statusRow = (clone $baseP)->selectRaw($this->statusSumSql())->first();
@@ -173,6 +175,7 @@ class DashboardController extends Controller
                 'progress_pct' => round(($total - $open) / $total * 100, 1),
                 'approved_pct' => round($approved / $total * 100, 1),
                 'submitted_pct' => round($submitted / $total * 100, 1),
+                'rejected_pct' => round($rejected / $total * 100, 1),
             ],
             'status_totals' => $statusTotals,
             'kecamatan' => $kecamatan,
@@ -228,13 +231,15 @@ class DashboardController extends Controller
             SUM(region_total)                 as total_rt,
             SUM("OPEN")                       as total_open,
             SUM("APPROVED BY Pengawas")       as total_approved,
-            SUM("SUBMITTED BY Pencacah")      as total_submitted
+            SUM("SUBMITTED BY Pencacah")      as total_submitted,
+            SUM("REJECTED BY Pengawas")       as total_rejected
         ')->first();
 
         $total = (int) ($row->total_rt ?: 1);
         $open = (int) ($row->total_open ?: 0);
         $approved = (int) ($row->total_approved ?: 0);
         $submitted = (int) ($row->total_submitted ?: 0);
+        $rejected = (int) ($row->total_rejected ?: 0);
 
         return [
             'total_petugas' => (int) $row->total_petugas,
@@ -244,6 +249,7 @@ class DashboardController extends Controller
             'progress_pct' => round(($total - $open) / $total * 100, 1),
             'approved_pct' => round($approved / $total * 100, 1),
             'submitted_pct' => round($submitted / $total * 100, 1),
+            'rejected_pct' => round($rejected / $total * 100, 1),
         ];
     }
 

@@ -22,6 +22,7 @@ interface RingkasanMetrics {
     progress_pct: number;
     approved_pct: number;
     submitted_pct: number;
+    rejected_pct: number;
 }
 interface KecRow {
     kdkec: string;
@@ -58,6 +59,7 @@ const metrics = ref<RingkasanMetrics>({
     progress_pct: 0,
     approved_pct: 0,
     submitted_pct: 0,
+    rejected_pct: 0,
 });
 const statusTotals = ref<Record<string, number>>({});
 const kecamatan = ref<KecRow[]>([]);
@@ -486,32 +488,56 @@ const STATUS_META: Record<string, { short: string; color: string }> = {
         </div>
 
         <!-- Metric cards row 2: progress -->
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div
                 v-for="card in [
                     {
                         label: 'Progress',
                         value: metrics.progress_pct,
-                        color: 'text-emerald-600 dark:text-emerald-400',
-                        ring: 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10',
+                        color: 'text-orange-600 dark:text-orange-400',
+                        bar: 'bg-orange-500',
+                        ring: 'border-orange-500/30 bg-orange-500/5 dark:bg-orange-500/10',
+                        tooltip: 'Progress = (Total − OPEN) ÷ Total × 100%',
                     },
                     {
                         label: 'Submitted',
                         value: metrics.submitted_pct,
-                        color: 'text-violet-600 dark:text-violet-400',
-                        ring: 'border-violet-500/30 bg-violet-500/5 dark:bg-violet-500/10',
+                        color: 'text-blue-600 dark:text-blue-400',
+                        bar: 'bg-blue-500',
+                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
+                        tooltip: '',
                     },
                     {
                         label: 'Approved',
                         value: metrics.approved_pct,
-                        color: 'text-blue-600 dark:text-blue-400',
-                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
+                        color: 'text-green-600 dark:text-green-400',
+                        bar: 'bg-green-500',
+                        ring: 'border-green-500/30 bg-green-500/5 dark:bg-green-500/10',
+                        tooltip: '',
+                    },
+                    {
+                        label: 'Rejected',
+                        value: metrics.rejected_pct,
+                        color: 'text-red-600 dark:text-red-400',
+                        bar: 'bg-red-500',
+                        ring: 'border-red-500/30 bg-red-500/5 dark:bg-red-500/10',
+                        tooltip: '',
                     },
                 ]"
                 :key="card.label"
-                :class="['rounded-xl border px-6 py-4', card.ring]"
+                :class="['rounded-xl border px-5 py-4', card.ring]"
             >
-                <p class="text-sm text-muted-foreground">{{ card.label }}</p>
+                <p
+                    class="flex items-center gap-1 text-sm text-muted-foreground"
+                    :title="card.tooltip || undefined"
+                >
+                    {{ card.label }}
+                    <span
+                        v-if="card.tooltip"
+                        class="cursor-help text-xs text-muted-foreground/50"
+                        >ⓘ</span
+                    >
+                </p>
                 <p
                     :class="[
                         'mt-1 text-3xl font-bold tabular-nums',
@@ -526,13 +552,7 @@ const STATUS_META: Record<string, { short: string; color: string }> = {
                 >
                     <div
                         class="h-full rounded-full transition-all"
-                        :class="
-                            card.label === 'Progress'
-                                ? 'bg-emerald-500'
-                                : card.label === 'Submitted'
-                                  ? 'bg-violet-500'
-                                  : 'bg-blue-500'
-                        "
+                        :class="card.bar"
                         :style="{ width: pct(card.value) + '%' }"
                     />
                 </div>

@@ -23,6 +23,7 @@ interface Metrics {
     progress_pct: number;
     approved_pct: number;
     submitted_pct: number;
+    rejected_pct: number;
 }
 interface TrendPoint {
     snapshot_at: string;
@@ -95,6 +96,7 @@ const metrics = ref<Metrics>({
     progress_pct: 0,
     approved_pct: 0,
     submitted_pct: 0,
+    rejected_pct: 0,
 });
 const statusTotals = ref<Record<string, number>>({});
 const breakdown = ref<BreakdownRow[]>([]);
@@ -1539,7 +1541,7 @@ function rowContext(row: BreakdownRow): string {
         </Teleport>
 
         <!-- Metric cards -->
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
             <div
                 v-for="card in [
                     {
@@ -1548,6 +1550,7 @@ function rowContext(row: BreakdownRow): string {
                         fmt: 'n',
                         color: 'text-violet-600 dark:text-violet-400',
                         ring: '',
+                        tooltip: '',
                     },
                     {
                         label: 'Kecamatan',
@@ -1555,6 +1558,7 @@ function rowContext(row: BreakdownRow): string {
                         fmt: 'n',
                         color: 'text-blue-600 dark:text-blue-400',
                         ring: '',
+                        tooltip: '',
                     },
                     {
                         label: 'Desa',
@@ -1562,6 +1566,7 @@ function rowContext(row: BreakdownRow): string {
                         fmt: 'n',
                         color: 'text-cyan-600 dark:text-cyan-400',
                         ring: '',
+                        tooltip: '',
                     },
                     {
                         label: 'Total Assignment',
@@ -1569,27 +1574,40 @@ function rowContext(row: BreakdownRow): string {
                         fmt: 'n',
                         color: 'text-foreground',
                         ring: '',
+                        tooltip: '',
                     },
                     {
                         label: 'Progress',
                         value: metrics.progress_pct,
                         fmt: 'p',
-                        color: 'text-emerald-600 dark:text-emerald-400',
-                        ring: 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10',
+                        color: 'text-orange-600 dark:text-orange-400',
+                        ring: 'border-orange-500/30 bg-orange-500/5 dark:bg-orange-500/10',
+                        tooltip:
+                            'Progress = (Total − OPEN) ÷ Total × 100%. Semua status yang sudah diproses (bukan OPEN) dihitung sebagai progress.',
                     },
                     {
                         label: 'Submitted',
                         value: metrics.submitted_pct,
                         fmt: 'p',
-                        color: 'text-violet-600 dark:text-violet-400',
-                        ring: 'border-violet-500/30 bg-violet-500/5 dark:bg-violet-500/10',
+                        color: 'text-blue-600 dark:text-blue-400',
+                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
+                        tooltip: '',
                     },
                     {
                         label: 'Approved',
                         value: metrics.approved_pct,
                         fmt: 'p',
-                        color: 'text-blue-600 dark:text-blue-400',
-                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
+                        color: 'text-green-600 dark:text-green-400',
+                        ring: 'border-green-500/30 bg-green-500/5 dark:bg-green-500/10',
+                        tooltip: '',
+                    },
+                    {
+                        label: 'Rejected',
+                        value: metrics.rejected_pct,
+                        fmt: 'p',
+                        color: 'text-red-600 dark:text-red-400',
+                        ring: 'border-red-500/30 bg-red-500/5 dark:bg-red-500/10',
+                        tooltip: '',
                     },
                 ]"
                 :key="card.label"
@@ -1600,7 +1618,17 @@ function rowContext(row: BreakdownRow): string {
                         : 'border-sidebar-border/70 bg-card dark:border-sidebar-border',
                 ]"
             >
-                <p class="text-sm text-muted-foreground">{{ card.label }}</p>
+                <p
+                    class="flex items-center gap-1 text-sm text-muted-foreground"
+                    :title="card.tooltip || undefined"
+                >
+                    {{ card.label }}
+                    <span
+                        v-if="card.tooltip"
+                        class="cursor-help text-xs text-muted-foreground/50"
+                        >ⓘ</span
+                    >
+                </p>
                 <p
                     :class="[
                         'mt-1 text-2xl font-bold tabular-nums',
