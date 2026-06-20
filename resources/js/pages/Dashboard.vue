@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { Sun, Moon, Pencil, X } from '@lucide/vue';
+import { Sun, Moon, Pencil, X, ChevronDown, ChevronUp } from '@lucide/vue';
 import { useDark, useWindowSize } from '@vueuse/core';
 import { ref, reactive, watch, computed, onMounted } from 'vue';
 
@@ -644,6 +644,12 @@ const barTopData = computed(() =>
         .sort((a, b) => b.progress_pct - a.progress_pct)
         .slice(0, TOP_N),
 );
+
+const barYMax = computed(() => {
+    const maxVal = Math.max(0, ...barTopData.value.map((r) => r.progress_pct));
+
+    return Math.max(20, Math.ceil((maxVal + 5) / 10) * 10);
+});
 const barCategories = computed(() =>
     barTopData.value.map((r) => r.label.slice(0, 18)),
 );
@@ -671,14 +677,19 @@ const barOptions = computed(() => ({
         },
     },
     yaxis: {
-        max: 100,
+        max: barYMax.value,
         labels: {
             formatter: (v: number) => v + '%',
             style: { fontSize: cFontXs.value },
         },
     },
     tooltip: { y: { formatter: (v: number) => v.toFixed(1) + '%' } },
-    dataLabels: { enabled: false },
+    dataLabels: {
+        enabled: true,
+        formatter: (val: number) => (val > 0 ? val.toFixed(1) + '%' : ''),
+        style: { fontSize: cFontXs.value, fontWeight: 500 },
+        offsetY: -4,
+    },
     legend: { position: 'top' as const, fontSize: cFontMd.value },
 }));
 
@@ -1142,20 +1153,28 @@ function rowContext(row: BreakdownRow): string {
         >
             <!-- Toggle header -->
             <button
-                class="flex w-full items-center justify-between px-4 py-2.5 text-sm font-semibold"
+                :class="[
+                    'flex w-full items-center justify-between rounded-t-xl px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted/50',
+                    filterPanelOpen ? 'bg-muted/30' : '',
+                ]"
                 @click="filterPanelOpen = !filterPanelOpen"
             >
                 <div class="flex items-center gap-2">
-                    <span>Filter Wilayah</span>
+                    <span
+                        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >Filter Wilayah</span
+                    >
                     <span
                         v-if="totalActiveFilters"
-                        class="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground"
+                        class="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground"
                         >{{ totalActiveFilters }}</span
                     >
                 </div>
-                <span class="text-xs text-muted-foreground">{{
-                    filterPanelOpen ? '▲' : '▼'
-                }}</span>
+                <ChevronDown
+                    v-if="!filterPanelOpen"
+                    class="size-4 text-muted-foreground"
+                />
+                <ChevronUp v-else class="size-4 text-muted-foreground" />
             </button>
 
             <div
@@ -1170,10 +1189,14 @@ function rowContext(row: BreakdownRow): string {
                         Provinsi
                     </p>
                     <div
-                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
+                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-dashed border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground/70 opacity-80 select-none"
                     >
-                        <span>{{ filterOptions.prov[0]?.label ?? '—' }}</span>
-                        <span class="text-xs opacity-40">⬍</span>
+                        <span class="italic">{{
+                            filterOptions.prov[0]?.label ?? '—'
+                        }}</span>
+                        <span class="text-[10px] text-muted-foreground/40"
+                            >hanya baca</span
+                        >
                     </div>
                 </div>
 
@@ -1185,10 +1208,14 @@ function rowContext(row: BreakdownRow): string {
                         Kabupaten/Kota
                     </p>
                     <div
-                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
+                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-dashed border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground/70 opacity-80 select-none"
                     >
-                        <span>{{ filterOptions.kab[0]?.label ?? '—' }}</span>
-                        <span class="text-xs opacity-40">⬍</span>
+                        <span class="italic">{{
+                            filterOptions.kab[0]?.label ?? '—'
+                        }}</span>
+                        <span class="text-[10px] text-muted-foreground/40"
+                            >hanya baca</span
+                        >
                     </div>
                 </div>
 
@@ -1201,10 +1228,10 @@ function rowContext(row: BreakdownRow): string {
                     </p>
                     <button
                         :class="[
-                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
+                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                             filters.filter_kec.length
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-input bg-background text-foreground hover:bg-muted',
+                                ? 'border-2 border-primary bg-primary/15 text-primary'
+                                : 'border border-input bg-background text-foreground hover:bg-muted',
                         ]"
                         @click="toggleDropdown('kec')"
                     >
@@ -1292,10 +1319,10 @@ function rowContext(row: BreakdownRow): string {
                     </p>
                     <button
                         :class="[
-                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
+                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                             filters.filter_desa.length
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-input bg-background text-foreground hover:bg-muted',
+                                ? 'border-2 border-primary bg-primary/15 text-primary'
+                                : 'border border-input bg-background text-foreground hover:bg-muted',
                         ]"
                         @click="toggleDropdown('desa')"
                     >
@@ -1395,10 +1422,10 @@ function rowContext(row: BreakdownRow): string {
                     </p>
                     <button
                         :class="[
-                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
+                            'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                             filters.filter_sls.length
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-input bg-background text-foreground hover:bg-muted',
+                                ? 'border-2 border-primary bg-primary/15 text-primary'
+                                : 'border border-input bg-background text-foreground hover:bg-muted',
                         ]"
                         @click="toggleDropdown('sls')"
                     >
@@ -1515,46 +1542,58 @@ function rowContext(row: BreakdownRow): string {
                         value: metrics.total_petugas,
                         fmt: 'n',
                         color: 'text-violet-600 dark:text-violet-400',
+                        ring: '',
                     },
                     {
                         label: 'Kecamatan',
                         value: metrics.total_kec,
                         fmt: 'n',
                         color: 'text-blue-600 dark:text-blue-400',
+                        ring: '',
                     },
                     {
                         label: 'Desa',
                         value: metrics.total_desa,
                         fmt: 'n',
                         color: 'text-cyan-600 dark:text-cyan-400',
+                        ring: '',
                     },
                     {
                         label: 'Total Assignment',
                         value: metrics.total_rt,
                         fmt: 'n',
                         color: 'text-foreground',
+                        ring: '',
                     },
                     {
                         label: 'Progress',
                         value: metrics.progress_pct,
                         fmt: 'p',
                         color: 'text-emerald-600 dark:text-emerald-400',
+                        ring: 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10',
                     },
                     {
                         label: 'Submitted',
                         value: metrics.submitted_pct,
                         fmt: 'p',
                         color: 'text-violet-600 dark:text-violet-400',
+                        ring: 'border-violet-500/30 bg-violet-500/5 dark:bg-violet-500/10',
                     },
                     {
                         label: 'Approved',
                         value: metrics.approved_pct,
                         fmt: 'p',
                         color: 'text-blue-600 dark:text-blue-400',
+                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
                     },
                 ]"
                 :key="card.label"
-                class="rounded-xl border border-sidebar-border/70 bg-card px-4 py-3 dark:border-sidebar-border"
+                :class="[
+                    'rounded-xl border px-4 py-3',
+                    card.ring
+                        ? card.ring
+                        : 'border-sidebar-border/70 bg-card dark:border-sidebar-border',
+                ]"
             >
                 <p class="text-sm text-muted-foreground">{{ card.label }}</p>
                 <p

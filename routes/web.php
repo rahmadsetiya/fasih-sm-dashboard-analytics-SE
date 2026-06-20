@@ -13,6 +13,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/data', [DashboardController::class, 'data'])->name('dashboard.data');
     Route::get('/api/snapshots', [DashboardController::class, 'snapshots'])->name('dashboard.snapshots');
 
+    Route::get('/ringkasan', [DashboardController::class, 'ringkasan'])->name('ringkasan');
+    Route::get('/api/ringkasan-data', [DashboardController::class, 'ringkasanData'])->name('ringkasan.data');
+
     Route::get('/api/db-status', [DatabaseImportController::class, 'status'])->name('db.status');
     Route::post('/import-db', [DatabaseImportController::class, 'store'])->name('db.import');
 

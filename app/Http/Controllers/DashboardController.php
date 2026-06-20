@@ -74,6 +74,112 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function ringkasan(): Response
+    {
+        $dbPath = config('database.connections.fasih.database');
+
+        $snapshots = [];
+        if (file_exists($dbPath)) {
+            $snapshots = DB::connection('fasih')
+                ->table('progress_pengawas')
+                ->selectRaw('DISTINCT snapshot_at')
+                ->orderByDesc('snapshot_at')
+                ->pluck('snapshot_at')
+                ->all();
+        }
+
+        return Inertia::render('Ringkasan', [
+            'snapshots' => $snapshots,
+            'db_ready' => file_exists($dbPath),
+        ]);
+    }
+
+    public function ringkasanData(Request $request): JsonResponse
+    {
+        $snapshot = $request->input('snapshot', '');
+
+        $baseP = DB::connection('fasih')->table('progress_pengawas')->where('snapshot_at', $snapshot);
+        $baseC = DB::connection('fasih')->table('progress_pencacah')->where('snapshot_at', $snapshot);
+
+        // Geo info
+        $geoRow = (clone $baseP)->selectRaw('kdprov, nmprov, kdkab, nmkab')->first();
+
+        // Metrics
+        $m = (clone $baseP)->selectRaw('
+            COUNT(DISTINCT kdkec)                as total_kec,
+            COUNT(DISTINCT kdkec || kddes)        as total_desa,
+            COUNT(DISTINCT kdkec || kddes || kdsls) as total_sls,
+            COUNT(DISTINCT idsubsls)             as total_subsls,
+            COUNT(DISTINCT username)             as total_pengawas,
+            SUM(region_total)                    as total_rt,
+            SUM("OPEN")                          as total_open,
+            SUM("APPROVED BY Pengawas")          as total_approved,
+            SUM("SUBMITTED BY Pencacah")         as total_submitted
+        ')->first();
+
+        $totalPencacah = (clone $baseC)->distinct()->count('username');
+
+        $total = (int) ($m->total_rt ?: 1);
+        $open = (int) ($m->total_open ?: 0);
+        $approved = (int) ($m->total_approved ?: 0);
+        $submitted = (int) ($m->total_submitted ?: 0);
+
+        // Status totals
+        $statusRow = (clone $baseP)->selectRaw($this->statusSumSql())->first();
+        $statusTotals = [];
+        foreach (self::STATUS_COLS as $col) {
+            $statusTotals[$col] = (int) ($statusRow->$col ?? 0);
+        }
+
+        // Kecamatan breakdown
+        $sums = $this->statusSumSql();
+        $kecRows = (clone $baseP)->selectRaw("
+            kdkec, nmkec,
+            COUNT(DISTINCT kdkec || kddes) as total_desa,
+            SUM(region_total) as total, $sums
+        ")->groupBy('kdkec', 'nmkec')->orderByDesc('total_rt')->get();
+
+        $kecamatan = $kecRows->map(function ($r) {
+            $tot = (int) ($r->total ?: 1);
+            $open = (int) ($r->OPEN ?? 0);
+            $app = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
+            $statuses = [];
+            foreach (self::STATUS_COLS as $c) {
+                $statuses[$c] = (int) ($r->$c ?? 0);
+            }
+
+            return [
+                'kdkec' => $r->kdkec,
+                'nmkec' => $r->nmkec,
+                'total_desa' => (int) $r->total_desa,
+                'total' => $tot,
+                'progress_pct' => round(($tot - $open) / $tot * 100, 1),
+                'approved_pct' => round($app / $tot * 100, 1),
+                'statuses' => $statuses,
+            ];
+        })->sortByDesc('total')->values()->all();
+
+        return response()->json([
+            'kab_name' => $geoRow?->nmkab ?? '—',
+            'prov_name' => $geoRow?->nmprov ?? '—',
+            'metrics' => [
+                'total_kec' => (int) $m->total_kec,
+                'total_desa' => (int) $m->total_desa,
+                'total_sls' => (int) $m->total_sls,
+                'total_subsls' => (int) $m->total_subsls,
+                'total_pengawas' => (int) $m->total_pengawas,
+                'total_pencacah' => $totalPencacah,
+                'total_assignment' => $total,
+                'progress_pct' => round(($total - $open) / $total * 100, 1),
+                'approved_pct' => round($approved / $total * 100, 1),
+                'submitted_pct' => round($submitted / $total * 100, 1),
+            ],
+            'status_totals' => $statusTotals,
+            'kecamatan' => $kecamatan,
+            'trend' => $this->calcTrend('progress_pengawas', [], [], []),
+        ]);
+    }
+
     public function snapshots(): JsonResponse
     {
         $rows = [];

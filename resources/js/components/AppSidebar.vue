@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart3, Users } from '@lucide/vue';
+import { BarChart3, ClipboardList, Users } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import ImportDbButton from '@/components/ImportDbButton.vue';
@@ -23,6 +23,11 @@ const page = usePage<{ auth: { user: { is_admin: boolean } } }>();
 const isAdmin = computed(() => page.props.auth?.user?.is_admin ?? false);
 
 const mainNavItems: NavItem[] = [
+    {
+        title: 'Ringkasan Kabupaten',
+        href: '/ringkasan',
+        icon: ClipboardList,
+    },
     {
         title: 'Dashboard FASIH',
         href: '/',
