@@ -666,7 +666,12 @@ const barOptions = computed(() => ({
     },
     theme: { mode: chartMode.value },
     plotOptions: {
-        bar: { horizontal: false, columnWidth: '65%', borderRadius: 3 },
+        bar: {
+            horizontal: false,
+            columnWidth: '65%',
+            borderRadius: 3,
+            dataLabels: { position: 'top' },
+        },
     },
     colors: ['#059669', '#1d4ed8'],
     xaxis: {
@@ -688,7 +693,7 @@ const barOptions = computed(() => ({
         enabled: true,
         formatter: (val: number) => (val > 0 ? val.toFixed(1) + '%' : ''),
         style: { fontSize: cFontXs.value, fontWeight: 500 },
-        offsetY: -4,
+        offsetY: -20,
     },
     legend: { position: 'top' as const, fontSize: cFontMd.value },
 }));
