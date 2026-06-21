@@ -43,14 +43,20 @@ const MAX_RANGE_DAYS = 14;
 function addDays(dateStr: string, days: number): string {
     const d = new Date(dateStr);
     d.setDate(d.getDate() + days);
+
     return d.toISOString().slice(0, 10);
 }
 
 const dateFrom = ref('2026-06-15');
 const dateTo = ref((() => {
     const raw = props.date_range?.max ?? '';
-    if (!raw) return '';
+
+    if (!raw) {
+      return '';
+    }
+
     const cap = addDays('2026-06-15', MAX_RANGE_DAYS);
+
     return raw > cap ? cap : raw;
 })());
 
@@ -70,21 +76,30 @@ const kecList = computed<WilayahItem[]>(() => props.wilayah['3'] ?? []);
 const selectedKec = computed(() => kecList.value.find((k) => k.uuid === selectedKecUuid.value) ?? null);
 
 const desaList = computed<WilayahItem[]>(() => {
-    if (!selectedKec.value) return [];
+    if (!selectedKec.value) {
+return [];
+}
+
     return (props.wilayah['4'] ?? []).filter((d) => d.parent_uuid === selectedKec.value!.uuid);
 });
 
 const selectedDesa = computed(() => desaList.value.find((d) => d.uuid === selectedDesaUuid.value) ?? null);
 
 const slsList = computed<WilayahItem[]>(() => {
-    if (!selectedDesa.value) return [];
+    if (!selectedDesa.value) {
+return [];
+}
+
     return (props.wilayah['5'] ?? []).filter((s) => s.parent_uuid === selectedDesa.value!.uuid);
 });
 
 const selectedSls = computed(() => slsList.value.find((s) => s.uuid === selectedSlsUuid.value) ?? null);
 
 const subslsList = computed<WilayahItem[]>(() => {
-    if (!selectedSls.value) return [];
+    if (!selectedSls.value) {
+return [];
+}
+
     return (props.wilayah['6'] ?? []).filter((ss) => ss.parent_uuid === selectedSls.value!.uuid);
 });
 
@@ -94,20 +109,45 @@ const selectedSubsls = computed(() =>
 
 // Active filter for the API (most specific selected level wins)
 const activeFilter = computed<{ level: string; code: string } | null>(() => {
-    if (selectedSubsls.value) return { level: 'subsls', code: selectedSubsls.value.code };
-    if (selectedSls.value) return { level: 'sls', code: selectedSls.value.code };
-    if (selectedDesa.value) return { level: 'desa', code: selectedDesa.value.code };
-    if (selectedKec.value) return { level: 'kec', code: selectedKec.value.code };
+    if (selectedSubsls.value) {
+return { level: 'subsls', code: selectedSubsls.value.code };
+}
+
+    if (selectedSls.value) {
+return { level: 'sls', code: selectedSls.value.code };
+}
+
+    if (selectedDesa.value) {
+return { level: 'desa', code: selectedDesa.value.code };
+}
+
+    if (selectedKec.value) {
+return { level: 'kec', code: selectedKec.value.code };
+}
+
     return null;
 });
 
 // Breadcrumb label for current geo selection
 const geoBreadcrumb = computed(() => {
     const parts: string[] = [];
-    if (selectedKec.value) parts.push(selectedKec.value.name);
-    if (selectedDesa.value) parts.push(selectedDesa.value.name);
-    if (selectedSls.value) parts.push(selectedSls.value.name);
-    if (selectedSubsls.value) parts.push(selectedSubsls.value.name);
+
+    if (selectedKec.value) {
+parts.push(selectedKec.value.name);
+}
+
+    if (selectedDesa.value) {
+parts.push(selectedDesa.value.name);
+}
+
+    if (selectedSls.value) {
+parts.push(selectedSls.value.name);
+}
+
+    if (selectedSubsls.value) {
+parts.push(selectedSubsls.value.name);
+}
+
     return parts.join(' › ');
 });
 
@@ -126,23 +166,40 @@ watch(selectedSlsUuid, () => {
 });
 
 watch(dateFrom, (val) => {
-    if (!val || !dateTo.value) return;
-    if (dateTo.value > addDays(val, MAX_RANGE_DAYS))
-        dateTo.value = addDays(val, MAX_RANGE_DAYS);
-    if (dateTo.value < val) dateTo.value = val;
+    if (!val || !dateTo.value) {
+return;
+}
+
+    if (dateTo.value > addDays(val, MAX_RANGE_DAYS)) {
+dateTo.value = addDays(val, MAX_RANGE_DAYS);
+}
+
+    if (dateTo.value < val) {
+dateTo.value = val;
+}
 });
 
 watch(dateTo, (val) => {
-    if (!val || !dateFrom.value) return;
+    if (!val || !dateFrom.value) {
+return;
+}
+
     const minFrom = addDays(val, -MAX_RANGE_DAYS);
-    if (dateFrom.value < minFrom) dateFrom.value = minFrom;
-    if (dateFrom.value > val) dateFrom.value = val;
+
+    if (dateFrom.value < minFrom) {
+dateFrom.value = minFrom;
+}
+
+    if (dateFrom.value > val) {
+dateFrom.value = val;
+}
 });
 
 // ── chart options factory ─────────────────────────────────────────────────
 function makeChartOptions(color: string) {
     const textColor = isDark.value ? '#a1a1aa' : '#71717a';
     const zeroColor = isDark.value ? '#27272a' : '#f4f4f5';
+
     return {
         chart: {
             type: 'heatmap' as const,
@@ -204,20 +261,30 @@ const chartOptionsMap = computed(() => ({
 
 function chartHeight(statusId: number): number {
     const rows = seriesData[statusId]?.length ?? 0;
+
     return Math.max(160, rows * 28 + 80);
 }
 
 // ── fetch ─────────────────────────────────────────────────────────────────
 async function fetchStatus(statusId: 1 | 2 | 3) {
     panelLoading[statusId] = true;
+
     try {
         const params = new URLSearchParams({
             status_id: String(statusId),
             dimension: dimension.value,
         });
-        if (dateFrom.value) params.set('date_from', dateFrom.value);
-        if (dateTo.value) params.set('date_to', dateTo.value);
+
+        if (dateFrom.value) {
+params.set('date_from', dateFrom.value);
+}
+
+        if (dateTo.value) {
+params.set('date_to', dateTo.value);
+}
+
         const af = activeFilter.value;
+
         if (af) {
             params.set('filter_level', af.level);
             params.set('filter_code', af.code);
@@ -234,7 +301,10 @@ async function fetchStatus(statusId: 1 | 2 | 3) {
 }
 
 function fetchAll() {
-    if (!props.db_ready) return;
+    if (!props.db_ready) {
+return;
+}
+
     fetchStatus(1);
     fetchStatus(2);
     fetchStatus(3);
@@ -460,6 +530,29 @@ function resetGeo() {
                                 &middot; top 30
                             </template>
                         </span>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="flex items-center gap-3 border-b border-zinc-100 px-4 py-1.5 dark:border-zinc-700">
+                        <span class="text-[10px] text-zinc-400 dark:text-zinc-500">Jumlah:</span>
+                        <div class="flex items-center gap-2">
+                            <span class="flex items-center gap-1">
+                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: isDark ? '#27272a' : '#f4f4f5' }" />
+                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">0</span>
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: s.color + '55' }" />
+                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">1–3</span>
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: s.color + 'aa' }" />
+                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">4–10</span>
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: s.color }" />
+                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">11+</span>
+                            </span>
+                        </div>
                     </div>
 
                     <!-- Loading -->

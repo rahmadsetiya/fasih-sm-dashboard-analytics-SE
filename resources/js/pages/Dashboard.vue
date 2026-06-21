@@ -510,7 +510,7 @@ const STATUS_META: Record<
     DRAFT: { short: 'Draft', color: '#FFD45A', title: 'Sedang diisi' },
     'SUBMITTED BY Pencacah': {
         short: 'Sub.P',
-        color: '#FF8B5A',
+        color: '#3b82f6',
         title: 'Diserahkan Pencacah',
     },
     'APPROVED BY Pengawas': {
@@ -694,7 +694,11 @@ const barOptions = computed(() => ({
     dataLabels: {
         enabled: true,
         formatter: (val: number) => (val > 0 ? val.toFixed(1) + '%' : ''),
-        style: { fontSize: cFontXs.value, fontWeight: 500 },
+        style: {
+            fontSize: cFontXs.value,
+            fontWeight: 500,
+            colors: [isDark.value ? '#e4e4e7' : '#3f3f46'],
+        },
         offsetY: -20,
     },
     legend: { position: 'top' as const, fontSize: cFontMd.value },
@@ -713,18 +717,13 @@ const trendCategories = computed(() =>
     }),
 );
 const trendMax = computed(() => {
-    if (trend.value.length <= 1) {
-        const maxVal = Math.max(
-            0,
-            ...trend.value.map((t) =>
-                Math.max(t.progress_pct, t.submitted_pct, t.approved_pct),
-            ),
-        );
-
-        return Math.ceil((maxVal + 5) / 5) * 5 || 20;
-    }
-
-    return 100;
+    const maxVal = Math.max(
+        0,
+        ...trend.value.map((t) =>
+            Math.max(t.progress_pct, t.submitted_pct, t.approved_pct),
+        ),
+    );
+    return Math.ceil((maxVal + 5) / 5) * 5 || 20;
 });
 
 const trendOptions = computed(() => ({
@@ -1156,19 +1155,21 @@ function rowContext(row: BreakdownRow): string {
         <!-- Filter Wilayah — stacked cascading panel -->
         <div
             v-if="filterOptions !== null"
-            class="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border"
+            class="rounded-xl border-2 border-orange-400/60 bg-card dark:border-orange-500/40"
         >
             <!-- Toggle header -->
             <button
                 :class="[
-                    'flex w-full items-center justify-between rounded-t-xl px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted/50',
-                    filterPanelOpen ? 'bg-muted/30' : '',
+                    'flex w-full items-center justify-between rounded-t-xl px-4 py-2.5 text-sm font-semibold transition-colors',
+                    filterPanelOpen
+                        ? 'bg-orange-50/60 dark:bg-orange-950/30'
+                        : 'hover:bg-orange-50/40 dark:hover:bg-orange-950/20',
                 ]"
                 @click="filterPanelOpen = !filterPanelOpen"
             >
                 <div class="flex items-center gap-2">
                     <span
-                        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        class="text-xs font-bold tracking-wide text-orange-600 uppercase dark:text-orange-400"
                         >Filter Wilayah</span
                     >
                     <span
@@ -1179,9 +1180,9 @@ function rowContext(row: BreakdownRow): string {
                 </div>
                 <ChevronDown
                     v-if="!filterPanelOpen"
-                    class="size-4 text-muted-foreground"
+                    class="size-4 text-orange-500"
                 />
-                <ChevronUp v-else class="size-4 text-muted-foreground" />
+                <ChevronUp v-else class="size-4 text-orange-500" />
             </button>
 
             <div

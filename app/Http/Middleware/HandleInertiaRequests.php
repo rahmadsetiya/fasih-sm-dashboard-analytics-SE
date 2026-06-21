@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,6 +36,20 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $latestSnapshot = null;
+        $dbPath = config('database.connections.fasih.database');
+        if (file_exists($dbPath)) {
+            try {
+                $row = DB::connection('fasih')
+                    ->table('progress_pengawas')
+                    ->selectRaw('MAX(snapshot_at) as latest')
+                    ->first();
+                $latestSnapshot = $row?->latest ?? null;
+            } catch (\Exception) {
+                // fasih.db exists but table missing — ignore
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -45,6 +60,7 @@ class HandleInertiaRequests extends Middleware
                 ) : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'latest_snapshot' => $latestSnapshot,
         ];
     }
 }
