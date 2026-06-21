@@ -1591,8 +1591,8 @@ function rowContext(row: BreakdownRow): string {
                         value: metrics.submitted_pct,
                         fmt: 'p',
                         color: '',
-                        hex: '#FF8B5A',
-                        ring: 'border-[#FF8B5A]/40 bg-[#FF8B5A]/8 dark:bg-[#FF8B5A]/12',
+                        hex: '#3b82f6',
+                        ring: 'border-blue-500/40 bg-blue-500/8 dark:bg-blue-500/12',
                         tooltip: '',
                     },
                     {

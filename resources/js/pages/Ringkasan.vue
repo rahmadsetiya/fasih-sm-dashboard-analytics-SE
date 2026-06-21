@@ -199,7 +199,7 @@ const trendOptions = computed(() => ({
     },
     theme: { mode: chartMode.value },
     stroke: { curve: 'smooth' as const, width: 2.5 },
-    colors: ['#FFA95A', '#FF8B5A', '#22c55e'],
+    colors: ['#FFA95A', '#3b82f6', '#22c55e'],
     xaxis: {
         categories: trendCategories.value,
         labels: { rotate: -30, style: { fontSize: cFontXs.value } },
@@ -401,9 +401,9 @@ function pct(v: number) {
                     {
                         label: 'Submitted',
                         value: metrics.submitted_pct,
-                        hex: '#FF8B5A',
-                        bar: 'bg-[#FF8B5A]',
-                        ring: 'border-[#FF8B5A]/40 bg-[#FF8B5A]/8 dark:bg-[#FF8B5A]/12',
+                        hex: '#3b82f6',
+                        bar: 'bg-blue-500',
+                        ring: 'border-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10',
                         tooltip: '',
                     },
                     {

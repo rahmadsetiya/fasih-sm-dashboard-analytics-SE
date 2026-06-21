@@ -104,7 +104,16 @@ function uploadFile(file: File) {
 
     xhr.onload = () => {
         uploading.value = false;
-        const data = JSON.parse(xhr.responseText);
+
+        let data: { message?: string; size_mb?: number; modified_at?: string };
+        try {
+            data = JSON.parse(xhr.responseText);
+        } catch {
+            const preview = xhr.responseText.slice(0, 120).replace(/<[^>]+>/g, ' ').trim();
+            toast.error(`HTTP ${xhr.status}: ${preview || 'No response body'}`);
+            if (fileInput.value) fileInput.value.value = '';
+            return;
+        }
 
         if (xhr.status === 200) {
             status.value = {
