@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart3, ClipboardList, Users } from '@lucide/vue';
+import { Activity, BarChart3, ClipboardList, Users } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import ImportDbButton from '@/components/ImportDbButton.vue';
@@ -32,6 +32,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard FASIH',
         href: '/',
         icon: BarChart3,
+    },
+    {
+        title: 'Heatmap Aktivitas',
+        href: '/heatmap',
+        icon: Activity,
     },
 ];
 

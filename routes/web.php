@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseImportController;
+use App\Http\Controllers\HeatmapController;
 use App\Http\Controllers\PetugasNameController;
 use App\Http\Controllers\RegionNameController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/ringkasan', [DashboardController::class, 'ringkasan'])->name('ringkasan');
     Route::get('/api/ringkasan-data', [DashboardController::class, 'ringkasanData'])->name('ringkasan.data');
+
+    Route::get('/heatmap', [HeatmapController::class, 'index'])->name('heatmap');
+    Route::get('/api/heatmap', [HeatmapController::class, 'data'])->name('heatmap.data');
 
     Route::get('/api/db-status', [DatabaseImportController::class, 'status'])->name('db.status');
     Route::post('/import-db', [DatabaseImportController::class, 'store'])->name('db.import');
