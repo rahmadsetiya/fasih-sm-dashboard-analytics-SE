@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { ChevronsUpDown, LogOut, Settings } from '@lucide/vue';
 import Popover from 'primevue/popover';
 import { computed, ref } from 'vue';
