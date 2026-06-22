@@ -137,13 +137,23 @@ class PenugasanController extends Controller
             return response()->json([]);
         }
 
-        return response()->json(
-            DB::connection('fasih')
-                ->table('assignment_status_changes_full')
-                ->where('assignment_id', $assignmentId)
-                ->select('id', 'from_status', 'to_status', 'change_date', 'pencacah_email', 'pengawas_email')
-                ->orderBy('change_date')
-                ->get()
-        );
+        $rows = DB::connection('fasih')
+            ->table('assignment_status_changes_full')
+            ->where('assignment_id', $assignmentId)
+            ->select('id', 'from_status', 'to_status', 'change_date', 'pencacah_email', 'pengawas_email')
+            ->orderBy('change_date')
+            ->get();
+
+        // Dedup consecutive rows with same to_status
+        $deduped = [];
+        $prevStatus = null;
+        foreach ($rows as $row) {
+            if ($row->to_status !== $prevStatus) {
+                $deduped[] = $row;
+                $prevStatus = $row->to_status;
+            }
+        }
+
+        return response()->json($deduped);
     }
 }

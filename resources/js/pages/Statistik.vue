@@ -32,10 +32,12 @@ interface KorelasiResult {
     r: number | null; r2: number | null; t: number | null; p_value: number | null;
     significant: boolean; interpretasi: string; error?: string;
 }
+interface BangunanKosongSummary { kategori: string; total: number; draft: number; submitted: number; approved: number; rejected: number; }
+interface BangunanKosongKec { nmkec: string; kdkec: string; bangunan_kosong: number; rumah_kosong: number; total: number; submitted: number; approved: number; draft: number; }
 
 // ── state ─────────────────────────────────────────────────────────────────
 const isDark    = useDark();
-const activeTab = ref<'proporsi' | 'komparasi' | 'chi2' | 'korelasi'>('proporsi');
+const activeTab = ref<'proporsi' | 'komparasi' | 'chi2' | 'korelasi' | 'bangunan_kosong'>('proporsi');
 const loading   = ref(false);
 
 const proporsiGroup = ref<'kecamatan' | 'gelombang' | 'kelas' | 'tc'>('kecamatan');
@@ -54,9 +56,12 @@ const kompGroups  = computed(() => {
     return (opts[kompGroupBy.value] ?? []).map(l => ({ code: l, label: l }));
 });
 
-const chi2GroupBy = ref<'gelombang' | 'kelas' | 'tc'>('gelombang');
-const chi2Result  = ref<Chi2Result | null>(null);
+const chi2GroupBy    = ref<'gelombang' | 'kelas' | 'tc'>('gelombang');
+const chi2Result     = ref<Chi2Result | null>(null);
 const korelasiResult = ref<KorelasiResult | null>(null);
+
+const bangunanSummary = ref<BangunanKosongSummary[]>([]);
+const bangunanPerKec  = ref<BangunanKosongKec[]>([]);
 
 // ── fetch ─────────────────────────────────────────────────────────────────
 const H = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
@@ -95,11 +100,22 @@ async function fetchKorelasi() {
     } finally { loading.value = false; }
 }
 
+async function fetchBangunanKosong() {
+    loading.value = true;
+    try {
+        const r = await fetch('/api/statistik/bangunan-kosong', { headers: H });
+        const d = await r.json();
+        bangunanSummary.value = d.summary ?? [];
+        bangunanPerKec.value  = d.per_kec ?? [];
+    } finally { loading.value = false; }
+}
+
 onMounted(() => { if (props.db_ready) fetchProporsi(); });
 watch(activeTab, tab => {
     if (tab === 'proporsi') fetchProporsi();
     else if (tab === 'chi2') fetchChi2();
     else if (tab === 'korelasi') fetchKorelasi();
+    else if (tab === 'bangunan_kosong') fetchBangunanKosong();
 });
 watch(proporsiGroup, fetchProporsi);
 watch(chi2GroupBy, fetchChi2);
@@ -137,6 +153,19 @@ const korelasiSeries = computed(() => [{
     name: 'Pencacah',
     data: (korelasiResult.value?.points ?? []).map(p => [p.avg_error, p.rejection_rate]),
 }]);
+
+// ── result box color helper ────────────────────────────────────────────────
+// Returns classes for the colored result box so text is always readable
+function boxClass(significant: boolean): string {
+    return significant
+        ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100'
+        : 'border-amber-400 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100';
+}
+function boxTitleClass(significant: boolean): string {
+    return significant
+        ? 'text-emerald-800 dark:text-emerald-200'
+        : 'text-amber-800 dark:text-amber-200';
+}
 </script>
 
 <template>
@@ -153,10 +182,15 @@ const korelasiSeries = computed(() => [{
         </div>
 
         <!-- Tabs -->
-        <div class="flex gap-1 rounded-lg border bg-muted/40 p-1">
-            <button v-for="tab in [{id:'proporsi',label:'Estimasi Proporsi'},{id:'komparasi',label:'Uji Beda Dua Kelompok'},{id:'chi2',label:'Uji Chi-Squared'},{id:'korelasi',label:'Korelasi'}]"
-                :key="tab.id"
-                :class="['flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+        <div class="grid grid-cols-5 gap-1 rounded-lg border bg-muted/40 p-1">
+            <button v-for="tab in [
+                    {id:'proporsi',label:'Estimasi Proporsi'},
+                    {id:'komparasi',label:'Uji Beda Dua Kelompok'},
+                    {id:'chi2',label:'Uji Chi-Squared'},
+                    {id:'korelasi',label:'Korelasi'},
+                    {id:'bangunan_kosong',label:'Bangunan Kosong'},
+                ]" :key="tab.id"
+                :class="['rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
                     activeTab === tab.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground']"
                 @click="activeTab = tab.id as typeof activeTab">
                 {{ tab.label }}
@@ -244,21 +278,21 @@ const korelasiSeries = computed(() => [{
             <div v-if="kompResult">
                 <div v-if="kompResult.error" class="rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">{{ kompResult.error }}</div>
                 <div v-else class="space-y-3">
-                    <div :class="['rounded-lg border p-3', kompResult.significant ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' : 'border-amber-400 bg-amber-50 dark:bg-amber-950/30']">
-                        <p :class="['text-sm font-semibold', kompResult.significant ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300']">
+                    <div :class="['rounded-lg border p-3', boxClass(kompResult.significant)]">
+                        <p :class="['text-sm font-semibold', boxTitleClass(kompResult.significant)]">
                             {{ kompResult.significant ? '✅ Signifikan' : '⚠️ Tidak Signifikan' }}
                         </p>
-                        <p class="mt-1 text-xs text-muted-foreground">{{ kompResult.interpretasi }}</p>
+                        <p class="mt-1 text-xs opacity-80">{{ kompResult.interpretasi }}</p>
+                        <div class="mt-2 flex gap-6 text-xs">
+                            <span><span class="opacity-70">Z:</span> <span class="font-mono font-medium">{{ kompResult.z }}</span></span>
+                            <span><span class="opacity-70">p-value:</span> <span class="font-mono font-medium">{{ kompResult.p_value }}</span></span>
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div v-for="g in (['group_a', 'group_b'] as const)" :key="g" class="rounded-lg border p-3">
                             <p class="text-xs font-semibold">{{ g === 'group_a' ? 'A' : 'B' }}: {{ kompResult[g].code }}</p>
                             <p class="mt-1 text-xs text-muted-foreground">n={{ kompResult[g].n.toLocaleString('id') }}, Approved={{ kompResult[g].approved.toLocaleString('id') }} ({{ kompResult[g].p }}%)</p>
                         </div>
-                    </div>
-                    <div class="flex gap-6 rounded-lg border p-3 text-xs">
-                        <span><span class="text-muted-foreground">Z:</span> <span class="font-mono font-medium">{{ kompResult.z }}</span></span>
-                        <span><span class="text-muted-foreground">p-value:</span> <span class="font-mono font-medium">{{ kompResult.p_value }}</span></span>
                     </div>
                 </div>
             </div>
@@ -279,15 +313,15 @@ const korelasiSeries = computed(() => [{
             <div v-if="chi2Result">
                 <div v-if="chi2Result.error" class="rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-700">{{ chi2Result.error }}</div>
                 <div v-else class="space-y-3">
-                    <div :class="['rounded-lg border p-3', chi2Result.significant ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' : 'border-amber-400 bg-amber-50 dark:bg-amber-950/30']">
-                        <p :class="['text-sm font-semibold', chi2Result.significant ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300']">
+                    <div :class="['rounded-lg border p-3', boxClass(chi2Result.significant)]">
+                        <p :class="['text-sm font-semibold', boxTitleClass(chi2Result.significant)]">
                             {{ chi2Result.significant ? '✅ Signifikan' : '⚠️ Tidak Signifikan' }}
                         </p>
-                        <p class="mt-1 text-xs text-muted-foreground">{{ chi2Result.interpretasi }}</p>
+                        <p class="mt-1 text-xs opacity-80">{{ chi2Result.interpretasi }}</p>
                         <div class="mt-2 flex gap-6 text-xs">
-                            <span><span class="text-muted-foreground">χ²:</span> <span class="font-mono font-medium">{{ chi2Result.chi2 }}</span></span>
-                            <span><span class="text-muted-foreground">df:</span> <span class="font-mono font-medium">{{ chi2Result.df }}</span></span>
-                            <span><span class="text-muted-foreground">p-value:</span> <span class="font-mono font-medium">{{ chi2Result.p_value }}</span></span>
+                            <span><span class="opacity-70">χ²:</span> <span class="font-mono font-medium">{{ chi2Result.chi2 }}</span></span>
+                            <span><span class="opacity-70">df:</span> <span class="font-mono font-medium">{{ chi2Result.df }}</span></span>
+                            <span><span class="opacity-70">p-value:</span> <span class="font-mono font-medium">{{ chi2Result.p_value }}</span></span>
                         </div>
                     </div>
                     <div class="overflow-x-auto rounded-lg border">
@@ -325,17 +359,17 @@ const korelasiSeries = computed(() => [{
             <div v-if="korelasiResult">
                 <div v-if="korelasiResult.error" class="rounded-lg border border-red-300 bg-red-50 p-3 text-xs text-red-700">{{ korelasiResult.error }}</div>
                 <div v-else class="space-y-3">
-                    <div :class="['rounded-lg border p-3', korelasiResult.significant ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' : 'border-amber-400 bg-amber-50 dark:bg-amber-950/30']">
-                        <p :class="['text-sm font-semibold', korelasiResult.significant ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300']">
+                    <div :class="['rounded-lg border p-3', boxClass(korelasiResult.significant)]">
+                        <p :class="['text-sm font-semibold', boxTitleClass(korelasiResult.significant)]">
                             {{ korelasiResult.significant ? '✅ Signifikan' : '⚠️ Tidak Signifikan' }}
                         </p>
-                        <p class="mt-1 text-xs text-muted-foreground">{{ korelasiResult.interpretasi }}</p>
+                        <p class="mt-1 text-xs opacity-80">{{ korelasiResult.interpretasi }}</p>
                         <div v-if="korelasiResult.r !== null" class="mt-2 flex flex-wrap gap-6 text-xs">
-                            <span><span class="text-muted-foreground">r:</span> <span class="font-mono font-medium">{{ korelasiResult.r }}</span></span>
-                            <span><span class="text-muted-foreground">R²:</span> <span class="font-mono font-medium">{{ korelasiResult.r2 }}</span></span>
-                            <span><span class="text-muted-foreground">t:</span> <span class="font-mono font-medium">{{ korelasiResult.t }}</span></span>
-                            <span><span class="text-muted-foreground">p-value:</span> <span class="font-mono font-medium">{{ korelasiResult.p_value }}</span></span>
-                            <span><span class="text-muted-foreground">n:</span> <span class="font-mono font-medium">{{ korelasiResult.n }}</span></span>
+                            <span><span class="opacity-70">r:</span> <span class="font-mono font-medium">{{ korelasiResult.r }}</span></span>
+                            <span><span class="opacity-70">R²:</span> <span class="font-mono font-medium">{{ korelasiResult.r2 }}</span></span>
+                            <span><span class="opacity-70">t:</span> <span class="font-mono font-medium">{{ korelasiResult.t }}</span></span>
+                            <span><span class="opacity-70">p-value:</span> <span class="font-mono font-medium">{{ korelasiResult.p_value }}</span></span>
+                            <span><span class="opacity-70">n:</span> <span class="font-mono font-medium">{{ korelasiResult.n }}</span></span>
                         </div>
                     </div>
                     <div v-if="korelasiResult.points.length" class="rounded-lg border p-3">
@@ -363,6 +397,75 @@ const korelasiSeries = computed(() => [{
                         </table>
                     </div>
                 </div>
+            </div>
+        </template>
+
+        <!-- ── Bangunan / Rumah Kosong ─────────────────────────────── -->
+        <template v-else-if="activeTab === 'bangunan_kosong'">
+            <p class="text-xs text-muted-foreground">
+                Penugasan dengan tipe bangunan <code class="rounded bg-muted px-1">BANGUNAN KOSONG</code> atau
+                <code class="rounded bg-muted px-1">RUMAH KOSONG</code> berdasarkan kolom <code class="rounded bg-muted px-1">data1</code>.
+            </p>
+
+            <!-- Summary cards -->
+            <div class="grid grid-cols-2 gap-3">
+                <div v-for="row in bangunanSummary" :key="row.kategori" class="rounded-lg border p-4">
+                    <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{{ row.kategori }}</p>
+                    <p class="mt-1 text-2xl font-bold">{{ row.total.toLocaleString('id') }}</p>
+                    <div class="mt-2 flex gap-4 text-xs">
+                        <span class="text-muted-foreground">Draft: <span class="font-medium text-foreground">{{ row.draft.toLocaleString('id') }}</span></span>
+                        <span class="text-blue-600 dark:text-blue-400">Submit: <span class="font-medium">{{ row.submitted.toLocaleString('id') }}</span></span>
+                        <span class="text-emerald-600 dark:text-emerald-400">Approved: <span class="font-medium">{{ row.approved.toLocaleString('id') }}</span></span>
+                        <span class="text-red-600 dark:text-red-400">Rejected: <span class="font-medium">{{ row.rejected.toLocaleString('id') }}</span></span>
+                    </div>
+                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div class="h-full rounded-full bg-emerald-500"
+                            :style="{ width: `${row.total > 0 ? Math.round((row.approved + row.submitted) / row.total * 100) : 0}%` }" />
+                    </div>
+                    <p class="mt-1 text-[10px] text-muted-foreground">
+                        {{ row.total > 0 ? Math.round((row.approved + row.submitted) / row.total * 100) : 0 }}% sudah diproses
+                    </p>
+                </div>
+                <div v-if="!bangunanSummary.length" class="col-span-2 py-8 text-center text-sm text-muted-foreground">
+                    Tidak ada data bangunan/rumah kosong
+                </div>
+            </div>
+
+            <!-- Per kecamatan -->
+            <div v-if="bangunanPerKec.length" class="overflow-x-auto rounded-lg border">
+                <table class="w-full text-xs">
+                    <thead class="bg-muted/50">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium text-muted-foreground">Kecamatan</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Bangunan Kosong</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Rumah Kosong</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Submitted</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Approved</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Draft</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="row in bangunanPerKec" :key="row.kdkec" class="hover:bg-muted/30">
+                            <td class="px-3 py-2 font-medium">{{ row.nmkec }}</td>
+                            <td class="px-3 py-2 text-right">{{ row.bangunan_kosong.toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right">{{ row.rumah_kosong.toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right font-medium">{{ row.total.toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right text-blue-600 dark:text-blue-400">{{ row.submitted.toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{{ row.approved.toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right text-muted-foreground">{{ row.draft.toLocaleString('id') }}</td>
+                        </tr>
+                        <tr class="bg-muted/30 font-medium">
+                            <td class="px-3 py-2">Total</td>
+                            <td class="px-3 py-2 text-right">{{ bangunanPerKec.reduce((s,r) => s + r.bangunan_kosong, 0).toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right">{{ bangunanPerKec.reduce((s,r) => s + r.rumah_kosong, 0).toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right">{{ bangunanPerKec.reduce((s,r) => s + r.total, 0).toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right text-blue-600 dark:text-blue-400">{{ bangunanPerKec.reduce((s,r) => s + r.submitted, 0).toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{{ bangunanPerKec.reduce((s,r) => s + r.approved, 0).toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right text-muted-foreground">{{ bangunanPerKec.reduce((s,r) => s + r.draft, 0).toLocaleString('id') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </template>
     </div>

@@ -375,4 +375,54 @@ class StatistikController extends Controller
                 ." (n={$n} pencacah, p={$pRound})",
         ]);
     }
+
+    public function bangunanKosong(): JsonResponse
+    {
+        $dbPath = config('database.connections.fasih.database');
+        if (! file_exists($dbPath)) {
+            return response()->json(['summary' => [], 'per_kec' => []]);
+        }
+
+        $rows = DB::connection('fasih')
+            ->table('assignments as a')
+            ->leftJoin('wilayah as w', function ($j) {
+                $j->on('w.full_code', '=', 'a.kdkec')->where('w.level', 3);
+            })
+            ->whereRaw("TRIM(a.data1) IN ('BANGUNAN KOSONG', 'RUMAH KOSONG')")
+            ->selectRaw("
+                TRIM(a.data1) as kategori,
+                COALESCE(w.name, a.kdkec) as nmkec,
+                a.kdkec,
+                COUNT(*) as total,
+                SUM(CASE WHEN a.assignment_status_id = 0 THEN 1 ELSE 0 END) as draft,
+                SUM(CASE WHEN a.assignment_status_id = 1 THEN 1 ELSE 0 END) as submitted,
+                SUM(CASE WHEN a.assignment_status_id = 2 THEN 1 ELSE 0 END) as approved,
+                SUM(CASE WHEN a.assignment_status_id = 3 THEN 1 ELSE 0 END) as rejected
+            ")
+            ->groupByRaw("TRIM(a.data1), a.kdkec")
+            ->orderBy('a.kdkec')
+            ->get();
+
+        $byKategori = $rows->groupBy('kategori')->map(fn ($g) => [
+            'kategori'  => $g->first()->kategori,
+            'total'     => $g->sum('total'),
+            'draft'     => $g->sum('draft'),
+            'submitted' => $g->sum('submitted'),
+            'approved'  => $g->sum('approved'),
+            'rejected'  => $g->sum('rejected'),
+        ])->values()->all();
+
+        $perKec = $rows->groupBy('kdkec')->map(fn ($g) => [
+            'nmkec'           => $g->first()->nmkec,
+            'kdkec'           => $g->first()->kdkec,
+            'bangunan_kosong' => $g->where('kategori', 'BANGUNAN KOSONG')->sum('total'),
+            'rumah_kosong'    => $g->where('kategori', 'RUMAH KOSONG')->sum('total'),
+            'total'           => $g->sum('total'),
+            'submitted'       => $g->sum('submitted'),
+            'approved'        => $g->sum('approved'),
+            'draft'           => $g->sum('draft'),
+        ])->sortByDesc('total')->values()->all();
+
+        return response()->json(['summary' => $byKategori, 'per_kec' => $perKec]);
+    }
 }

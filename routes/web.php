@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/statistik/komparasi', [StatistikController::class, 'komparasi'])->name('statistik.komparasi');
     Route::get('/api/statistik/chi2', [StatistikController::class, 'chi2'])->name('statistik.chi2');
     Route::get('/api/statistik/korelasi', [StatistikController::class, 'korelasi'])->name('statistik.korelasi');
+    Route::get('/api/statistik/bangunan-kosong', [StatistikController::class, 'bangunanKosong'])->name('statistik.bangunan-kosong');
 
     Route::get('/api/db-status', [DatabaseImportController::class, 'status'])->name('db.status');
     Route::post('/import-db', [DatabaseImportController::class, 'store'])->name('db.import');
