@@ -1,38 +1,37 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
+import type { BreadcrumbItem } from '@/types';
 
-type Props = {
-    breadcrumbs: BreadcrumbItemType[];
-};
-
-defineProps<Props>();
+defineProps<{ breadcrumbs: BreadcrumbItem[] }>();
 </script>
 
 <template>
-    <Breadcrumb>
-        <BreadcrumbList>
+    <nav aria-label="Breadcrumb">
+        <ol class="flex items-center gap-1.5 text-sm text-muted-foreground">
             <template v-for="(item, index) in breadcrumbs" :key="index">
-                <BreadcrumbItem>
+                <li>
                     <template v-if="index === breadcrumbs.length - 1">
-                        <BreadcrumbPage>{{ item.title }}</BreadcrumbPage>
+                        <span class="font-medium text-foreground">{{
+                            item.title
+                        }}</span>
                     </template>
                     <template v-else>
-                        <BreadcrumbLink as-child>
-                            <Link :href="item.href">{{ item.title }}</Link>
-                        </BreadcrumbLink>
+                        <Link
+                            :href="item.href"
+                            class="transition-colors hover:text-foreground"
+                        >
+                            {{ item.title }}
+                        </Link>
                     </template>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator v-if="index !== breadcrumbs.length - 1" />
+                </li>
+                <li
+                    v-if="index !== breadcrumbs.length - 1"
+                    aria-hidden="true"
+                    class="select-none"
+                >
+                    /
+                </li>
             </template>
-        </BreadcrumbList>
-    </Breadcrumb>
+        </ol>
+    </nav>
 </template>

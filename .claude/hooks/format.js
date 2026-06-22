@@ -12,6 +12,7 @@ process.stdin.on('end', () => {
 return;
 }
 
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const cp = require('child_process');
 
         if (/\.(vue|ts|js|css)$/.test(f)) {
@@ -23,5 +24,5 @@ return;
                 stdio: 'pipe',
             });
         }
-    } catch (_) {}
+    } catch {}
 });

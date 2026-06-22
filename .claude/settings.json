@@ -17,7 +17,7 @@
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": false,
     "caveman@caveman": true,
-    "ecc@ecc": false,
+    "ecc@ecc": true,
     "github@claude-plugins-official": false
   }
 }

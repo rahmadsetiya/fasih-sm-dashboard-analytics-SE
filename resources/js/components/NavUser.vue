@@ -1,55 +1,63 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
-import { ChevronsUpDown } from '@lucide/vue';
-import { computed } from 'vue';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    useSidebar,
-} from '@/components/ui/sidebar';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { ChevronsUpDown, LogOut, Settings } from '@lucide/vue';
+import Popover from 'primevue/popover';
+import { computed, ref } from 'vue';
 import UserInfo from '@/components/UserInfo.vue';
-import UserMenuContent from '@/components/UserMenuContent.vue';
+import { logout } from '@/routes';
+import { edit } from '@/routes/profile';
+import type { User } from '@/types';
 
 const page = usePage();
-const user = computed(() => page.props.auth.user);
-const { isMobile, state } = useSidebar();
+const user = computed(() => page.props.auth.user as User);
+const op = ref();
+
+function toggle(event: Event) {
+    op.value.toggle(event);
+}
 </script>
 
 <template>
-    <SidebarMenu>
-        <SidebarMenuItem>
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <SidebarMenuButton
-                        size="lg"
-                        class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                        data-test="sidebar-menu-button"
-                    >
-                        <UserInfo :user="user" />
-                        <ChevronsUpDown class="ml-auto size-4" />
-                    </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                    class="w-(--reka-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                    :side="
-                        isMobile
-                            ? 'bottom'
-                            : state === 'collapsed'
-                              ? 'left'
-                              : 'bottom'
-                    "
-                    align="end"
-                    :side-offset="4"
+    <button
+        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent/60 focus:outline-none"
+        @click="toggle"
+        aria-haspopup="true"
+    >
+        <UserInfo :user="user" />
+        <ChevronsUpDown class="ml-auto size-4 shrink-0 text-muted-foreground" />
+    </button>
+
+    <Popover ref="op">
+        <div class="min-w-48 py-1">
+            <div
+                class="flex items-center gap-2 border-b border-border px-3 py-2"
+            >
+                <UserInfo :user="user" :show-email="true" />
+            </div>
+
+            <div class="py-1">
+                <Link
+                    :href="edit()"
+                    class="flex items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                    @click="op.hide()"
                 >
-                    <UserMenuContent :user="user" />
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </SidebarMenuItem>
-    </SidebarMenu>
+                    <Settings class="size-4" />
+                    Settings
+                </Link>
+            </div>
+
+            <div class="border-t border-border py-1">
+                <Link
+                    :href="logout()"
+                    as="button"
+                    class="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                    data-test="logout-button"
+                    @click="router.flushAll()"
+                >
+                    <LogOut class="size-4" />
+                    Log out
+                </Link>
+            </div>
+        </div>
+    </Popover>
 </template>

@@ -21,9 +21,10 @@ class SecurityTest extends TestCase
             'confirm' => true,
             'confirmPassword' => true,
         ]);
-        Features::passkeys([
-            'confirmPassword' => true,
-        ]);
+        config(['fortify.features' => array_merge(
+            config('fortify.features', []),
+            [Features::passkeys(['confirmPassword' => true])],
+        )]);
 
         $user = User::factory()->create();
 

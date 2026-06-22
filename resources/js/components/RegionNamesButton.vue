@@ -1,15 +1,8 @@
 <script setup lang="ts">
 import { MapPin } from '@lucide/vue';
+import Dialog from 'primevue/dialog';
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from '@/components/ui/dialog';
-import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 
 const open = ref(false);
 const csvText = ref('');
@@ -31,12 +24,9 @@ async function fetchCount() {
     }
 }
 
-function onOpen(val: boolean) {
-    open.value = val;
-
-    if (val) {
-        fetchCount();
-    }
+function openDialog() {
+    open.value = true;
+    fetchCount();
 }
 
 function getCsrf(): string {
@@ -81,8 +71,8 @@ async function importCsv() {
 
 async function clearAll() {
     if (!confirm('Hapus semua nama wilayah yang tersimpan?')) {
-        return;
-    }
+return;
+}
 
     const res = await fetch('/api/region-names/all', {
         method: 'DELETE',
@@ -99,71 +89,68 @@ async function clearAll() {
 </script>
 
 <template>
-    <Dialog :open="open" @update:open="onOpen">
-        <SidebarMenuItem @click="onOpen(true)">
-            <SidebarMenuButton
-                class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
-                :tooltip="'Nama Wilayah'"
+    <button
+        class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-neutral-600 transition-colors hover:bg-sidebar-accent/60 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+        @click="openDialog"
+    >
+        <MapPin class="size-4 shrink-0" />
+        <span>Nama Wilayah</span>
+    </button>
+
+    <Dialog
+        v-model:visible="open"
+        header="Import Nama Wilayah"
+        :modal="true"
+        :style="{ width: '32rem' }"
+        :draggable="false"
+    >
+        <p class="mb-3 text-sm text-muted-foreground">
+            Paste data CSV dengan format
+            <code class="rounded bg-muted px-1 text-xs">kode,nama</code>
+            (satu baris per wilayah, tanpa header).
+            <span
+                v-if="count !== null"
+                class="ml-1 font-medium text-foreground"
             >
-                <MapPin class="size-4" />
-                <span>Nama Wilayah</span>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+                {{ count }} nama tersimpan.
+            </span>
+        </p>
 
-        <DialogContent class="sm:max-w-lg">
-            <DialogHeader>
-                <DialogTitle>Import Nama Wilayah</DialogTitle>
-                <DialogDescription>
-                    Paste data CSV dengan format
-                    <code class="rounded bg-muted px-1 text-xs">kode,nama</code>
-                    (satu baris per wilayah, tanpa header).
-                    <span
-                        v-if="count !== null"
-                        class="ml-1 font-medium text-foreground"
-                    >
-                        {{ count }} nama tersimpan.
-                    </span>
-                </DialogDescription>
-            </DialogHeader>
-
-            <div class="space-y-1.5">
-                <p class="text-xs text-muted-foreground">Contoh:</p>
-                <pre
-                    class="rounded-md bg-muted px-3 py-2 text-xs text-foreground"
-                >
-7316010,Maiwa
+        <div class="mb-3 space-y-1.5">
+            <p class="text-xs text-muted-foreground">Contoh:</p>
+            <pre
+                class="rounded-md bg-muted px-3 py-2 text-xs text-foreground"
+            >7316010,Maiwa
 7316020,Enrekang
-7316030,Curio</pre
-                >
-            </div>
+7316030,Curio</pre>
+        </div>
 
-            <textarea
-                v-model="csvText"
-                rows="8"
-                placeholder="7316010,Maiwa&#10;7316020,Enrekang&#10;..."
-                class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
-                aria-label="Data CSV nama wilayah"
-            />
+        <textarea
+            v-model="csvText"
+            rows="8"
+            placeholder="7316010,Maiwa&#10;7316020,Enrekang&#10;..."
+            class="w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
+            aria-label="Data CSV nama wilayah"
+        />
 
-            <div class="flex items-center justify-between gap-3">
-                <button
-                    v-if="count && count > 0"
-                    type="button"
-                    class="rounded text-xs text-destructive underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    @click="clearAll"
-                >
-                    Hapus semua ({{ count }})
-                </button>
-                <div class="flex-1" />
-                <button
-                    type="button"
-                    :disabled="loading"
-                    class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    @click="importCsv"
-                >
-                    {{ loading ? 'Menyimpan...' : 'Import' }}
-                </button>
-            </div>
-        </DialogContent>
+        <div class="mt-4 flex items-center justify-between gap-3">
+            <button
+                v-if="count && count > 0"
+                type="button"
+                class="rounded text-xs text-destructive underline-offset-4 hover:underline focus:outline-none"
+                @click="clearAll"
+            >
+                Hapus semua ({{ count }})
+            </button>
+            <div class="flex-1" />
+            <button
+                type="button"
+                :disabled="loading"
+                class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none disabled:opacity-50"
+                @click="importCsv"
+            >
+                {{ loading ? 'Menyimpan...' : 'Import' }}
+            </button>
+        </div>
     </Dialog>
 </template>

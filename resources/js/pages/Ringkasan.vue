@@ -177,18 +177,14 @@ const trendCategories = computed(() =>
     }),
 );
 const trendMax = computed(() => {
-    if (trend.value.length <= 1) {
-        const maxVal = Math.max(
-            0,
-            ...trend.value.map((t) =>
-                Math.max(t.progress_pct, t.submitted_pct, t.approved_pct),
-            ),
-        );
+    const maxVal = Math.max(
+        0,
+        ...trend.value.map((t) =>
+            Math.max(t.progress_pct, t.submitted_pct, t.approved_pct),
+        ),
+    );
 
-        return Math.ceil((maxVal + 5) / 5) * 5 || 20;
-    }
-
-    return 100;
+    return Math.ceil((maxVal + 5) / 5) * 5 || 20;
 });
 const trendOptions = computed(() => ({
     chart: {
@@ -454,6 +450,20 @@ function pct(v: number) {
                     />
                 </div>
             </div>
+        </div>
+
+        <!-- Formula explanation -->
+        <div class="rounded-lg border border-sidebar-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground dark:border-sidebar-border">
+            <span class="font-semibold text-foreground/70">Cara penghitungan:</span>
+            <span class="ml-1.5">
+                <span class="font-medium text-[#FFA95A]">Progress</span> = (Total − Belum Diisi) ÷ Total.
+                <span class="mx-1 opacity-40">·</span>
+                <span class="font-medium text-blue-500">Submitted</span> = Diserahkan Pencacah ÷ Total.
+                <span class="mx-1 opacity-40">·</span>
+                <span class="font-medium text-green-500">Approved</span> = Disetujui Pengawas ÷ Total.
+                <span class="mx-1 opacity-40">·</span>
+                <span class="font-medium text-red-400">Rejected</span> = Ditolak Pengawas ÷ Total.
+            </span>
         </div>
 
         <!-- Charts row -->

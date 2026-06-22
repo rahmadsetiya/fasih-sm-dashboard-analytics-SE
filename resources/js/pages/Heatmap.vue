@@ -35,6 +35,14 @@ const STATUS_OPTIONS = [
     { id: 3 as const, label: 'Rejected By Pengawas', shortLabel: 'Rejected', color: '#ef4444' },
 ];
 
+function colorWithOpacity(hex: string, opacity: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 // ── state ──────────────────────────────────────────────────────────────────
 const isDark = useDark();
 const dimension = ref<Dimension>('pencacah');
@@ -211,13 +219,13 @@ function makeChartOptions(color: string) {
         dataLabels: { enabled: false },
         plotOptions: {
             heatmap: {
-                shadeIntensity: 0.6,
+                enableShades: false,
                 radius: 2,
                 colorScale: {
                     ranges: [
                         { from: 0, to: 0, color: zeroColor, name: '0' },
-                        { from: 1, to: 3, color: color + '55', name: '1–3' },
-                        { from: 4, to: 10, color: color + 'aa', name: '4–10' },
+                        { from: 1, to: 3, color: colorWithOpacity(color, 0.3), name: '1–3' },
+                        { from: 4, to: 10, color: colorWithOpacity(color, 0.65), name: '4–10' },
                         { from: 11, to: 99999, color: color, name: '11+' },
                     ],
                 },
@@ -541,11 +549,11 @@ function resetGeo() {
                                 <span class="text-[10px] text-zinc-400 dark:text-zinc-500">0</span>
                             </span>
                             <span class="flex items-center gap-1">
-                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: s.color + '55' }" />
+                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: colorWithOpacity(s.color, 0.3) }" />
                                 <span class="text-[10px] text-zinc-400 dark:text-zinc-500">1–3</span>
                             </span>
                             <span class="flex items-center gap-1">
-                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: s.color + 'aa' }" />
+                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: colorWithOpacity(s.color, 0.65) }" />
                                 <span class="text-[10px] text-zinc-400 dark:text-zinc-500">4–10</span>
                             </span>
                             <span class="flex items-center gap-1">
