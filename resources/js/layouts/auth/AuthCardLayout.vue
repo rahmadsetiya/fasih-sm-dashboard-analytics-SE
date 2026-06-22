@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BarChart3 } from '@lucide/vue';
+import { ChartScatter } from '@lucide/vue';
 import {
     Card,
     CardContent,
@@ -22,7 +22,7 @@ defineProps<{
                 <div
                     class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm"
                 >
-                    <BarChart3 class="size-6" />
+                    <ChartScatter class="size-6" />
                 </div>
             </Link>
 

@@ -30,7 +30,7 @@
             }
         </style>
 
-        <link rel="icon" href="/logo-se2026.jpg" type="image/jpeg">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
         @fonts
 
