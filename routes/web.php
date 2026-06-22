@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseImportController;
 use App\Http\Controllers\HeatmapController;
+use App\Http\Controllers\PenugasanController;
+use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\PetugasNameController;
 use App\Http\Controllers\RegionNameController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +21,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/heatmap', [HeatmapController::class, 'index'])->name('heatmap');
     Route::get('/api/heatmap', [HeatmapController::class, 'data'])->name('heatmap.data');
+
+    Route::get('/petugas', [PetugasController::class, 'index'])->name('petugas');
+    Route::get('/api/petugas/list', [PetugasController::class, 'list'])->name('petugas.list');
+    Route::get('/api/petugas/turnaround', [PetugasController::class, 'turnaround'])->name('petugas.turnaround');
+    Route::get('/api/petugas/quality', [PetugasController::class, 'quality'])->name('petugas.quality');
+    Route::get('/api/petugas/gelombang', [PetugasController::class, 'gelombang'])->name('petugas.gelombang');
+
+    Route::get('/penugasan', [PenugasanController::class, 'index'])->name('penugasan');
+    Route::get('/api/penugasan', [PenugasanController::class, 'data'])->name('penugasan.data');
+    Route::get('/api/penugasan/history', [PenugasanController::class, 'history'])->name('penugasan.history');
 
     Route::get('/api/db-status', [DatabaseImportController::class, 'status'])->name('db.status');
     Route::post('/import-db', [DatabaseImportController::class, 'store'])->name('db.import');
