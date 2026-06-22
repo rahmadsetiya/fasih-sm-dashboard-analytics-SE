@@ -49,10 +49,10 @@ function toggle(event: Event) {
             <div class="border-t border-border py-1">
                 <Link
                     :href="logout()"
+                    method="post"
                     as="button"
                     class="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                     data-test="logout-button"
-                    @click="router.flushAll()"
                 >
                     <LogOut class="size-4" />
                     Log out
