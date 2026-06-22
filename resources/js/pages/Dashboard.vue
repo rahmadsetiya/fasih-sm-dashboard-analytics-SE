@@ -22,7 +22,7 @@ interface Metrics {
     total_petugas: number;
     total_kec: number;
     total_desa: number;
-    total_rt: number;
+    total_assignment: number;
     progress_pct: number;
     approved_pct: number;
     submitted_pct: number;
@@ -95,7 +95,7 @@ const metrics = ref<Metrics>({
     total_petugas: 0,
     total_kec: 0,
     total_desa: 0,
-    total_rt: 0,
+    total_assignment: 0,
     progress_pct: 0,
     approved_pct: 0,
     submitted_pct: 0,
@@ -540,7 +540,7 @@ const donutOptions = computed(() => ({
                         label: 'Total',
                         fontSize: donutLabelFont.value,
                         formatter: () =>
-                            metrics.value.total_rt.toLocaleString('id-ID'),
+                            metrics.value.total_assignment.toLocaleString('id-ID'),
                     },
                 },
             },
@@ -1222,7 +1222,7 @@ function rowContext(row: BreakdownRow): string {
                     },
                     {
                         label: 'Total Assignment',
-                        value: metrics.total_rt,
+                        value: metrics.total_assignment,
                         fmt: 'n',
                         color: 'text-foreground',
                         ring: '',

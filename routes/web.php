@@ -8,6 +8,7 @@ use App\Http\Controllers\PenugasanController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\PetugasNameController;
 use App\Http\Controllers\RegionNameController;
+use App\Http\Controllers\StatistikController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -31,6 +32,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/penugasan', [PenugasanController::class, 'index'])->name('penugasan');
     Route::get('/api/penugasan', [PenugasanController::class, 'data'])->name('penugasan.data');
     Route::get('/api/penugasan/history', [PenugasanController::class, 'history'])->name('penugasan.history');
+
+    Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik');
+    Route::get('/api/statistik/proporsi', [StatistikController::class, 'proporsi'])->name('statistik.proporsi');
+    Route::get('/api/statistik/komparasi', [StatistikController::class, 'komparasi'])->name('statistik.komparasi');
+    Route::get('/api/statistik/chi2', [StatistikController::class, 'chi2'])->name('statistik.chi2');
+    Route::get('/api/statistik/korelasi', [StatistikController::class, 'korelasi'])->name('statistik.korelasi');
 
     Route::get('/api/db-status', [DatabaseImportController::class, 'status'])->name('db.status');
     Route::post('/import-db', [DatabaseImportController::class, 'store'])->name('db.import');

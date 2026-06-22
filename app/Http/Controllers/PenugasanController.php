@@ -10,26 +10,43 @@ use Inertia\Response;
 
 class PenugasanController extends Controller
 {
-    private const PER_PAGE = 50;
-
     public function index(): Response
     {
         $dbPath = config('database.connections.fasih.database');
 
-        $kecOptions = [];
+        $wilayah = [];
+        $pengawasOptions = [];
+
         if (file_exists($dbPath)) {
-            $kecOptions = DB::connection('fasih')
+            $wilayah = DB::connection('fasih')
                 ->table('wilayah')
-                ->where('level', 3)
-                ->select('full_code as code', 'name')
+                ->whereIn('level', [3, 4, 5, 6])
+                ->select('uuid', 'level', 'full_code as code', 'name', 'parent_uuid')
+                ->orderBy('level')
                 ->orderBy('name')
                 ->get()
+                ->groupBy('level')
+                ->map(fn ($rows) => $rows->values()->all())
+                ->toArray();
+
+            $pengawasOptions = DB::connection('fasih')
+                ->table('users')
+                ->where('is_pencacah', 0)
+                ->select('email', 'fullname')
+                ->orderBy('fullname')
+                ->get()
+                ->map(fn ($u) => [
+                    'email' => $u->email,
+                    'nama'  => $u->fullname ?: $u->email,
+                ])
+                ->values()
                 ->all();
         }
 
         return Inertia::render('Penugasan', [
-            'db_ready' => file_exists($dbPath),
-            'kec_options' => $kecOptions,
+            'db_ready'         => file_exists($dbPath),
+            'wilayah'          => $wilayah,
+            'pengawas_options' => $pengawasOptions,
         ]);
     }
 
@@ -37,16 +54,22 @@ class PenugasanController extends Controller
     {
         $dbPath = config('database.connections.fasih.database');
         if (! file_exists($dbPath)) {
-            return response()->json(['data' => [], 'total' => 0, 'per_page' => self::PER_PAGE]);
+            return response()->json(['data' => [], 'total' => 0, 'per_page' => 20]);
         }
 
-        $page = max(1, (int) $request->input('page', 1));
-        $offset = ($page - 1) * self::PER_PAGE;
+        $validPerPage = [10, 20, 50];
+        $perPage = in_array((int) $request->input('per_page', 20), $validPerPage)
+            ? (int) $request->input('per_page', 20) : 20;
+        $page   = max(1, (int) $request->input('page', 1));
+        $offset = ($page - 1) * $perPage;
 
-        $statusId = $request->input('status', '');
-        $kdkec = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
-        $kddes = preg_replace('/[^0-9]/', '', $request->input('kddes', ''));
-        $search = trim($request->input('search', ''));
+        $statusId      = $request->input('status', '');
+        $kdkec         = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
+        $kddes         = preg_replace('/[^0-9]/', '', $request->input('kddes', ''));
+        $kdsls         = preg_replace('/[^0-9]/', '', $request->input('kdsls', ''));
+        $kdsubsls      = preg_replace('/[^0-9]/', '', $request->input('kdsubsls', ''));
+        $pengawasEmail = trim($request->input('pengawas', ''));
+        $search        = trim($request->input('search', ''));
 
         $base = DB::connection('fasih')
             ->table('assignments as a')
@@ -60,18 +83,13 @@ class PenugasanController extends Controller
                 $j->on('w4.full_code', '=', 'a.kddes')->where('w4.level', 4);
             });
 
-        if ($statusId !== '') {
-            $base->where('a.assignment_status_id', (int) $statusId);
-        }
-        if ($kdkec) {
-            $base->where('a.kdkec', $kdkec);
-        }
-        if ($kddes) {
-            $base->where('a.kddes', $kddes);
-        }
-        if ($search) {
-            $base->where('a.code_identity', 'like', '%'.$search.'%');
-        }
+        if ($statusId !== '')   $base->where('a.assignment_status_id', (int) $statusId);
+        if ($kdkec)             $base->where('a.kdkec', $kdkec);
+        if ($kddes)             $base->where('a.kddes', $kddes);
+        if ($kdsls)             $base->where('a.kdsls', $kdsls);
+        if ($kdsubsls)          $base->where('a.kdsubsls', $kdsubsls);
+        if ($pengawasEmail)     $base->where('pgw.email', $pengawasEmail);
+        if ($search)            $base->where('a.code_identity', 'like', '%'.$search.'%');
 
         $total = (clone $base)->count();
 
@@ -95,14 +113,14 @@ class PenugasanController extends Controller
                 w4.name as nmdes, a.kddes
             ")
             ->orderByDesc('a.date_modified')
-            ->limit(self::PER_PAGE)
+            ->limit($perPage)
             ->offset($offset)
             ->get();
 
         return response()->json([
-            'data' => $rows,
-            'total' => $total,
-            'per_page' => self::PER_PAGE,
+            'data'     => $rows,
+            'total'    => $total,
+            'per_page' => $perPage,
         ]);
     }
 
@@ -119,13 +137,13 @@ class PenugasanController extends Controller
             return response()->json([]);
         }
 
-        $rows = DB::connection('fasih')
-            ->table('assignment_status_changes_full')
-            ->where('assignment_id', $assignmentId)
-            ->select('id', 'from_status', 'to_status', 'change_date', 'pencacah_email', 'pengawas_email')
-            ->orderBy('change_date')
-            ->get();
-
-        return response()->json($rows);
+        return response()->json(
+            DB::connection('fasih')
+                ->table('assignment_status_changes_full')
+                ->where('assignment_id', $assignmentId)
+                ->select('id', 'from_status', 'to_status', 'change_date', 'pencacah_email', 'pengawas_email')
+                ->orderBy('change_date')
+                ->get()
+        );
     }
 }

@@ -111,7 +111,7 @@ class DashboardController extends Controller
             COUNT(DISTINCT kdkec || kddes || kdsls) as total_sls,
             COUNT(DISTINCT idsubsls)             as total_subsls,
             COUNT(DISTINCT username)             as total_pengawas,
-            SUM(region_total)                    as total_rt,
+            SUM(region_total)                    as total_assignment,
             SUM("OPEN")                          as total_open,
             SUM("APPROVED BY Pengawas")          as total_approved,
             SUM("SUBMITTED BY Pencacah")         as total_submitted,
@@ -120,7 +120,7 @@ class DashboardController extends Controller
 
         $totalPencacah = (clone $baseC)->distinct()->count('username');
 
-        $total = (int) ($m->total_rt ?: 1);
+        $total = (int) ($m->total_assignment ?: 1);
         $open = (int) ($m->total_open ?: 0);
         $approved = (int) ($m->total_approved ?: 0);
         $submitted = (int) ($m->total_submitted ?: 0);
@@ -139,7 +139,7 @@ class DashboardController extends Controller
             kdkec, nmkec,
             COUNT(DISTINCT kdkec || kddes) as total_desa,
             SUM(region_total) as total, $sums
-        ")->groupBy('kdkec', 'nmkec')->orderByDesc('total_rt')->get();
+        ")->groupBy('kdkec', 'nmkec')->orderByDesc('total')->get();
 
         $kecamatan = $kecRows->map(function ($r) {
             $tot = (int) ($r->total ?: 1);
@@ -228,14 +228,14 @@ class DashboardController extends Controller
             COUNT(DISTINCT username)          as total_petugas,
             COUNT(DISTINCT kdkec)             as total_kec,
             COUNT(DISTINCT kdkec || kddes)    as total_desa,
-            SUM(region_total)                 as total_rt,
+            SUM(region_total)                 as total_assignment,
             SUM("OPEN")                       as total_open,
             SUM("APPROVED BY Pengawas")       as total_approved,
             SUM("SUBMITTED BY Pencacah")      as total_submitted,
             SUM("REJECTED BY Pengawas")       as total_rejected
         ')->first();
 
-        $total = (int) ($row->total_rt ?: 1);
+        $total = (int) ($row->total_assignment ?: 1);
         $open = (int) ($row->total_open ?: 0);
         $approved = (int) ($row->total_approved ?: 0);
         $submitted = (int) ($row->total_submitted ?: 0);
@@ -245,7 +245,7 @@ class DashboardController extends Controller
             'total_petugas' => (int) $row->total_petugas,
             'total_kec' => (int) $row->total_kec,
             'total_desa' => (int) $row->total_desa,
-            'total_rt' => $total,
+            'total_assignment' => $total,
             'progress_pct' => round(($total - $open) / $total * 100, 1),
             'approved_pct' => round($approved / $total * 100, 1),
             'submitted_pct' => round($submitted / $total * 100, 1),

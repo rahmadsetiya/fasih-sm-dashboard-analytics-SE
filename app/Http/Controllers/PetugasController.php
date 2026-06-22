@@ -10,24 +10,45 @@ use Inertia\Response;
 
 class PetugasController extends Controller
 {
+    private function geoParams(Request $r): array
+    {
+        return [
+            'kdkec'    => preg_replace('/[^0-9]/', '', $r->input('kdkec', '')),
+            'kddes'    => preg_replace('/[^0-9]/', '', $r->input('kddes', '')),
+            'kdsls'    => preg_replace('/[^0-9]/', '', $r->input('kdsls', '')),
+            'kdsubsls' => preg_replace('/[^0-9]/', '', $r->input('kdsubsls', '')),
+        ];
+    }
+
+    private function applyGeoFilter($query, array $geo, string $prefix = 'a'): void
+    {
+        if ($geo['kdkec'])    $query->where("$prefix.kdkec", $geo['kdkec']);
+        if ($geo['kddes'])    $query->where("$prefix.kddes", $geo['kddes']);
+        if ($geo['kdsls'])    $query->where("$prefix.kdsls", $geo['kdsls']);
+        if ($geo['kdsubsls']) $query->where("$prefix.kdsubsls", $geo['kdsubsls']);
+    }
+
     public function index(): Response
     {
         $dbPath = config('database.connections.fasih.database');
 
-        $kecOptions = [];
+        $wilayah = [];
         if (file_exists($dbPath)) {
-            $kecOptions = DB::connection('fasih')
+            $wilayah = DB::connection('fasih')
                 ->table('wilayah')
-                ->where('level', 3)
-                ->select('full_code as code', 'name')
+                ->whereIn('level', [3, 4, 5, 6])
+                ->select('uuid', 'level', 'full_code as code', 'name', 'parent_uuid')
+                ->orderBy('level')
                 ->orderBy('name')
                 ->get()
-                ->all();
+                ->groupBy('level')
+                ->map(fn ($rows) => $rows->values()->all())
+                ->toArray();
         }
 
         return Inertia::render('Petugas', [
             'db_ready' => file_exists($dbPath),
-            'kec_options' => $kecOptions,
+            'wilayah'  => $wilayah,
         ]);
     }
 
@@ -35,10 +56,10 @@ class PetugasController extends Controller
     {
         $dbPath = config('database.connections.fasih.database');
         if (! file_exists($dbPath)) {
-            return response()->json([]);
+            return response()->json(['data' => [], 'total' => 0]);
         }
 
-        $kdkec = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
+        $geo = $this->geoParams($request);
 
         $query = DB::connection('fasih')
             ->table('assignments as a')
@@ -54,39 +75,34 @@ class PetugasController extends Controller
                 SUM(CASE WHEN a.assignment_status_id = 3 THEN 1 ELSE 0 END) as rejected
             ");
 
-        if ($kdkec) {
-            $query->where('a.kdkec', $kdkec);
-        }
+        $this->applyGeoFilter($query, $geo);
 
-        return response()->json(
-            $query->groupByRaw('u.user_id')
-                ->get()
-                ->map(function ($r) {
-                    $total = (int) ($r->total ?: 1);
-                    $submitted = (int) ($r->submitted ?? 0);
-                    $approved = (int) ($r->approved ?? 0);
-                    $rejected = (int) ($r->rejected ?? 0);
-                    $reviewed = $submitted + $approved + $rejected;
+        $rows = $query->groupByRaw('u.user_id')->get()
+            ->map(function ($r) {
+                $total    = (int) ($r->total ?: 1);
+                $submitted = (int) ($r->submitted ?? 0);
+                $approved  = (int) ($r->approved ?? 0);
+                $rejected  = (int) ($r->rejected ?? 0);
+                $reviewed  = $submitted + $approved + $rejected;
 
-                    return [
-                        'uid' => $r->uid,
-                        'nama' => $r->nama,
-                        'email' => $r->email,
-                        'total' => $total,
-                        'draft' => (int) ($r->draft ?? 0),
-                        'submitted' => $submitted,
-                        'approved' => $approved,
-                        'rejected' => $rejected,
-                        'rejection_rate' => $reviewed > 0
-                            ? round($rejected / $reviewed * 100, 1)
-                            : 0.0,
-                        'progress_pct' => round(($total - (int) ($r->draft ?? 0)) / $total * 100, 1),
-                    ];
-                })
-                ->sortByDesc('total')
-                ->values()
-                ->all()
-        );
+                return [
+                    'uid'            => $r->uid,
+                    'nama'           => $r->nama,
+                    'email'          => $r->email,
+                    'total'          => $total,
+                    'draft'          => (int) ($r->draft ?? 0),
+                    'submitted'      => $submitted,
+                    'approved'       => $approved,
+                    'rejected'       => $rejected,
+                    'rejection_rate' => $reviewed > 0 ? round($rejected / $reviewed * 100, 1) : 0.0,
+                    'progress_pct'   => round(($total - (int) ($r->draft ?? 0)) / $total * 100, 1),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values()
+            ->all();
+
+        return response()->json(['data' => $rows, 'total' => count($rows)]);
     }
 
     public function turnaround(Request $request): JsonResponse
@@ -96,11 +112,18 @@ class PetugasController extends Controller
             return response()->json(['pencacah' => [], 'pengawas' => []]);
         }
 
-        $kdkec = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
-        $kecWhere = $kdkec ? 'AND c.kdkec = ?' : '';
-        $params = $kdkec ? [$kdkec] : [];
+        $geo = $this->geoParams($request);
 
-        // DRAFT → SUBMIT per pencacah
+        $conditions = [];
+        $params = [];
+        foreach (['kdkec' => 'c.kdkec', 'kddes' => 'c.kddes', 'kdsls' => 'c.kdsls', 'kdsubsls' => 'c.kdsubsls'] as $key => $col) {
+            if ($geo[$key]) {
+                $conditions[] = "$col = ?";
+                $params[] = $geo[$key];
+            }
+        }
+        $extraWhere = $conditions ? 'AND '.implode(' AND ', $conditions) : '';
+
         $pencacahRows = DB::connection('fasih')->select("
             SELECT
                 hex(c.pencacah_user_id) as uid,
@@ -118,13 +141,12 @@ class PetugasController extends Controller
             LEFT JOIN users u ON u.user_id = c.pencacah_user_id
             WHERE c.to_status_id = 1
               AND c.pencacah_user_id IS NOT NULL
-              $kecWhere
+              $extraWhere
             GROUP BY c.pencacah_user_id
             HAVING sample_count >= 3
             ORDER BY avg_minutes ASC
         ", $params);
 
-        // SUBMIT → APPROVE/REJECT per pengawas
         $pengawasRows = DB::connection('fasih')->select("
             SELECT
                 hex(c.pengawas_user_id) as uid,
@@ -144,7 +166,7 @@ class PetugasController extends Controller
             LEFT JOIN users u ON u.user_id = c.pengawas_user_id
             WHERE c.to_status_id IN (2, 3)
               AND c.pengawas_user_id IS NOT NULL
-              $kecWhere
+              $extraWhere
             GROUP BY c.pengawas_user_id
             HAVING sample_count >= 1
             ORDER BY avg_minutes ASC
@@ -152,16 +174,16 @@ class PetugasController extends Controller
 
         return response()->json([
             'pencacah' => collect($pencacahRows)->map(fn ($r) => [
-                'uid' => $r->uid,
-                'nama' => $r->nama,
-                'avg_minutes' => (float) ($r->avg_minutes ?? 0),
+                'uid'          => $r->uid,
+                'nama'         => $r->nama,
+                'avg_minutes'  => (float) ($r->avg_minutes ?? 0),
                 'sample_count' => (int) $r->sample_count,
             ])->values()->all(),
             'pengawas' => collect($pengawasRows)->map(fn ($r) => [
-                'uid' => $r->uid,
-                'nama' => $r->nama,
-                'avg_minutes' => (float) ($r->avg_minutes ?? 0),
-                'sample_count' => (int) $r->sample_count,
+                'uid'            => $r->uid,
+                'nama'           => $r->nama,
+                'avg_minutes'    => (float) ($r->avg_minutes ?? 0),
+                'sample_count'   => (int) $r->sample_count,
                 'approved_count' => (int) $r->approved_count,
                 'rejected_count' => (int) $r->rejected_count,
             ])->values()->all(),
@@ -172,10 +194,10 @@ class PetugasController extends Controller
     {
         $dbPath = config('database.connections.fasih.database');
         if (! file_exists($dbPath)) {
-            return response()->json([]);
+            return response()->json(['data' => [], 'total' => 0]);
         }
 
-        $kdkec = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
+        $geo = $this->geoParams($request);
 
         $query = DB::connection('fasih')
             ->table('assignments as a')
@@ -192,32 +214,30 @@ class PetugasController extends Controller
                 SUM(CASE WHEN COALESCE(a.sum_error, 0) > 0 THEN 1 ELSE 0 END) as error_count
             ");
 
-        if ($kdkec) {
-            $query->where('a.kdkec', $kdkec);
-        }
+        $this->applyGeoFilter($query, $geo);
 
-        return response()->json(
-            $query->groupByRaw('u.user_id')
-                ->get()
-                ->map(function ($r) {
-                    $total = (int) ($r->total ?: 1);
+        $rows = $query->groupByRaw('u.user_id')
+            ->get()
+            ->map(function ($r) {
+                $total = (int) ($r->total ?: 1);
 
-                    return [
-                        'uid' => $r->uid,
-                        'nama' => $r->nama,
-                        'email' => $r->email,
-                        'total' => $total,
-                        'avg_error' => (float) ($r->avg_error ?? 0),
-                        'avg_clean' => (float) ($r->avg_clean ?? 0),
-                        'avg_remark' => (float) ($r->avg_remark ?? 0),
-                        'error_count' => (int) ($r->error_count ?? 0),
-                        'error_pct' => round((int) ($r->error_count ?? 0) / $total * 100, 1),
-                    ];
-                })
-                ->sortByDesc('avg_error')
-                ->values()
-                ->all()
-        );
+                return [
+                    'uid'        => $r->uid,
+                    'nama'       => $r->nama,
+                    'email'      => $r->email,
+                    'total'      => $total,
+                    'avg_error'  => (float) ($r->avg_error ?? 0),
+                    'avg_clean'  => (float) ($r->avg_clean ?? 0),
+                    'avg_remark' => (float) ($r->avg_remark ?? 0),
+                    'error_count' => (int) ($r->error_count ?? 0),
+                    'error_pct'  => round((int) ($r->error_count ?? 0) / $total * 100, 1),
+                ];
+            })
+            ->sortByDesc('avg_error')
+            ->values()
+            ->all();
+
+        return response()->json(['data' => $rows, 'total' => count($rows)]);
     }
 
     public function gelombang(Request $request): JsonResponse
@@ -248,7 +268,7 @@ class PetugasController extends Controller
                 ->selectRaw("
                     TRIM($groupBy) as group_label,
                     COUNT(DISTINCT username) as total_pencacah,
-                    SUM(region_total) as total_rt,
+                    SUM(region_total) as total_assignment,
                     SUM(\"OPEN\") as total_open,
                     SUM(\"SUBMITTED BY Pencacah\") as total_submitted,
                     SUM(\"APPROVED BY Pengawas\") as total_approved,
@@ -258,19 +278,19 @@ class PetugasController extends Controller
                 ->orderByRaw("TRIM($groupBy)")
                 ->get()
                 ->map(function ($r) {
-                    $total = (int) ($r->total_rt ?: 1);
-                    $open = (int) ($r->total_open ?: 0);
+                    $total    = (int) ($r->total_assignment ?: 1);
+                    $open     = (int) ($r->total_open ?: 0);
                     $approved = (int) ($r->total_approved ?: 0);
 
                     return [
-                        'label' => $r->group_label,
-                        'total_pencacah' => (int) $r->total_pencacah,
-                        'total_rt' => $total,
-                        'progress_pct' => round(($total - $open) / $total * 100, 1),
-                        'approved_pct' => round($approved / $total * 100, 1),
-                        'submitted' => (int) ($r->total_submitted ?? 0),
-                        'approved' => (int) ($r->total_approved ?? 0),
-                        'rejected' => (int) ($r->total_rejected ?? 0),
+                        'label'            => $r->group_label,
+                        'total_pencacah'   => (int) $r->total_pencacah,
+                        'total_assignment' => $total,
+                        'progress_pct'     => round(($total - $open) / $total * 100, 1),
+                        'approved_pct'     => round($approved / $total * 100, 1),
+                        'submitted'        => (int) ($r->total_submitted ?? 0),
+                        'approved'         => (int) ($r->total_approved ?? 0),
+                        'rejected'         => (int) ($r->total_rejected ?? 0),
                     ];
                 })
                 ->values()

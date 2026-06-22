@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Activity, BarChart3, ClipboardList, Table2, UserCheck, Users, X } from '@lucide/vue';
+import { Activity, BarChart3, ClipboardList, FlaskConical, Table2, UserCheck, Users, X } from '@lucide/vue';
 import Drawer from 'primevue/drawer';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -44,6 +44,7 @@ const mainNavItems: NavItem[] = [
     { title: 'Heatmap Aktivitas', href: '/heatmap', icon: Activity },
     { title: 'Analitik Petugas', href: '/petugas', icon: UserCheck },
     { title: 'Daftar Penugasan', href: '/penugasan', icon: Table2 },
+    { title: 'Statistik Inferensia', href: '/statistik', icon: FlaskConical },
 ];
 
 const adminNavItems: NavItem[] = [
