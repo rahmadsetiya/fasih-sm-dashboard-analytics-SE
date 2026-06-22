@@ -35,6 +35,16 @@ interface TrendPoint {
 // ── state ─────────────────────────────────────────────────────────────────
 const snapshots = ref<string[]>(props.snapshots);
 const snapshot = ref(props.snapshots[0] ?? '');
+
+watch(
+    () => props.snapshots,
+    (val) => {
+        snapshots.value = val;
+        if (val.length && (!snapshot.value || val[0] !== snapshots.value[0])) {
+            snapshot.value = val[0];
+        }
+    },
+);
 const loading = ref(false);
 
 const kabName = ref('—');

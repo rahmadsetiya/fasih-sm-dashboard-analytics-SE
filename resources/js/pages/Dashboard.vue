@@ -84,7 +84,7 @@ watch(
     (val) => {
         snapshots.value = val;
 
-        if (!filters.snapshot && val.length) {
+        if (val.length && (!filters.snapshot || val[0] !== snapshots.value[0])) {
             filters.snapshot = val[0];
         }
     },
