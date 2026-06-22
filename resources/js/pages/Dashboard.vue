@@ -935,7 +935,7 @@ function rowContext(row: BreakdownRow): string {
     <div v-else class="flex h-full flex-1 flex-col gap-3 overflow-x-auto p-4">
         <!-- Filter bar -->
         <div
-            class="flex flex-wrap items-center gap-2 rounded-xl border border-sidebar-border/70 bg-card px-3 py-2 dark:border-sidebar-border"
+            class="flex flex-wrap items-center gap-2 rounded-xl border border-sidebar-border/70 bg-card shadow-md px-3 py-2 dark:border-sidebar-border"
         >
             <!-- Snapshot -->
             <div class="flex items-center gap-1.5">
@@ -1271,7 +1271,7 @@ function rowContext(row: BreakdownRow): string {
                     'rounded-xl border px-4 py-3',
                     card.ring
                         ? card.ring
-                        : 'border-sidebar-border/70 bg-card dark:border-sidebar-border',
+                        : 'border-sidebar-border/70 bg-card shadow-md dark:border-sidebar-border',
                 ]"
             >
                 <p
@@ -1307,7 +1307,7 @@ function rowContext(row: BreakdownRow): string {
         <div class="grid gap-3 md:grid-cols-3">
             <!-- Donut -->
             <div
-                class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                class="rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
             >
                 <h3 class="mb-1 text-sm font-semibold">Komposisi Status</h3>
                 <VueApexCharts
@@ -1327,7 +1327,7 @@ function rowContext(row: BreakdownRow): string {
 
             <!-- Bar -->
             <div
-                class="col-span-2 rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+                class="col-span-2 rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
             >
                 <h3 class="mb-1 text-sm font-semibold">
                     Top {{ TOP_N }} {{ LEVEL_LABELS[filters.level] }} — Progress
@@ -1352,7 +1352,7 @@ function rowContext(row: BreakdownRow): string {
         <!-- Trend -->
         <div
             v-if="trend.length >= 1"
-            class="rounded-xl border border-sidebar-border/70 bg-card p-4 dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
         >
             <h3 class="mb-1 text-sm font-semibold">Tren Progress Over Time</h3>
             <VueApexCharts
@@ -1474,7 +1474,7 @@ function rowContext(row: BreakdownRow): string {
 
         <!-- Breakdown table -->
         <div
-            class="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card shadow-md dark:border-sidebar-border"
         >
             <!-- Table header -->
             <div
@@ -1896,7 +1896,7 @@ function rowContext(row: BreakdownRow): string {
             @click.self="petugasModal = false"
         >
             <div
-                class="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-xl border border-sidebar-border bg-card shadow-xl dark:border-sidebar-border"
+                class="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-xl dark:border-sidebar-border"
             >
                 <!-- Modal header -->
                 <div

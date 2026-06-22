@@ -1,16 +1,14 @@
 // PostToolUse hook: auto-format after Write/Edit
 // Runs Prettier on Vue/TS/JS/CSS files, Pint on PHP files.
 let d = '';
-process.stdin.on('data', c => (d += c));
+process.stdin.on('data', (c) => (d += c));
 process.stdin.on('end', () => {
     try {
-        const {
-            tool_input: { file_path: f } = {},
-        } = JSON.parse(d || '{}');
+        const { tool_input: { file_path: f } = {} } = JSON.parse(d || '{}');
 
         if (!f) {
-return;
-}
+            return;
+        }
 
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const cp = require('child_process');

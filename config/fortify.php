@@ -162,7 +162,7 @@ return [
 
     'features' => [
         // Features::registration(), // disabled — akun dibuat manual via artisan
-        Features::resetPasswords(),
+        // Features::resetPasswords(), // disabled — reset via email dimatikan
         Features::emailVerification(),
         Features::twoFactorAuthentication([
             'confirm' => true,
