@@ -7,7 +7,7 @@ deployment:
     - export PHP="/usr/local/bin/ea-php83"
 
     # Composer install (no dev, optimized)
-    - cd "$APPDIR" && composer install --no-dev --optimize-autoloader --no-interaction
+    - cd "$APPDIR" && $PHP $HOME/bin/composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-req=ext-fileinfo
 
     # Symlink public/build → public_html/.../build (create once, stays on updates)
     - ln -sfn "$APPDIR/public/build" "$PUBDIR/build"
