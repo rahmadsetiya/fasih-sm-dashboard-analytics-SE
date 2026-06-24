@@ -616,6 +616,8 @@ const barOptions = computed(() => ({
 
 // ── projection ────────────────────────────────────────────────────────────
 interface ProjPoint { label: string; y: number; }
+const DEADLINE = new Date('2026-08-31T23:59:59+08:00');
+
 const projectionPoints = computed<ProjPoint[]>(() => {
     const pts = trend.value;
     if (pts.length < 2) return [];
@@ -643,6 +645,7 @@ const projectionPoints = computed<ProjPoint[]>(() => {
     for (let s = 1; s <= maxSteps; s++) {
         const projY = Math.min(100, slope * (n - 1 + s) + intercept);
         const projDate = new Date(lastDate.getTime() + snapInterval * s);
+        if (projDate > DEADLINE) break;
         const label = `${projDate.getDate().toString().padStart(2, '0')}/${(projDate.getMonth() + 1).toString().padStart(2, '0')} ${projDate.getHours().toString().padStart(2, '0')}:${projDate.getMinutes().toString().padStart(2, '0')}`;
         result.push({ label, y: Math.round(projY * 10) / 10 });
         if (projY >= 100) break;
@@ -675,6 +678,7 @@ const projectionEstDate = computed<string | null>(() => {
     const est = new Date(
         new Date(pts[n - 1].snapshot_at).getTime() + snapInterval * stepsToHundred,
     );
+    if (est > DEADLINE) return '⚠️ Diprediksi melewati batas 31 Agustus';
     return est.toLocaleDateString('id-ID', {
         day: '2-digit',
         month: 'short',
@@ -1490,8 +1494,8 @@ function rowContext(row: BreakdownRow): string {
             </p>
             <p v-if="projectionEstDate" class="mt-1 text-xs text-muted-foreground">
                 <span class="font-medium text-violet-500 dark:text-violet-400">Proyeksi selesai:</span>
-                {{ projectionEstDate }}
-                <span class="text-[10px] text-muted-foreground/60">(berdasarkan tren linear)</span>
+                <span :class="projectionEstDate.startsWith('⚠️') ? 'font-semibold text-red-500 dark:text-red-400' : ''">{{ projectionEstDate }}</span>
+                <span v-if="!projectionEstDate.startsWith('⚠️')" class="text-[10px] text-muted-foreground/60">(berdasarkan tren linear)</span>
             </p>
         </div>
 
