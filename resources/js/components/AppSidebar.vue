@@ -83,6 +83,9 @@ const footerNavItems: NavItem[] = [];
             <ImportDbButton />
             <RegionNamesButton />
             <NavUser />
+            <p class="px-3 pt-1 text-[9px] text-muted-foreground/40 text-center leading-tight">
+                Made with ♥ @ IPDS BPS Enrekang
+            </p>
         </div>
     </aside>
 
@@ -131,6 +134,9 @@ const footerNavItems: NavItem[] = [];
             <ImportDbButton />
             <RegionNamesButton />
             <NavUser />
+            <p class="px-3 pt-1 text-[9px] text-muted-foreground/40 text-center leading-tight">
+                Made with ♥ @ IPDS BPS Enrekang
+            </p>
         </div>
     </Drawer>
 </template>
