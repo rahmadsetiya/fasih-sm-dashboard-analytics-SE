@@ -171,11 +171,15 @@ Setelah login sebagai admin, gunakan menu **Manajemen User** di sidebar untuk CR
 
 ### Generate fasih.db (Scraper)
 
-`fasih.db` dihasilkan dari scraping platform FASIH menggunakan:
+`fasih.db` dihasilkan dari scraping platform FASIH menggunakan repo private:
 
 **[https://github.com/rahmadsetiya/fasih-scraper](https://github.com/rahmadsetiya/fasih-scraper)**
 
 Jalankan scraper sesuai instruksi di repo tersebut. Output-nya adalah file `fasih.db` yang siap diupload ke dashboard ini.
+
+> **Akses repo**: Repo scraper bersifat private. Hubungi pemilik repo untuk meminta akses:
+> - GitHub: [@rahmadsetiya](https://github.com/rahmadsetiya)
+> - Email: rahmadsetiyabudi@gmail.com
 
 ### Upload fasih.db
 
