@@ -161,9 +161,18 @@ const gelombangGroupBy = ref<'gelombang' | 'kelas' | 'tc'>('gelombang');
 // ── matrix tab ─────────────────────────────────────────────────────────────
 interface MatrixRow { uid: string; nama: string; avg_minutes: number; error_pct: number; total: number; sample_count: number; }
 const matrixData = ref<MatrixRow[]>([]);
+const matrixPage = ref(1);
+const matrixPer  = ref(20);
+const matrixPages = computed(() => Math.ceil(matrixData.value.length / matrixPer.value));
+const paginatedMatrix = computed(() => {
+    const s = (matrixPage.value - 1) * matrixPer.value;
+    return matrixData.value.slice(s, s + matrixPer.value);
+});
 
 // ── leaderboard tab ────────────────────────────────────────────────────────
 interface LeaderboardRow { rank: number; uid: string; nama: string; email: string; score: number; progress_pct: number; rejection_rate: number; total: number; approved: number; }
+const leaderboardPage = ref(1);
+const leaderboardPer  = ref(20);
 const leaderboardData = computed<LeaderboardRow[]>(() =>
     [...pencacahAll.value]
         .filter(r => r.total >= 1)
@@ -174,6 +183,11 @@ const leaderboardData = computed<LeaderboardRow[]>(() =>
         .sort((a, b) => b.score - a.score)
         .map((r, i) => ({ rank: i + 1, ...r }))
 );
+const leaderboardPages = computed(() => Math.ceil(leaderboardData.value.length / leaderboardPer.value));
+const paginatedLeaderboard = computed(() => {
+    const s = (leaderboardPage.value - 1) * leaderboardPer.value;
+    return leaderboardData.value.slice(s, s + leaderboardPer.value);
+});
 
 // ── fetch ─────────────────────────────────────────────────────────────────
 function geoParams(): string {
@@ -200,7 +214,7 @@ p.set('kdsubsls', filterSubsls.value);
 
 const H = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
 
-async function fetchTab(tab: typeof activeTab.value) {
+async function fetchTab(tab: typeof activeTab.value, force = false) {
     if (!props.db_ready) {
 return;
 }
@@ -209,34 +223,42 @@ return;
 
     try {
         if (tab === 'pencacah') {
+            if (!force && pencacahAll.value.length) { loading.value = false; return; }
             const r = await fetch(`/api/petugas/list?${geoParams()}`, { headers: H });
             const d = await r.json();
             pencacahAll.value  = d.data ?? [];
             pencacahPage.value = 1;
         } else if (tab === 'turnaround') {
+            if (!force && turnaroundPencacah.value.length) { loading.value = false; return; }
             const r = await fetch(`/api/petugas/turnaround?${geoParams()}`, { headers: H });
             const d = await r.json();
             turnaroundPencacah.value = d.pencacah ?? [];
             turnaroundPengawas.value = d.pengawas ?? [];
             turnaroundPage.value = 1;
         } else if (tab === 'quality') {
+            if (!force && qualityAll.value.length) { loading.value = false; return; }
             const r = await fetch(`/api/petugas/quality?${geoParams()}`, { headers: H });
             const d = await r.json();
             qualityAll.value  = d.data ?? [];
             qualityPage.value = 1;
         } else if (tab === 'gelombang') {
+            if (!force && gelombangList.value.length) { loading.value = false; return; }
             const r = await fetch(`/api/petugas/gelombang?group_by=${gelombangGroupBy.value}`, { headers: H });
             gelombangList.value = await r.json();
         } else if (tab === 'matrix') {
+            if (!force && matrixData.value.length) { loading.value = false; return; }
             const r = await fetch(`/api/petugas/matrix?${geoParams()}`, { headers: H });
             const d = await r.json();
             matrixData.value = d.data ?? [];
+            matrixPage.value = 1;
         } else if (tab === 'leaderboard') {
-            if (!pencacahAll.value.length) {
+            if (!force && pencacahAll.value.length) { leaderboardPage.value = 1; loading.value = false; return; }
+            if (!pencacahAll.value.length || force) {
                 const r = await fetch(`/api/petugas/list?${geoParams()}`, { headers: H });
                 const d = await r.json();
                 pencacahAll.value = d.data ?? [];
             }
+            leaderboardPage.value = 1;
         }
     } finally {
  loading.value = false; 
@@ -245,11 +267,11 @@ return;
 
 onMounted(() => fetchTab('pencacah'));
 watch(activeTab, tab => fetchTab(tab));
-watch([filterKec, filterDes, filterSls, filterSubsls], () => fetchTab(activeTab.value));
+watch([filterKec, filterDes, filterSls, filterSubsls], () => fetchTab(activeTab.value, true));
 watch(gelombangGroupBy, () => {
  if (activeTab.value === 'gelombang') {
-fetchTab('gelombang');
-} 
+fetchTab('gelombang', true);
+}
 });
 watch(turnaroundView, () => {
  turnaroundPage.value = 1; 
@@ -646,30 +668,48 @@ const gelombangSeries = computed(() => [
                 </div>
                 <VueApexCharts type="scatter" :height="400" :options="matrixChartOptions" :series="matrixSeries" />
             </div>
-            <div class="overflow-x-auto rounded-lg border">
-                <table class="w-full text-xs">
-                    <thead class="bg-muted/50">
-                        <tr>
-                            <th class="px-3 py-2 text-left font-medium text-muted-foreground">Nama</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Waktu Avg</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">% Error</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Sampel</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        <tr v-for="r in matrixData" :key="r.uid" class="hover:bg-muted/30">
-                            <td class="px-3 py-2 font-medium">{{ r.nama }}</td>
-                            <td class="px-3 py-2 text-right">{{ fmtMin(r.avg_minutes) }}</td>
-                            <td class="px-3 py-2 text-right">
-                                <span :class="['rounded px-1.5 py-0.5 font-medium', r.error_pct > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : r.error_pct > 10 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300']">{{ r.error_pct }}%</span>
-                            </td>
-                            <td class="px-3 py-2 text-right">{{ r.total }}</td>
-                            <td class="px-3 py-2 text-right text-muted-foreground">{{ r.sample_count }}</td>
-                        </tr>
-                        <tr v-if="!matrixData.length"><td colspan="5" class="py-8 text-center text-muted-foreground">Tidak ada data</td></tr>
-                    </tbody>
-                </table>
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-muted-foreground">{{ matrixData.length.toLocaleString('id') }} pencacah</span>
+                    <select v-model="matrixPer" class="h-7 rounded border border-input bg-background px-1 text-xs" @change="matrixPage = 1">
+                        <option :value="10">10/hal</option>
+                        <option :value="20">20/hal</option>
+                        <option :value="50">50/hal</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto rounded-lg border">
+                    <table class="w-full text-xs">
+                        <thead class="bg-muted/50">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Nama</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Waktu Avg</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">% Error</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Sampel</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            <tr v-for="r in paginatedMatrix" :key="r.uid" class="hover:bg-muted/30">
+                                <td class="px-3 py-2 font-medium">{{ r.nama }}</td>
+                                <td class="px-3 py-2 text-right">{{ fmtMin(r.avg_minutes) }}</td>
+                                <td class="px-3 py-2 text-right">
+                                    <span :class="['rounded px-1.5 py-0.5 font-medium', r.error_pct > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : r.error_pct > 10 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300']">{{ r.error_pct }}%</span>
+                                </td>
+                                <td class="px-3 py-2 text-right">{{ r.total }}</td>
+                                <td class="px-3 py-2 text-right text-muted-foreground">{{ r.sample_count }}</td>
+                            </tr>
+                            <tr v-if="!matrixData.length"><td colspan="5" class="py-8 text-center text-muted-foreground">Tidak ada data</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="matrixPages > 1" class="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{{ ((matrixPage-1)*matrixPer+1).toLocaleString('id') }}–{{ Math.min(matrixPage*matrixPer, matrixData.length).toLocaleString('id') }} dari {{ matrixData.length.toLocaleString('id') }}</span>
+                    <div class="flex items-center gap-1">
+                        <button :disabled="matrixPage===1" class="rounded border px-2 py-1 disabled:opacity-40 hover:bg-muted/40" @click="matrixPage--">‹</button>
+                        <span class="px-2 py-1">{{ matrixPage }}/{{ matrixPages }}</span>
+                        <button :disabled="matrixPage>=matrixPages" class="rounded border px-2 py-1 disabled:opacity-40 hover:bg-muted/40" @click="matrixPage++">›</button>
+                    </div>
+                </div>
             </div>
         </template>
 
@@ -679,38 +719,56 @@ const gelombangSeries = computed(() => [
             <div v-if="!leaderboardData.length" class="flex h-48 items-center justify-center text-sm text-muted-foreground">
                 Tidak ada data. Muat tab Pencacah terlebih dahulu.
             </div>
-            <div v-else class="overflow-x-auto rounded-lg border">
-                <table class="w-full text-xs">
-                    <thead class="bg-muted/50">
-                        <tr>
-                            <th class="px-3 py-2 text-left font-medium text-muted-foreground">Rank</th>
-                            <th class="px-3 py-2 text-left font-medium text-muted-foreground">Nama</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Skor</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Progress</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Reject %</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
-                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Approved</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        <tr v-for="r in leaderboardData" :key="r.uid" class="hover:bg-muted/30">
-                            <td class="px-3 py-2 font-bold">
-                                <span v-if="r.rank === 1" class="text-yellow-500">🥇 1</span>
-                                <span v-else-if="r.rank === 2" class="text-zinc-400">🥈 2</span>
-                                <span v-else-if="r.rank === 3" class="text-amber-600">🥉 3</span>
-                                <span v-else class="text-muted-foreground">{{ r.rank }}</span>
-                            </td>
-                            <td class="px-3 py-2"><div class="font-medium">{{ r.nama }}</div><div class="text-[10px] text-muted-foreground">{{ r.email }}</div></td>
-                            <td class="px-3 py-2 text-right">
-                                <span :class="['rounded px-1.5 py-0.5 font-bold', r.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : r.score >= 60 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300']">{{ r.score }}</span>
-                            </td>
-                            <td class="px-3 py-2 text-right">{{ r.progress_pct }}%</td>
-                            <td class="px-3 py-2 text-right"><span :class="r.rejection_rate > 20 ? 'text-red-600 dark:text-red-400' : ''">{{ r.rejection_rate }}%</span></td>
-                            <td class="px-3 py-2 text-right">{{ r.total.toLocaleString('id') }}</td>
-                            <td class="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{{ r.approved.toLocaleString('id') }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div v-else class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-muted-foreground">{{ leaderboardData.length.toLocaleString('id') }} petugas</span>
+                    <select v-model="leaderboardPer" class="h-7 rounded border border-input bg-background px-1 text-xs" @change="leaderboardPage = 1">
+                        <option :value="10">10/hal</option>
+                        <option :value="20">20/hal</option>
+                        <option :value="50">50/hal</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto rounded-lg border">
+                    <table class="w-full text-xs">
+                        <thead class="bg-muted/50">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Rank</th>
+                                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Nama</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Skor</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Progress</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Reject %</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">Approved</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            <tr v-for="r in paginatedLeaderboard" :key="r.uid" class="hover:bg-muted/30">
+                                <td class="px-3 py-2 font-bold">
+                                    <span v-if="r.rank === 1" class="text-yellow-500">🥇 1</span>
+                                    <span v-else-if="r.rank === 2" class="text-zinc-400">🥈 2</span>
+                                    <span v-else-if="r.rank === 3" class="text-amber-600">🥉 3</span>
+                                    <span v-else class="text-muted-foreground">{{ r.rank }}</span>
+                                </td>
+                                <td class="px-3 py-2"><div class="font-medium">{{ r.nama }}</div><div class="text-[10px] text-muted-foreground">{{ r.email }}</div></td>
+                                <td class="px-3 py-2 text-right">
+                                    <span :class="['rounded px-1.5 py-0.5 font-bold', r.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : r.score >= 60 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300']">{{ r.score }}</span>
+                                </td>
+                                <td class="px-3 py-2 text-right">{{ r.progress_pct }}%</td>
+                                <td class="px-3 py-2 text-right"><span :class="r.rejection_rate > 20 ? 'text-red-600 dark:text-red-400' : ''">{{ r.rejection_rate }}%</span></td>
+                                <td class="px-3 py-2 text-right">{{ r.total.toLocaleString('id') }}</td>
+                                <td class="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{{ r.approved.toLocaleString('id') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="leaderboardPages > 1" class="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{{ ((leaderboardPage-1)*leaderboardPer+1).toLocaleString('id') }}–{{ Math.min(leaderboardPage*leaderboardPer, leaderboardData.length).toLocaleString('id') }} dari {{ leaderboardData.length.toLocaleString('id') }}</span>
+                    <div class="flex items-center gap-1">
+                        <button :disabled="leaderboardPage===1" class="rounded border px-2 py-1 disabled:opacity-40 hover:bg-muted/40" @click="leaderboardPage--">‹</button>
+                        <span class="px-2 py-1">{{ leaderboardPage }}/{{ leaderboardPages }}</span>
+                        <button :disabled="leaderboardPage>=leaderboardPages" class="rounded border px-2 py-1 disabled:opacity-40 hover:bg-muted/40" @click="leaderboardPage++">›</button>
+                    </div>
+                </div>
             </div>
         </template>
     </div>

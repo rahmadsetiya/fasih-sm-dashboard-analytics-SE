@@ -32,7 +32,7 @@ class HeatmapController extends Controller
         if (file_exists($dbPath)) {
             $range = DB::connection('fasih')
                 ->table('assignment_status_changes')
-                ->selectRaw('MIN(DATE(change_date)) as min_date, MAX(DATE(change_date)) as max_date')
+                ->selectRaw("MIN(DATE(datetime(change_date, '+8 hours'))) as min_date, MAX(DATE(datetime(change_date, '+8 hours'))) as max_date")
                 ->first();
 
             if ($range && $range->min_date) {
@@ -85,10 +85,10 @@ class HeatmapController extends Controller
             ->where('c.to_status_id', $statusId);
 
         if ($dateFrom) {
-            $base->whereRaw('DATE(c.change_date) >= ?', [$dateFrom]);
+            $base->whereRaw("DATE(datetime(c.change_date, '+8 hours')) >= ?", [$dateFrom]);
         }
         if ($dateTo) {
-            $base->whereRaw('DATE(c.change_date) <= ?', [$dateTo]);
+            $base->whereRaw("DATE(datetime(c.change_date, '+8 hours')) <= ?", [$dateTo]);
         }
         if ($filterLevel && $filterCode && isset(self::GEO_COL_MAP[$filterLevel])) {
             $base->where(self::GEO_COL_MAP[$filterLevel], $filterCode);
@@ -98,7 +98,7 @@ class HeatmapController extends Controller
             'pengawas' => (clone $base)
                 ->leftJoin('users as u', 'u.user_id', '=', 'c.pengawas_user_id')
                 ->whereNotNull('c.pengawas_user_id')
-                ->selectRaw("DATE(c.change_date) as day, hex(c.pengawas_user_id) as dim_key, COALESCE(NULLIF(u.fullname,''), u.email, hex(c.pengawas_user_id)) as dim_label, COUNT(*) as cnt")
+                ->selectRaw("DATE(datetime(c.change_date, '+8 hours')) as day, hex(c.pengawas_user_id) as dim_key, COALESCE(NULLIF(u.fullname,''), u.email, hex(c.pengawas_user_id)) as dim_label, COUNT(*) as cnt")
                 ->groupByRaw('day, dim_key, dim_label')
                 ->orderBy('day')
                 ->get(),
@@ -106,7 +106,7 @@ class HeatmapController extends Controller
             default => /* pencacah */ (clone $base)
                 ->leftJoin('users as u', 'u.user_id', '=', 'c.pencacah_user_id')
                 ->whereNotNull('c.pencacah_user_id')
-                ->selectRaw("DATE(c.change_date) as day, hex(c.pencacah_user_id) as dim_key, COALESCE(NULLIF(u.fullname,''), u.email, hex(c.pencacah_user_id)) as dim_label, COUNT(*) as cnt")
+                ->selectRaw("DATE(datetime(c.change_date, '+8 hours')) as day, hex(c.pencacah_user_id) as dim_key, COALESCE(NULLIF(u.fullname,''), u.email, hex(c.pencacah_user_id)) as dim_label, COUNT(*) as cnt")
                 ->groupByRaw('day, dim_key, dim_label')
                 ->orderBy('day')
                 ->get(),
@@ -139,8 +139,8 @@ class HeatmapController extends Controller
         }
 
         $rows = $query
-            ->selectRaw("CAST(strftime('%H', change_date) AS INTEGER) as hour, COUNT(*) as cnt")
-            ->groupByRaw("strftime('%H', change_date)")
+            ->selectRaw("CAST(strftime('%H', datetime(change_date, '+8 hours')) AS INTEGER) as hour, COUNT(*) as cnt")
+            ->groupByRaw("strftime('%H', datetime(change_date, '+8 hours'))")
             ->orderBy('hour')
             ->get();
 
