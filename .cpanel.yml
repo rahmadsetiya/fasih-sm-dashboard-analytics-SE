@@ -1,0 +1,27 @@
+---
+deployment:
+  tasks:
+    # Paths — adjust USERNAME if needed
+    - export APPDIR="$HOME/APP_FOLDER/dashboard-se.enrekang.stat7300.net"
+    - export PUBDIR="$HOME/public_html/dashboard-se.enrekang.stat7300.net"
+    - export PHP="/usr/local/bin/ea-php83"
+
+    # Composer install (no dev, optimized)
+    - cd "$APPDIR" && composer install --no-dev --optimize-autoloader --no-interaction
+
+    # Symlink public/build → public_html/.../build (create once, stays on updates)
+    - ln -sfn "$APPDIR/public/build" "$PUBDIR/build"
+
+    # Copy other public assets (favicons, etc) — exclude build folder itself
+    - rsync -a --exclude=build "$APPDIR/public/" "$PUBDIR/"
+
+    # Laravel caches
+    - $PHP "$APPDIR/artisan" config:cache
+    - $PHP "$APPDIR/artisan" route:cache
+    - $PHP "$APPDIR/artisan" view:cache
+
+    # Migrations (safe with --force on production)
+    - $PHP "$APPDIR/artisan" migrate --force
+
+    # Permissions
+    - chmod -R 775 "$APPDIR/storage" "$APPDIR/bootstrap/cache"

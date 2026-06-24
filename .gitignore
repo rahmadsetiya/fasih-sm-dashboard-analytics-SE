@@ -1,7 +1,7 @@
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
-/public/build
+# /public/build  ← tracked in git for server deploy (no Node.js on cPanel)
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
