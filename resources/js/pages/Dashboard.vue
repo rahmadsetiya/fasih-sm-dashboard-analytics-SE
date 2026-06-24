@@ -1236,7 +1236,7 @@ function rowContext(row: BreakdownRow): string {
                         hex: '#FFA95A',
                         ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
                         tooltip:
-                            'Progress = (Total − OPEN) ÷ Total × 100%. Semua status yang sudah diproses (bukan OPEN) dihitung sebagai progress.',
+                            'Progress = (Total − OPEN − DRAFT) ÷ Total × 100%. Status OPEN dan DRAFT belum diproses, tidak dihitung sebagai progress.',
                     },
                     {
                         label: 'Submitted',

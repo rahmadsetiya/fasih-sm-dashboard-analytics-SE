@@ -113,6 +113,7 @@ class DashboardController extends Controller
             COUNT(DISTINCT username)             as total_pengawas,
             SUM(region_total)                    as total_assignment,
             SUM("OPEN")                          as total_open,
+            SUM("DRAFT")                         as total_draft,
             SUM("APPROVED BY Pengawas")          as total_approved,
             SUM("SUBMITTED BY Pencacah")         as total_submitted,
             SUM("REJECTED BY Pengawas")          as total_rejected
@@ -122,6 +123,7 @@ class DashboardController extends Controller
 
         $total = (int) ($m->total_assignment ?: 1);
         $open = (int) ($m->total_open ?: 0);
+        $draft = (int) ($m->total_draft ?: 0);
         $approved = (int) ($m->total_approved ?: 0);
         $submitted = (int) ($m->total_submitted ?: 0);
         $rejected = (int) ($m->total_rejected ?: 0);
@@ -144,6 +146,7 @@ class DashboardController extends Controller
         $kecamatan = $kecRows->map(function ($r) {
             $tot = (int) ($r->total ?: 1);
             $open = (int) ($r->OPEN ?? 0);
+            $draft = (int) ($r->DRAFT ?? 0);
             $app = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
             $statuses = [];
             foreach (self::STATUS_COLS as $c) {
@@ -155,7 +158,7 @@ class DashboardController extends Controller
                 'nmkec' => $r->nmkec,
                 'total_desa' => (int) $r->total_desa,
                 'total' => $tot,
-                'progress_pct' => round(($tot - $open) / $tot * 100, 1),
+                'progress_pct' => round(($tot - $open - $draft) / $tot * 100, 1),
                 'approved_pct' => round($app / $tot * 100, 1),
                 'statuses' => $statuses,
             ];
@@ -172,7 +175,7 @@ class DashboardController extends Controller
                 'total_pengawas' => (int) $m->total_pengawas,
                 'total_pencacah' => $totalPencacah,
                 'total_assignment' => $total,
-                'progress_pct' => round(($total - $open) / $total * 100, 1),
+                'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
                 'approved_pct' => round($approved / $total * 100, 1),
                 'submitted_pct' => round($submitted / $total * 100, 1),
                 'rejected_pct' => round($rejected / $total * 100, 1),
@@ -230,6 +233,7 @@ class DashboardController extends Controller
             COUNT(DISTINCT kdkec || kddes)    as total_desa,
             SUM(region_total)                 as total_assignment,
             SUM("OPEN")                       as total_open,
+            SUM("DRAFT")                      as total_draft,
             SUM("APPROVED BY Pengawas")       as total_approved,
             SUM("SUBMITTED BY Pencacah")      as total_submitted,
             SUM("REJECTED BY Pengawas")       as total_rejected
@@ -237,6 +241,7 @@ class DashboardController extends Controller
 
         $total = (int) ($row->total_assignment ?: 1);
         $open = (int) ($row->total_open ?: 0);
+        $draft = (int) ($row->total_draft ?: 0);
         $approved = (int) ($row->total_approved ?: 0);
         $submitted = (int) ($row->total_submitted ?: 0);
         $rejected = (int) ($row->total_rejected ?: 0);
@@ -246,7 +251,7 @@ class DashboardController extends Controller
             'total_kec' => (int) $row->total_kec,
             'total_desa' => (int) $row->total_desa,
             'total_assignment' => $total,
-            'progress_pct' => round(($total - $open) / $total * 100, 1),
+            'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
             'approved_pct' => round($approved / $total * 100, 1),
             'submitted_pct' => round($submitted / $total * 100, 1),
             'rejected_pct' => round($rejected / $total * 100, 1),
@@ -304,6 +309,7 @@ class DashboardController extends Controller
         return $rows->map(function ($r) use ($nameOverrides) {
             $total = (int) ($r->total ?: 1);
             $open = (int) ($r->OPEN ?? 0);
+            $draft = (int) ($r->DRAFT ?? 0);
             $approved = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
 
             $statuses = [];
@@ -315,7 +321,7 @@ class DashboardController extends Controller
                 'key' => $r->grp_key,
                 'label' => $nameOverrides[$r->grp_key] ?? $r->label,
                 'total' => $total,
-                'progress_pct' => round(($total - $open) / $total * 100, 1),
+                'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
                 'approved_pct' => round($approved / $total * 100, 1),
                 'statuses' => $statuses,
             ];
@@ -349,18 +355,20 @@ class DashboardController extends Controller
             snapshot_at,
             SUM(region_total)             as total,
             SUM("OPEN")                   as total_open,
+            SUM("DRAFT")                  as total_draft,
             SUM("SUBMITTED BY Pencacah")  as total_submitted,
             SUM("APPROVED BY Pengawas")   as total_approved
         ')->groupBy('snapshot_at')->orderBy('snapshot_at')->get()
             ->map(function ($r) {
                 $total = (int) ($r->total ?: 1);
                 $open = (int) ($r->total_open ?: 0);
+                $draft = (int) ($r->total_draft ?: 0);
                 $submitted = (int) ($r->total_submitted ?: 0);
                 $approved = (int) ($r->total_approved ?: 0);
 
                 return [
                     'snapshot_at' => $r->snapshot_at,
-                    'progress_pct' => round(($total - $open) / $total * 100, 1),
+                    'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
                     'submitted_pct' => round($submitted / $total * 100, 1),
                     'approved_pct' => round($approved / $total * 100, 1),
                     'total' => $total,

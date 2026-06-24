@@ -270,6 +270,7 @@ class PetugasController extends Controller
                     COUNT(DISTINCT username) as total_pencacah,
                     SUM(region_total) as total_assignment,
                     SUM(\"OPEN\") as total_open,
+                    SUM(\"DRAFT\") as total_draft,
                     SUM(\"SUBMITTED BY Pencacah\") as total_submitted,
                     SUM(\"APPROVED BY Pengawas\") as total_approved,
                     SUM(\"REJECTED BY Pengawas\") as total_rejected
@@ -280,13 +281,14 @@ class PetugasController extends Controller
                 ->map(function ($r) {
                     $total    = (int) ($r->total_assignment ?: 1);
                     $open     = (int) ($r->total_open ?: 0);
+                    $draft    = (int) ($r->total_draft ?: 0);
                     $approved = (int) ($r->total_approved ?: 0);
 
                     return [
                         'label'            => $r->group_label,
                         'total_pencacah'   => (int) $r->total_pencacah,
                         'total_assignment' => $total,
-                        'progress_pct'     => round(($total - $open) / $total * 100, 1),
+                        'progress_pct'     => round(($total - $open - $draft) / $total * 100, 1),
                         'approved_pct'     => round($approved / $total * 100, 1),
                         'submitted'        => (int) ($r->total_submitted ?? 0),
                         'approved'         => (int) ($r->total_approved ?? 0),

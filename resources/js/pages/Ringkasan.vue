@@ -402,7 +402,7 @@ function pct(v: number) {
                         hex: '#FFA95A',
                         bar: 'bg-[#FFA95A]',
                         ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
-                        tooltip: 'Progress = (Total − OPEN) ÷ Total × 100%',
+                        tooltip: 'Progress = (Total − OPEN − DRAFT) ÷ Total × 100%',
                     },
                     {
                         label: 'Submitted',
@@ -466,7 +466,7 @@ function pct(v: number) {
         <div class="rounded-lg border border-sidebar-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground dark:border-sidebar-border">
             <span class="font-semibold text-foreground/70">Cara penghitungan:</span>
             <span class="ml-1.5">
-                <span class="font-medium text-[#FFA95A]">Progress</span> = (Total − Belum Diisi) ÷ Total.
+                <span class="font-medium text-[#FFA95A]">Progress</span> = (Total − OPEN − DRAFT) ÷ Total.
                 <span class="mx-1 opacity-40">·</span>
                 <span class="font-medium text-blue-500">Submitted</span> = Diserahkan Pencacah ÷ Total.
                 <span class="mx-1 opacity-40">·</span>
