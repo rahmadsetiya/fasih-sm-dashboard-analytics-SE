@@ -48,11 +48,15 @@ const kompGroupA  = ref('');
 const kompGroupB  = ref('');
 const kompResult  = ref<KomparasiResult | null>(null);
 const kompGroups  = computed(() => {
-    if (kompGroupBy.value === 'kecamatan') return props.kec_options.map(k => ({ code: k.code, label: k.name }));
+    if (kompGroupBy.value === 'kecamatan') {
+return props.kec_options.map(k => ({ code: k.code, label: k.name }));
+}
+
     const opts: Record<string, string[]> = {
         gelombang: ['I', 'II'], kelas: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
         tc: ['grand zidny', 'wifadelia', 'sabindo'],
     };
+
     return (opts[kompGroupBy.value] ?? []).map(l => ({ code: l, label: l }));
 });
 
@@ -68,58 +72,87 @@ const H = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
 
 async function fetchProporsi() {
     loading.value = true;
+
     try {
         const r = await fetch(`/api/statistik/proporsi?group_by=${proporsiGroup.value}`, { headers: H });
         proporsiData.value = await r.json();
-    } finally { loading.value = false; }
+    } finally {
+ loading.value = false; 
+}
 }
 
 async function runKomparasi() {
-    if (!kompGroupA.value || !kompGroupB.value) return;
+    if (!kompGroupA.value || !kompGroupB.value) {
+return;
+}
+
     loading.value = true;
+
     try {
         const p = new URLSearchParams({ group_by: kompGroupBy.value, group_a: kompGroupA.value, group_b: kompGroupB.value });
         const r = await fetch(`/api/statistik/komparasi?${p}`, { headers: H });
         kompResult.value = await r.json();
-    } finally { loading.value = false; }
+    } finally {
+ loading.value = false; 
+}
 }
 
 async function fetchChi2() {
     loading.value = true;
+
     try {
         const r = await fetch(`/api/statistik/chi2?group_by=${chi2GroupBy.value}`, { headers: H });
         chi2Result.value = await r.json();
-    } finally { loading.value = false; }
+    } finally {
+ loading.value = false; 
+}
 }
 
 async function fetchKorelasi() {
     loading.value = true;
+
     try {
         const r = await fetch('/api/statistik/korelasi', { headers: H });
         korelasiResult.value = await r.json();
-    } finally { loading.value = false; }
+    } finally {
+ loading.value = false; 
+}
 }
 
 async function fetchBangunanKosong() {
     loading.value = true;
+
     try {
         const r = await fetch('/api/statistik/bangunan-kosong', { headers: H });
         const d = await r.json();
         bangunanSummary.value = d.summary ?? [];
         bangunanPerKec.value  = d.per_kec ?? [];
-    } finally { loading.value = false; }
+    } finally {
+ loading.value = false; 
+}
 }
 
-onMounted(() => { if (props.db_ready) fetchProporsi(); });
+onMounted(() => {
+ if (props.db_ready) {
+fetchProporsi();
+} 
+});
 watch(activeTab, tab => {
-    if (tab === 'proporsi') fetchProporsi();
-    else if (tab === 'chi2') fetchChi2();
-    else if (tab === 'korelasi') fetchKorelasi();
-    else if (tab === 'bangunan_kosong') fetchBangunanKosong();
+    if (tab === 'proporsi') {
+fetchProporsi();
+} else if (tab === 'chi2') {
+fetchChi2();
+} else if (tab === 'korelasi') {
+fetchKorelasi();
+} else if (tab === 'bangunan_kosong') {
+fetchBangunanKosong();
+}
 });
 watch(proporsiGroup, fetchProporsi);
 watch(chi2GroupBy, fetchChi2);
-watch(kompGroupBy, () => { kompGroupA.value = ''; kompGroupB.value = ''; kompResult.value = null; });
+watch(kompGroupBy, () => {
+ kompGroupA.value = ''; kompGroupB.value = ''; kompResult.value = null; 
+});
 
 // ── charts ─────────────────────────────────────────────────────────────────
 const cc = computed(() => isDark.value ? '#9ca3af' : '#6b7280');

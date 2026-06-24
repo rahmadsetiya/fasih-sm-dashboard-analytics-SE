@@ -40,6 +40,7 @@ watch(
     () => props.snapshots,
     (val) => {
         snapshots.value = val;
+
         if (val.length && (!snapshot.value || val[0] !== snapshots.value[0])) {
             snapshot.value = val[0];
         }

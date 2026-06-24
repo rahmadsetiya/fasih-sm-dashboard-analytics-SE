@@ -13,8 +13,12 @@ class StatistikController extends Controller
     // Standard normal CDF approximation (Abramowitz & Stegun 26.2.17)
     private function normalCdf(float $z): float
     {
-        if ($z < -6) return 0.0;
-        if ($z >  6) return 1.0;
+        if ($z < -6) {
+            return 0.0;
+        }
+        if ($z > 6) {
+            return 1.0;
+        }
         $t = 1.0 / (1.0 + 0.2316419 * abs($z));
         $poly = $t * (0.319381530
             + $t * (-0.356563782
@@ -23,13 +27,16 @@ class StatistikController extends Controller
             + $t * 1.330274429))));
         $pdf = exp(-$z * $z / 2.0) / sqrt(2 * M_PI);
         $p = 1.0 - $pdf * $poly;
+
         return $z >= 0 ? $p : 1.0 - $p;
     }
 
     // Chi-squared p-value approximation (Wilson-Hilferty transformation)
     private function chi2Pvalue(float $chi2, int $df): float
     {
-        if ($chi2 <= 0 || $df <= 0) return 1.0;
+        if ($chi2 <= 0 || $df <= 0) {
+            return 1.0;
+        }
         $z = (pow($chi2 / $df, 1 / 3.0) - (1.0 - 2.0 / (9.0 * $df))) / sqrt(2.0 / (9.0 * $df));
 
         return 1.0 - $this->normalCdf($z);
@@ -51,7 +58,7 @@ class StatistikController extends Controller
         }
 
         return Inertia::render('Statistik', [
-            'db_ready'    => file_exists($dbPath),
+            'db_ready' => file_exists($dbPath),
             'kec_options' => $kecOptions,
         ]);
     }
@@ -73,14 +80,14 @@ class StatistikController extends Controller
                 ->leftJoin('wilayah as w', function ($j) {
                     $j->on('w.full_code', '=', 'a.kdkec')->where('w.level', 3);
                 })
-                ->selectRaw("
+                ->selectRaw('
                     a.kdkec as group_code,
                     COALESCE(w.name, a.kdkec) as group_label,
                     COUNT(*) as total,
                     SUM(CASE WHEN a.assignment_status_id = 2 THEN 1 ELSE 0 END) as approved,
                     SUM(CASE WHEN a.assignment_status_id = 1 THEN 1 ELSE 0 END) as submitted,
                     SUM(CASE WHEN a.assignment_status_id = 3 THEN 1 ELSE 0 END) as rejected
-                ")
+                ')
                 ->groupBy('a.kdkec')
                 ->orderBy('group_label')
                 ->get();
@@ -105,23 +112,23 @@ class StatistikController extends Controller
         }
 
         return response()->json($rows->map(function ($r) {
-            $n        = max(1, (int) $r->total);
+            $n = max(1, (int) $r->total);
             $approved = (int) ($r->approved ?? 0);
             $submitted = (int) ($r->submitted ?? 0);
             $rejected = (int) ($r->rejected ?? 0);
-            $p        = $approved / $n;
-            $margin   = 1.96 * sqrt($p * (1 - $p) / $n);
+            $p = $approved / $n;
+            $margin = 1.96 * sqrt($p * (1 - $p) / $n);
 
             return [
-                'group_code'      => $r->group_code,
-                'group_label'     => $r->group_label,
-                'total'           => $n,
-                'approved'        => $approved,
-                'submitted'       => $submitted,
-                'rejected'        => $rejected,
-                'p_approved'      => round($p * 100, 2),
-                'ci_lower'        => round(max(0, $p - $margin) * 100, 2),
-                'ci_upper'        => round(min(1, $p + $margin) * 100, 2),
+                'group_code' => $r->group_code,
+                'group_label' => $r->group_label,
+                'total' => $n,
+                'approved' => $approved,
+                'submitted' => $submitted,
+                'rejected' => $rejected,
+                'p_approved' => round($p * 100, 2),
+                'ci_lower' => round(max(0, $p - $margin) * 100, 2),
+                'ci_upper' => round(min(1, $p + $margin) * 100, 2),
                 'margin_of_error' => round($margin * 100, 2),
             ];
         })->values()->all());
@@ -171,22 +178,22 @@ class StatistikController extends Controller
         $x1 = (int) ($a->approved ?? 0);
         $x2 = (int) ($b->approved ?? 0);
 
-        $p1    = $x1 / $n1;
-        $p2    = $x2 / $n2;
+        $p1 = $x1 / $n1;
+        $p2 = $x2 / $n2;
         $pPool = ($x1 + $x2) / ($n1 + $n2);
-        $se    = sqrt($pPool * (1 - $pPool) * (1 / $n1 + 1 / $n2));
-        $z     = $se > 0 ? ($p1 - $p2) / $se : 0.0;
+        $se = sqrt($pPool * (1 - $pPool) * (1 / $n1 + 1 / $n2));
+        $z = $se > 0 ? ($p1 - $p2) / $se : 0.0;
         $pValue = 2 * (1 - $this->normalCdf(abs($z)));
 
         return response()->json([
-            'group_a'      => ['code' => $groupA, 'n' => $n1, 'approved' => $x1, 'p' => round($p1 * 100, 2)],
-            'group_b'      => ['code' => $groupB, 'n' => $n2, 'approved' => $x2, 'p' => round($p2 * 100, 2)],
-            'z'            => round($z, 4),
-            'p_value'      => round($pValue, 4),
-            'significant'  => $pValue < 0.05,
+            'group_a' => ['code' => $groupA, 'n' => $n1, 'approved' => $x1, 'p' => round($p1 * 100, 2)],
+            'group_b' => ['code' => $groupB, 'n' => $n2, 'approved' => $x2, 'p' => round($p2 * 100, 2)],
+            'z' => round($z, 4),
+            'p_value' => round($pValue, 4),
+            'significant' => $pValue < 0.05,
             'interpretasi' => $pValue < 0.05
-                ? "Ada perbedaan signifikan (p=".round($pValue, 4).") pada tingkat kepercayaan 95%."
-                : "Tidak ada perbedaan signifikan (p=".round($pValue, 4).") pada tingkat kepercayaan 95%.",
+                ? 'Ada perbedaan signifikan (p='.round($pValue, 4).') pada tingkat kepercayaan 95%.'
+                : 'Tidak ada perbedaan signifikan (p='.round($pValue, 4).') pada tingkat kepercayaan 95%.',
         ]);
     }
 
@@ -225,13 +232,13 @@ class StatistikController extends Controller
             return response()->json(['error' => 'Tidak ada data']);
         }
 
-        $groups   = $rows->pluck('grp')->all();
-        $colKeys  = ['approved', 'submitted', 'rejected', 'open_count'];
+        $groups = $rows->pluck('grp')->all();
+        $colKeys = ['approved', 'submitted', 'rejected', 'open_count'];
         $colLabels = ['Approved', 'Submitted', 'Rejected', 'Open'];
 
         $observed = [];
-        $colSums  = array_fill(0, count($colKeys), 0);
-        $rowSums  = [];
+        $colSums = array_fill(0, count($colKeys), 0);
+        $rowSums = [];
 
         foreach ($rows as $i => $r) {
             $rowSums[$i] = 0;
@@ -258,7 +265,7 @@ class StatistikController extends Controller
             }
         }
 
-        $df     = (count($groups) - 1) * (count($colKeys) - 1);
+        $df = (count($groups) - 1) * (count($colKeys) - 1);
         $pValue = $this->chi2Pvalue($chi2val, max(1, $df));
 
         $table = [];
@@ -272,19 +279,19 @@ class StatistikController extends Controller
         }
 
         $chi2round = round($chi2val, 4);
-        $pRound    = round($pValue, 4);
+        $pRound = round($pValue, 4);
 
         return response()->json([
-            'group_by'     => $groupBy,
-            'col_labels'   => $colLabels,
-            'col_keys'     => $colKeys,
-            'table'        => $table,
-            'col_sums'     => array_combine($colKeys, $colSums),
-            'grand_total'  => $grandTotal,
-            'chi2'         => $chi2round,
-            'df'           => $df,
-            'p_value'      => $pRound,
-            'significant'  => $pValue < 0.05,
+            'group_by' => $groupBy,
+            'col_labels' => $colLabels,
+            'col_keys' => $colKeys,
+            'table' => $table,
+            'col_sums' => array_combine($colKeys, $colSums),
+            'grand_total' => $grandTotal,
+            'chi2' => $chi2round,
+            'df' => $df,
+            'p_value' => $pRound,
+            'significant' => $pValue < 0.05,
             'interpretasi' => $pValue < 0.05
                 ? "Ada asosiasi signifikan antara {$groupBy} dan status penugasan (χ²={$chi2round}, df={$df}, p={$pRound})."
                 : "Tidak ada asosiasi signifikan antara {$groupBy} dan status penugasan (χ²={$chi2round}, df={$df}, p={$pRound}).",
@@ -319,9 +326,9 @@ class StatistikController extends Controller
                 $reviewed = (int) $r->reviewed;
 
                 return [
-                    'nama'           => $r->nama,
-                    'total'          => (int) $r->total,
-                    'avg_error'      => (float) $r->avg_error,
+                    'nama' => $r->nama,
+                    'total' => (int) $r->total,
+                    'avg_error' => (float) $r->avg_error,
                     'rejection_rate' => $reviewed > 0 ? round((int) $r->rejected / $reviewed * 100, 2) : 0.0,
                 ];
             })->values();
@@ -341,34 +348,34 @@ class StatistikController extends Controller
 
         $cov = $varX = $varY = 0.0;
         for ($i = 0; $i < $n; $i++) {
-            $dx   = $xs[$i] - $mx;
-            $dy   = $ys[$i] - $my;
-            $cov  += $dx * $dy;
+            $dx = $xs[$i] - $mx;
+            $dy = $ys[$i] - $my;
+            $cov += $dx * $dy;
             $varX += $dx * $dx;
             $varY += $dy * $dy;
         }
 
-        $r      = ($varX > 0 && $varY > 0) ? $cov / sqrt($varX * $varY) : 0.0;
-        $t      = $r * sqrt($n - 2) / sqrt(max(1e-10, 1 - $r * $r));
+        $r = ($varX > 0 && $varY > 0) ? $cov / sqrt($varX * $varY) : 0.0;
+        $t = $r * sqrt($n - 2) / sqrt(max(1e-10, 1 - $r * $r));
         $pValue = 2 * (1 - $this->normalCdf(abs($t)));
 
-        $strength  = match (true) {
+        $strength = match (true) {
             abs($r) >= 0.7 => 'kuat',
             abs($r) >= 0.4 => 'sedang',
             abs($r) >= 0.2 => 'lemah',
-            default        => 'sangat lemah',
+            default => 'sangat lemah',
         };
         $direction = $r >= 0 ? 'positif' : 'negatif';
-        $rRound    = round($r, 4);
-        $pRound    = round($pValue, 4);
+        $rRound = round($r, 4);
+        $pRound = round($pValue, 4);
 
         return response()->json([
-            'points'      => $points->all(),
-            'n'           => $n,
-            'r'           => $rRound,
-            'r2'          => round($r * $r, 4),
-            't'           => round($t, 4),
-            'p_value'     => $pRound,
+            'points' => $points->all(),
+            'n' => $n,
+            'r' => $rRound,
+            'r2' => round($r * $r, 4),
+            't' => round($t, 4),
+            'p_value' => $pRound,
             'significant' => $pValue < 0.05,
             'interpretasi' => "Korelasi {$direction} {$strength} (r={$rRound}) antara rata-rata error dan tingkat penolakan per pencacah. "
                 .($pValue < 0.05 ? 'Signifikan secara statistik.' : 'Tidak signifikan secara statistik.')
@@ -389,7 +396,7 @@ class StatistikController extends Controller
                 $j->on('w.full_code', '=', 'a.kdkec')->where('w.level', 3);
             })
             ->whereRaw("TRIM(a.data1) IN ('BANGUNAN KOSONG', 'RUMAH KOSONG')")
-            ->selectRaw("
+            ->selectRaw('
                 TRIM(a.data1) as kategori,
                 COALESCE(w.name, a.kdkec) as nmkec,
                 a.kdkec,
@@ -398,29 +405,29 @@ class StatistikController extends Controller
                 SUM(CASE WHEN a.assignment_status_id = 1 THEN 1 ELSE 0 END) as submitted,
                 SUM(CASE WHEN a.assignment_status_id = 2 THEN 1 ELSE 0 END) as approved,
                 SUM(CASE WHEN a.assignment_status_id = 3 THEN 1 ELSE 0 END) as rejected
-            ")
-            ->groupByRaw("TRIM(a.data1), a.kdkec")
+            ')
+            ->groupByRaw('TRIM(a.data1), a.kdkec')
             ->orderBy('a.kdkec')
             ->get();
 
         $byKategori = $rows->groupBy('kategori')->map(fn ($g) => [
-            'kategori'  => $g->first()->kategori,
-            'total'     => $g->sum('total'),
-            'draft'     => $g->sum('draft'),
+            'kategori' => $g->first()->kategori,
+            'total' => $g->sum('total'),
+            'draft' => $g->sum('draft'),
             'submitted' => $g->sum('submitted'),
-            'approved'  => $g->sum('approved'),
-            'rejected'  => $g->sum('rejected'),
+            'approved' => $g->sum('approved'),
+            'rejected' => $g->sum('rejected'),
         ])->values()->all();
 
         $perKec = $rows->groupBy('kdkec')->map(fn ($g) => [
-            'nmkec'           => $g->first()->nmkec,
-            'kdkec'           => $g->first()->kdkec,
+            'nmkec' => $g->first()->nmkec,
+            'kdkec' => $g->first()->kdkec,
             'bangunan_kosong' => $g->where('kategori', 'BANGUNAN KOSONG')->sum('total'),
-            'rumah_kosong'    => $g->where('kategori', 'RUMAH KOSONG')->sum('total'),
-            'total'           => $g->sum('total'),
-            'submitted'       => $g->sum('submitted'),
-            'approved'        => $g->sum('approved'),
-            'draft'           => $g->sum('draft'),
+            'rumah_kosong' => $g->where('kategori', 'RUMAH KOSONG')->sum('total'),
+            'total' => $g->sum('total'),
+            'submitted' => $g->sum('submitted'),
+            'approved' => $g->sum('approved'),
+            'draft' => $g->sum('draft'),
         ])->sortByDesc('total')->values()->all();
 
         return response()->json(['summary' => $byKategori, 'per_kec' => $perKec]);

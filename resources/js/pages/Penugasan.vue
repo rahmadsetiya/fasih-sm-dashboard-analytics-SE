@@ -32,24 +32,42 @@ const filterSubsls = ref('');
 const w = props.wilayah as Record<string, WilayahNode[]>;
 const kecOptions  = computed(() => w[3] ?? []);
 const desOptions  = computed(() => {
-    if (!filterKec.value) return w[4] ?? [];
+    if (!filterKec.value) {
+return w[4] ?? [];
+}
+
     const node = kecOptions.value.find(k => k.code === filterKec.value);
+
     return node ? (w[4] ?? []).filter(d => d.parent_uuid === node.uuid) : (w[4] ?? []);
 });
 const slsOptions  = computed(() => {
-    if (!filterDes.value) return [];
+    if (!filterDes.value) {
+return [];
+}
+
     const node = (w[4] ?? []).find(d => d.code === filterDes.value);
+
     return node ? (w[5] ?? []).filter(s => s.parent_uuid === node.uuid) : [];
 });
 const subslsOptions = computed(() => {
-    if (!filterSls.value) return [];
+    if (!filterSls.value) {
+return [];
+}
+
     const node = (w[5] ?? []).find(s => s.code === filterSls.value);
+
     return node ? (w[6] ?? []).filter(ss => ss.parent_uuid === node.uuid) : [];
 });
 
-watch(filterKec, () => { filterDes.value = ''; filterSls.value = ''; filterSubsls.value = ''; });
-watch(filterDes, () => { filterSls.value = ''; filterSubsls.value = ''; });
-watch(filterSls, () => { filterSubsls.value = ''; });
+watch(filterKec, () => {
+ filterDes.value = ''; filterSls.value = ''; filterSubsls.value = ''; 
+});
+watch(filterDes, () => {
+ filterSls.value = ''; filterSubsls.value = ''; 
+});
+watch(filterSls, () => {
+ filterSubsls.value = ''; 
+});
 
 // ── filter state ───────────────────────────────────────────────────────────
 const filterStatus  = ref('');
@@ -97,23 +115,49 @@ const STATUS_ICON: Record<string, string> = {
 const H = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
 
 async function fetchData() {
-    if (!props.db_ready) return;
+    if (!props.db_ready) {
+return;
+}
+
     loading.value = true;
     const p = new URLSearchParams({ page: String(page.value), per_page: String(perPage.value) });
-    if (filterStatus.value !== '') p.set('status', filterStatus.value);
-    if (filterKec.value)    p.set('kdkec',    filterKec.value);
-    if (filterDes.value)    p.set('kddes',    filterDes.value);
-    if (filterSls.value)    p.set('kdsls',    filterSls.value);
-    if (filterSubsls.value) p.set('kdsubsls', filterSubsls.value);
-    if (filterPengawas.value) p.set('pengawas', filterPengawas.value);
-    if (search.value)       p.set('search',   search.value);
+
+    if (filterStatus.value !== '') {
+p.set('status', filterStatus.value);
+}
+
+    if (filterKec.value)    {
+p.set('kdkec',    filterKec.value);
+}
+
+    if (filterDes.value)    {
+p.set('kddes',    filterDes.value);
+}
+
+    if (filterSls.value)    {
+p.set('kdsls',    filterSls.value);
+}
+
+    if (filterSubsls.value) {
+p.set('kdsubsls', filterSubsls.value);
+}
+
+    if (filterPengawas.value) {
+p.set('pengawas', filterPengawas.value);
+}
+
+    if (search.value)       {
+p.set('search',   search.value);
+}
 
     try {
         const r = await fetch(`/api/penugasan?${p}`, { headers: H });
         const d = await r.json();
         rows.value  = d.data ?? [];
         total.value = d.total ?? 0;
-    } finally { loading.value = false; }
+    } finally {
+ loading.value = false; 
+}
 }
 
 async function openHistory(row: Assignment) {
@@ -121,21 +165,31 @@ async function openHistory(row: Assignment) {
     historyOpen.value = true;
     historyLoading.value = true;
     historyRows.value = [];
+
     try {
         const r = await fetch(`/api/penugasan/history?id=${encodeURIComponent(row.assignment_id)}`, { headers: H });
         historyRows.value = await r.json();
-    } finally { historyLoading.value = false; }
+    } finally {
+ historyLoading.value = false; 
+}
 }
 
-function applyFilters() { page.value = 1; fetchData(); }
+function applyFilters() {
+ page.value = 1; fetchData(); 
+}
 
 watch(page, fetchData);
-watch(perPage, () => { page.value = 1; fetchData(); });
+watch(perPage, () => {
+ page.value = 1; fetchData(); 
+});
 
 fetchData();
 
 function fmtDate(s: string | null) {
-    if (!s) return '—';
+    if (!s) {
+return '—';
+}
+
     return new Date(s).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 </script>

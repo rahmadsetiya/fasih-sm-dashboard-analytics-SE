@@ -38,27 +38,54 @@ const filterSubsls = ref('');
 const w = props.wilayah as Record<string, WilayahNode[]>;
 const kecOptions    = computed(() => w[3] ?? []);
 const desOptions    = computed(() => {
-    if (!filterKec.value) return w[4] ?? [];
+    if (!filterKec.value) {
+return w[4] ?? [];
+}
+
     const kecNode = kecOptions.value.find(k => k.code === filterKec.value);
-    if (!kecNode) return w[4] ?? [];
+
+    if (!kecNode) {
+return w[4] ?? [];
+}
+
     return (w[4] ?? []).filter(d => d.parent_uuid === kecNode.uuid);
 });
 const slsOptions    = computed(() => {
-    if (!filterDes.value) return [];
+    if (!filterDes.value) {
+return [];
+}
+
     const desNode = (w[4] ?? []).find(d => d.code === filterDes.value);
-    if (!desNode) return [];
+
+    if (!desNode) {
+return [];
+}
+
     return (w[5] ?? []).filter(s => s.parent_uuid === desNode.uuid);
 });
 const subslsOptions = computed(() => {
-    if (!filterSls.value) return [];
+    if (!filterSls.value) {
+return [];
+}
+
     const slsNode = (w[5] ?? []).find(s => s.code === filterSls.value);
-    if (!slsNode) return [];
+
+    if (!slsNode) {
+return [];
+}
+
     return (w[6] ?? []).filter(ss => ss.parent_uuid === slsNode.uuid);
 });
 
-watch(filterKec,    () => { filterDes.value = ''; filterSls.value = ''; filterSubsls.value = ''; });
-watch(filterDes,    () => { filterSls.value = ''; filterSubsls.value = ''; });
-watch(filterSls,    () => { filterSubsls.value = ''; });
+watch(filterKec,    () => {
+ filterDes.value = ''; filterSls.value = ''; filterSubsls.value = ''; 
+});
+watch(filterDes,    () => {
+ filterSls.value = ''; filterSubsls.value = ''; 
+});
+watch(filterSls,    () => {
+ filterSubsls.value = ''; 
+});
 
 // ── tab & loading state ────────────────────────────────────────────────────
 const isDark    = useDark();
@@ -75,18 +102,23 @@ const pencacahPer  = ref(20);
 const sortedPencacah = computed(() =>
     [...pencacahAll.value].sort((a, b) => {
         const av = a[sortKey.value] as number, bv = b[sortKey.value] as number;
+
         return sortDir.value === 'desc' ? bv - av : av - bv;
     }),
 );
 const paginatedPencacah = computed(() => {
     const s = (pencacahPage.value - 1) * pencacahPer.value;
+
     return sortedPencacah.value.slice(s, s + pencacahPer.value);
 });
 const pencacahPages = computed(() => Math.ceil(pencacahAll.value.length / pencacahPer.value));
 
 function setSort(key: keyof PetugasRow) {
-    if (sortKey.value === key) sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc';
-    else { sortKey.value = key; sortDir.value = 'desc'; }
+    if (sortKey.value === key) {
+sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc';
+} else {
+ sortKey.value = key; sortDir.value = 'desc'; 
+}
 }
 
 // ── turnaround tab ─────────────────────────────────────────────────────────
@@ -101,6 +133,7 @@ const turnaroundData = computed(() =>
 );
 const paginatedTurnaround = computed(() => {
     const s = (turnaroundPage.value - 1) * turnaroundPer.value;
+
     return turnaroundData.value.slice(s, s + turnaroundPer.value);
 });
 const turnaroundPages = computed(() => Math.ceil(turnaroundData.value.length / turnaroundPer.value));
@@ -116,6 +149,7 @@ const sortedQuality = computed(() =>
 );
 const paginatedQuality = computed(() => {
     const s = (qualityPage.value - 1) * qualityPer.value;
+
     return sortedQuality.value.slice(s, s + qualityPer.value);
 });
 const qualityPages = computed(() => Math.ceil(qualityAll.value.length / qualityPer.value));
@@ -127,18 +161,35 @@ const gelombangGroupBy = ref<'gelombang' | 'kelas' | 'tc'>('gelombang');
 // ── fetch ─────────────────────────────────────────────────────────────────
 function geoParams(): string {
     const p = new URLSearchParams();
-    if (filterKec.value)    p.set('kdkec',    filterKec.value);
-    if (filterDes.value)    p.set('kddes',    filterDes.value);
-    if (filterSls.value)    p.set('kdsls',    filterSls.value);
-    if (filterSubsls.value) p.set('kdsubsls', filterSubsls.value);
+
+    if (filterKec.value)    {
+p.set('kdkec',    filterKec.value);
+}
+
+    if (filterDes.value)    {
+p.set('kddes',    filterDes.value);
+}
+
+    if (filterSls.value)    {
+p.set('kdsls',    filterSls.value);
+}
+
+    if (filterSubsls.value) {
+p.set('kdsubsls', filterSubsls.value);
+}
+
     return p.toString();
 }
 
 const H = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
 
 async function fetchTab(tab: typeof activeTab.value) {
-    if (!props.db_ready) return;
+    if (!props.db_ready) {
+return;
+}
+
     loading.value = true;
+
     try {
         if (tab === 'pencacah') {
             const r = await fetch(`/api/petugas/list?${geoParams()}`, { headers: H });
@@ -160,20 +211,32 @@ async function fetchTab(tab: typeof activeTab.value) {
             const r = await fetch(`/api/petugas/gelombang?group_by=${gelombangGroupBy.value}`, { headers: H });
             gelombangList.value = await r.json();
         }
-    } finally { loading.value = false; }
+    } finally {
+ loading.value = false; 
+}
 }
 
 onMounted(() => fetchTab('pencacah'));
 watch(activeTab, tab => fetchTab(tab));
 watch([filterKec, filterDes, filterSls, filterSubsls], () => fetchTab(activeTab.value));
-watch(gelombangGroupBy, () => { if (activeTab.value === 'gelombang') fetchTab('gelombang'); });
-watch(turnaroundView, () => { turnaroundPage.value = 1; });
+watch(gelombangGroupBy, () => {
+ if (activeTab.value === 'gelombang') {
+fetchTab('gelombang');
+} 
+});
+watch(turnaroundView, () => {
+ turnaroundPage.value = 1; 
+});
 
 // ── charts ─────────────────────────────────────────────────────────────────
 const chartColor = computed(() => (isDark.value ? '#9ca3af' : '#6b7280'));
 function fmtMin(m: number) {
-    if (m < 60) return `${Math.round(m)} mnt`;
+    if (m < 60) {
+return `${Math.round(m)} mnt`;
+}
+
     const h = Math.floor(m / 60), r = Math.round(m % 60);
+
     return r ? `${h}j ${r}m` : `${h}j`;
 }
 

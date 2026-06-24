@@ -37,15 +37,15 @@ class PenugasanController extends Controller
                 ->get()
                 ->map(fn ($u) => [
                     'email' => $u->email,
-                    'nama'  => $u->fullname ?: $u->email,
+                    'nama' => $u->fullname ?: $u->email,
                 ])
                 ->values()
                 ->all();
         }
 
         return Inertia::render('Penugasan', [
-            'db_ready'         => file_exists($dbPath),
-            'wilayah'          => $wilayah,
+            'db_ready' => file_exists($dbPath),
+            'wilayah' => $wilayah,
             'pengawas_options' => $pengawasOptions,
         ]);
     }
@@ -60,16 +60,16 @@ class PenugasanController extends Controller
         $validPerPage = [10, 20, 50];
         $perPage = in_array((int) $request->input('per_page', 20), $validPerPage)
             ? (int) $request->input('per_page', 20) : 20;
-        $page   = max(1, (int) $request->input('page', 1));
+        $page = max(1, (int) $request->input('page', 1));
         $offset = ($page - 1) * $perPage;
 
-        $statusId      = $request->input('status', '');
-        $kdkec         = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
-        $kddes         = preg_replace('/[^0-9]/', '', $request->input('kddes', ''));
-        $kdsls         = preg_replace('/[^0-9]/', '', $request->input('kdsls', ''));
-        $kdsubsls      = preg_replace('/[^0-9]/', '', $request->input('kdsubsls', ''));
+        $statusId = $request->input('status', '');
+        $kdkec = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
+        $kddes = preg_replace('/[^0-9]/', '', $request->input('kddes', ''));
+        $kdsls = preg_replace('/[^0-9]/', '', $request->input('kdsls', ''));
+        $kdsubsls = preg_replace('/[^0-9]/', '', $request->input('kdsubsls', ''));
         $pengawasEmail = trim($request->input('pengawas', ''));
-        $search        = trim($request->input('search', ''));
+        $search = trim($request->input('search', ''));
 
         $base = DB::connection('fasih')
             ->table('assignments as a')
@@ -83,13 +83,27 @@ class PenugasanController extends Controller
                 $j->on('w4.full_code', '=', 'a.kddes')->where('w4.level', 4);
             });
 
-        if ($statusId !== '')   $base->where('a.assignment_status_id', (int) $statusId);
-        if ($kdkec)             $base->where('a.kdkec', $kdkec);
-        if ($kddes)             $base->where('a.kddes', $kddes);
-        if ($kdsls)             $base->where('a.kdsls', $kdsls);
-        if ($kdsubsls)          $base->where('a.kdsubsls', $kdsubsls);
-        if ($pengawasEmail)     $base->where('pgw.email', $pengawasEmail);
-        if ($search)            $base->where('a.code_identity', 'like', '%'.$search.'%');
+        if ($statusId !== '') {
+            $base->where('a.assignment_status_id', (int) $statusId);
+        }
+        if ($kdkec) {
+            $base->where('a.kdkec', $kdkec);
+        }
+        if ($kddes) {
+            $base->where('a.kddes', $kddes);
+        }
+        if ($kdsls) {
+            $base->where('a.kdsls', $kdsls);
+        }
+        if ($kdsubsls) {
+            $base->where('a.kdsubsls', $kdsubsls);
+        }
+        if ($pengawasEmail) {
+            $base->where('pgw.email', $pengawasEmail);
+        }
+        if ($search) {
+            $base->where('a.code_identity', 'like', '%'.$search.'%');
+        }
 
         $total = (clone $base)->count();
 
@@ -118,8 +132,8 @@ class PenugasanController extends Controller
             ->get();
 
         return response()->json([
-            'data'     => $rows,
-            'total'    => $total,
+            'data' => $rows,
+            'total' => $total,
             'per_page' => $perPage,
         ]);
     }

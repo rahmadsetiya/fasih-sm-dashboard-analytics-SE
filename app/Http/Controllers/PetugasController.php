@@ -13,19 +13,27 @@ class PetugasController extends Controller
     private function geoParams(Request $r): array
     {
         return [
-            'kdkec'    => preg_replace('/[^0-9]/', '', $r->input('kdkec', '')),
-            'kddes'    => preg_replace('/[^0-9]/', '', $r->input('kddes', '')),
-            'kdsls'    => preg_replace('/[^0-9]/', '', $r->input('kdsls', '')),
+            'kdkec' => preg_replace('/[^0-9]/', '', $r->input('kdkec', '')),
+            'kddes' => preg_replace('/[^0-9]/', '', $r->input('kddes', '')),
+            'kdsls' => preg_replace('/[^0-9]/', '', $r->input('kdsls', '')),
             'kdsubsls' => preg_replace('/[^0-9]/', '', $r->input('kdsubsls', '')),
         ];
     }
 
     private function applyGeoFilter($query, array $geo, string $prefix = 'a'): void
     {
-        if ($geo['kdkec'])    $query->where("$prefix.kdkec", $geo['kdkec']);
-        if ($geo['kddes'])    $query->where("$prefix.kddes", $geo['kddes']);
-        if ($geo['kdsls'])    $query->where("$prefix.kdsls", $geo['kdsls']);
-        if ($geo['kdsubsls']) $query->where("$prefix.kdsubsls", $geo['kdsubsls']);
+        if ($geo['kdkec']) {
+            $query->where("$prefix.kdkec", $geo['kdkec']);
+        }
+        if ($geo['kddes']) {
+            $query->where("$prefix.kddes", $geo['kddes']);
+        }
+        if ($geo['kdsls']) {
+            $query->where("$prefix.kdsls", $geo['kdsls']);
+        }
+        if ($geo['kdsubsls']) {
+            $query->where("$prefix.kdsubsls", $geo['kdsubsls']);
+        }
     }
 
     public function index(): Response
@@ -48,7 +56,7 @@ class PetugasController extends Controller
 
         return Inertia::render('Petugas', [
             'db_ready' => file_exists($dbPath),
-            'wilayah'  => $wilayah,
+            'wilayah' => $wilayah,
         ]);
     }
 
@@ -79,23 +87,23 @@ class PetugasController extends Controller
 
         $rows = $query->groupByRaw('u.user_id')->get()
             ->map(function ($r) {
-                $total    = (int) ($r->total ?: 1);
+                $total = (int) ($r->total ?: 1);
                 $submitted = (int) ($r->submitted ?? 0);
-                $approved  = (int) ($r->approved ?? 0);
-                $rejected  = (int) ($r->rejected ?? 0);
-                $reviewed  = $submitted + $approved + $rejected;
+                $approved = (int) ($r->approved ?? 0);
+                $rejected = (int) ($r->rejected ?? 0);
+                $reviewed = $submitted + $approved + $rejected;
 
                 return [
-                    'uid'            => $r->uid,
-                    'nama'           => $r->nama,
-                    'email'          => $r->email,
-                    'total'          => $total,
-                    'draft'          => (int) ($r->draft ?? 0),
-                    'submitted'      => $submitted,
-                    'approved'       => $approved,
-                    'rejected'       => $rejected,
+                    'uid' => $r->uid,
+                    'nama' => $r->nama,
+                    'email' => $r->email,
+                    'total' => $total,
+                    'draft' => (int) ($r->draft ?? 0),
+                    'submitted' => $submitted,
+                    'approved' => $approved,
+                    'rejected' => $rejected,
                     'rejection_rate' => $reviewed > 0 ? round($rejected / $reviewed * 100, 1) : 0.0,
-                    'progress_pct'   => round(($total - (int) ($r->draft ?? 0)) / $total * 100, 1),
+                    'progress_pct' => round(($total - (int) ($r->draft ?? 0)) / $total * 100, 1),
                 ];
             })
             ->sortByDesc('total')
@@ -174,16 +182,16 @@ class PetugasController extends Controller
 
         return response()->json([
             'pencacah' => collect($pencacahRows)->map(fn ($r) => [
-                'uid'          => $r->uid,
-                'nama'         => $r->nama,
-                'avg_minutes'  => (float) ($r->avg_minutes ?? 0),
+                'uid' => $r->uid,
+                'nama' => $r->nama,
+                'avg_minutes' => (float) ($r->avg_minutes ?? 0),
                 'sample_count' => (int) $r->sample_count,
             ])->values()->all(),
             'pengawas' => collect($pengawasRows)->map(fn ($r) => [
-                'uid'            => $r->uid,
-                'nama'           => $r->nama,
-                'avg_minutes'    => (float) ($r->avg_minutes ?? 0),
-                'sample_count'   => (int) $r->sample_count,
+                'uid' => $r->uid,
+                'nama' => $r->nama,
+                'avg_minutes' => (float) ($r->avg_minutes ?? 0),
+                'sample_count' => (int) $r->sample_count,
                 'approved_count' => (int) $r->approved_count,
                 'rejected_count' => (int) $r->rejected_count,
             ])->values()->all(),
@@ -222,15 +230,15 @@ class PetugasController extends Controller
                 $total = (int) ($r->total ?: 1);
 
                 return [
-                    'uid'        => $r->uid,
-                    'nama'       => $r->nama,
-                    'email'      => $r->email,
-                    'total'      => $total,
-                    'avg_error'  => (float) ($r->avg_error ?? 0),
-                    'avg_clean'  => (float) ($r->avg_clean ?? 0),
+                    'uid' => $r->uid,
+                    'nama' => $r->nama,
+                    'email' => $r->email,
+                    'total' => $total,
+                    'avg_error' => (float) ($r->avg_error ?? 0),
+                    'avg_clean' => (float) ($r->avg_clean ?? 0),
                     'avg_remark' => (float) ($r->avg_remark ?? 0),
                     'error_count' => (int) ($r->error_count ?? 0),
-                    'error_pct'  => round((int) ($r->error_count ?? 0) / $total * 100, 1),
+                    'error_pct' => round((int) ($r->error_count ?? 0) / $total * 100, 1),
                 ];
             })
             ->sortByDesc('avg_error')
@@ -279,20 +287,20 @@ class PetugasController extends Controller
                 ->orderByRaw("TRIM($groupBy)")
                 ->get()
                 ->map(function ($r) {
-                    $total    = (int) ($r->total_assignment ?: 1);
-                    $open     = (int) ($r->total_open ?: 0);
-                    $draft    = (int) ($r->total_draft ?: 0);
+                    $total = (int) ($r->total_assignment ?: 1);
+                    $open = (int) ($r->total_open ?: 0);
+                    $draft = (int) ($r->total_draft ?: 0);
                     $approved = (int) ($r->total_approved ?: 0);
 
                     return [
-                        'label'            => $r->group_label,
-                        'total_pencacah'   => (int) $r->total_pencacah,
+                        'label' => $r->group_label,
+                        'total_pencacah' => (int) $r->total_pencacah,
                         'total_assignment' => $total,
-                        'progress_pct'     => round(($total - $open - $draft) / $total * 100, 1),
-                        'approved_pct'     => round($approved / $total * 100, 1),
-                        'submitted'        => (int) ($r->total_submitted ?? 0),
-                        'approved'         => (int) ($r->total_approved ?? 0),
-                        'rejected'         => (int) ($r->total_rejected ?? 0),
+                        'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
+                        'approved_pct' => round($approved / $total * 100, 1),
+                        'submitted' => (int) ($r->total_submitted ?? 0),
+                        'approved' => (int) ($r->total_approved ?? 0),
+                        'rejected' => (int) ($r->total_rejected ?? 0),
                     ];
                 })
                 ->values()
