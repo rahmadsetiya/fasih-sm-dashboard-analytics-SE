@@ -159,7 +159,7 @@ const gelombangList    = ref<GelombangRow[]>([]);
 const gelombangGroupBy = ref<'gelombang' | 'kelas' | 'tc'>('gelombang');
 
 // ── matrix tab ─────────────────────────────────────────────────────────────
-interface MatrixRow { uid: string; nama: string; avg_minutes: number; error_pct: number; total: number; sample_count: number; }
+interface MatrixRow { uid: string; nama: string; avg_minutes: number; rejection_rate: number; total: number; sample_count: number; }
 const matrixData = ref<MatrixRow[]>([]);
 const matrixPage = ref(1);
 const matrixPer  = ref(20);
@@ -317,7 +317,7 @@ const matrixMedianMinutes = computed(() => {
 });
 const matrixMedianError = computed(() => {
     if (!matrixData.value.length) return 0;
-    const sorted = [...matrixData.value].map(r => r.error_pct).sort((a, b) => a - b);
+    const sorted = [...matrixData.value].map(r => r.rejection_rate).sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 });
@@ -330,7 +330,7 @@ const matrixChartOptions = computed(() => ({
         labels: { formatter: (v: number) => fmtMin(v), style: { colors: isDark.value ? '#a1a1aa' : '#71717a' } },
     },
     yaxis: {
-        title: { text: '% assignment bermasalah — lebih kecil lebih baik', style: { color: isDark.value ? '#a1a1aa' : '#71717a', fontSize: '11px' } },
+        title: { text: '% di-reject pengawas — lebih kecil lebih baik', style: { color: isDark.value ? '#a1a1aa' : '#71717a', fontSize: '11px' } },
         labels: { formatter: (v: number) => `${v}%`, style: { colors: isDark.value ? '#a1a1aa' : '#71717a' } },
     },
     annotations: {
@@ -341,7 +341,7 @@ const matrixChartOptions = computed(() => ({
         custom: ({ seriesIndex: _s, dataPointIndex: i }: { seriesIndex: number; dataPointIndex: number }) => {
             const r = matrixData.value[i];
             if (!r) return '';
-            return `<div class="p-2 text-xs"><b>${r.nama}</b><br/>Waktu: ${fmtMin(r.avg_minutes)}<br/>Error: ${r.error_pct}%<br/>Total: ${r.total}</div>`;
+            return `<div class="p-2 text-xs"><b>${r.nama}</b><br/>Waktu: ${fmtMin(r.avg_minutes)}<br/>Reject: ${r.rejection_rate}%<br/>Total: ${r.total}</div>`;
         },
     },
     colors: ['#6366f1'],
@@ -350,7 +350,7 @@ const matrixChartOptions = computed(() => ({
 }));
 const matrixSeries = computed(() => [{
     name: 'Pencacah',
-    data: matrixData.value.map(r => [r.avg_minutes, r.error_pct]),
+    data: matrixData.value.map(r => [r.avg_minutes, r.rejection_rate]),
 }]);
 
 const gelombangChart = computed(() => ({
@@ -683,7 +683,7 @@ const gelombangSeries = computed(() => [
                             <tr>
                                 <th class="px-3 py-2 text-left font-medium text-muted-foreground">Nama</th>
                                 <th class="px-3 py-2 text-right font-medium text-muted-foreground">Waktu Avg</th>
-                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">% Error</th>
+                                <th class="px-3 py-2 text-right font-medium text-muted-foreground">% Reject</th>
                                 <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
                                 <th class="px-3 py-2 text-right font-medium text-muted-foreground">Sampel</th>
                             </tr>
@@ -693,7 +693,7 @@ const gelombangSeries = computed(() => [
                                 <td class="px-3 py-2 font-medium">{{ r.nama }}</td>
                                 <td class="px-3 py-2 text-right">{{ fmtMin(r.avg_minutes) }}</td>
                                 <td class="px-3 py-2 text-right">
-                                    <span :class="['rounded px-1.5 py-0.5 font-medium', r.error_pct > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : r.error_pct > 10 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300']">{{ r.error_pct }}%</span>
+                                    <span :class="['rounded px-1.5 py-0.5 font-medium', r.rejection_rate > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : r.rejection_rate > 10 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300']">{{ r.rejection_rate }}%</span>
                                 </td>
                                 <td class="px-3 py-2 text-right">{{ r.total }}</td>
                                 <td class="px-3 py-2 text-right text-muted-foreground">{{ r.sample_count }}</td>

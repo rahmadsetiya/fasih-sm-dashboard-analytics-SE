@@ -295,7 +295,8 @@ class PetugasController extends Controller
                 hex(u.user_id) as uid,
                 COALESCE(NULLIF(u.fullname,''), u.email) as nama,
                 COUNT(*) as total,
-                SUM(CASE WHEN COALESCE(a.sum_error, 0) > 0 THEN 1 ELSE 0 END) as error_count
+                SUM(CASE WHEN a.assignment_status_id = 3 THEN 1 ELSE 0 END) as rejected,
+                SUM(CASE WHEN a.assignment_status_id IN (1,2,3) THEN 1 ELSE 0 END) as reviewed
             ");
 
         $this->applyGeoFilter($qualityQuery, $geo);
@@ -306,8 +307,8 @@ class PetugasController extends Controller
                 'uid' => $r->uid,
                 'nama' => $r->nama,
                 'total' => (int) $r->total,
-                'error_pct' => (int) $r->total > 0
-                    ? round((int) $r->error_count / (int) $r->total * 100, 1)
+                'rejection_rate' => (int) $r->reviewed > 0
+                    ? round((int) $r->rejected / (int) $r->reviewed * 100, 1)
                     : 0.0,
             ]);
 
@@ -318,7 +319,7 @@ class PetugasController extends Controller
                 'nama' => $qualityMap[$r->uid]['nama'],
                 'avg_minutes' => (float) ($r->avg_minutes ?? 0),
                 'sample_count' => (int) $r->sample_count,
-                'error_pct' => $qualityMap[$r->uid]['error_pct'],
+                'rejection_rate' => $qualityMap[$r->uid]['rejection_rate'],
                 'total' => $qualityMap[$r->uid]['total'],
             ])
             ->values()
