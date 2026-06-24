@@ -614,18 +614,127 @@ const barOptions = computed(() => ({
     legend: { position: 'top' as const, fontSize: cFontMd.value },
 }));
 
-const trendSeries = computed(() => [
-    { name: 'Progress %', data: trend.value.map((t) => t.progress_pct) },
-    { name: 'Submitted %', data: trend.value.map((t) => t.submitted_pct) },
-    { name: 'Approved %', data: trend.value.map((t) => t.approved_pct) },
-]);
-const trendCategories = computed(() =>
-    trend.value.map((t) => {
-        const d = new Date(t.snapshot_at);
+// ── projection ────────────────────────────────────────────────────────────
+interface ProjPoint { label: string; y: number; }
+const projectionPoints = computed<ProjPoint[]>(() => {
+    const pts = trend.value;
+    if (pts.length < 2) return [];
+    const n = pts.length;
+    const xs = pts.map((_, i) => i);
+    const ys = pts.map((p) => p.progress_pct);
+    const xMean = xs.reduce((a, b) => a + b, 0) / n;
+    const yMean = ys.reduce((a, b) => a + b, 0) / n;
+    const num = xs.reduce((s, x, i) => s + (x - xMean) * (ys[i] - yMean), 0);
+    const den = xs.reduce((s, x) => s + (x - xMean) ** 2, 0);
+    if (den === 0) return [];
+    const slope = num / den;
+    const intercept = yMean - slope * xMean;
+    if (slope <= 0) return [];
+    const stepsToHundred = Math.ceil((100 - intercept) / slope) - (n - 1);
+    const maxSteps = Math.min(stepsToHundred + 1, 10);
+    const snapInterval =
+        n >= 2
+            ? (new Date(pts[n - 1].snapshot_at).getTime() -
+                  new Date(pts[0].snapshot_at).getTime()) /
+              (n - 1)
+            : 24 * 60 * 60 * 1000;
+    const result: ProjPoint[] = [];
+    const lastDate = new Date(pts[n - 1].snapshot_at);
+    for (let s = 1; s <= maxSteps; s++) {
+        const projY = Math.min(100, slope * (n - 1 + s) + intercept);
+        const projDate = new Date(lastDate.getTime() + snapInterval * s);
+        const label = `${projDate.getDate().toString().padStart(2, '0')}/${(projDate.getMonth() + 1).toString().padStart(2, '0')} ${projDate.getHours().toString().padStart(2, '0')}:${projDate.getMinutes().toString().padStart(2, '0')}`;
+        result.push({ label, y: Math.round(projY * 10) / 10 });
+        if (projY >= 100) break;
+    }
+    return result;
+});
 
+const projectionEstDate = computed<string | null>(() => {
+    const pts = trend.value;
+    if (pts.length < 2) return null;
+    const n = pts.length;
+    const xs = pts.map((_, i) => i);
+    const ys = pts.map((p) => p.progress_pct);
+    const xMean = xs.reduce((a, b) => a + b, 0) / n;
+    const yMean = ys.reduce((a, b) => a + b, 0) / n;
+    const num = xs.reduce((s, x, i) => s + (x - xMean) * (ys[i] - yMean), 0);
+    const den = xs.reduce((s, x) => s + (x - xMean) ** 2, 0);
+    if (den === 0) return null;
+    const slope = num / den;
+    const intercept = yMean - slope * xMean;
+    if (slope <= 0) return null;
+    const stepsToHundred = (100 - intercept) / slope - (n - 1);
+    if (stepsToHundred <= 0) return 'sudah selesai';
+    const snapInterval =
+        n >= 2
+            ? (new Date(pts[n - 1].snapshot_at).getTime() -
+                  new Date(pts[0].snapshot_at).getTime()) /
+              (n - 1)
+            : 24 * 60 * 60 * 1000;
+    const est = new Date(
+        new Date(pts[n - 1].snapshot_at).getTime() + snapInterval * stepsToHundred,
+    );
+    return est.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    });
+});
+
+// ── funnel data ───────────────────────────────────────────────────────────
+const FUNNEL_ORDER = [
+    'OPEN',
+    'DRAFT',
+    'SUBMITTED BY Pencacah',
+    'APPROVED BY Pengawas',
+    'REJECTED BY Pengawas',
+    'EDITED BY Pengawas',
+    'REVOKED BY Pengawas',
+    'SUBMITTED RESPONDENT',
+] as const;
+
+const funnelRows = computed(() => {
+    const total = Object.values(statusTotals.value).reduce((a, b) => a + b, 0) || 1;
+    return FUNNEL_ORDER.map((key) => ({
+        key,
+        label: STATUS_META[key]?.short ?? key,
+        title: STATUS_META[key]?.title ?? key,
+        color:
+            key === 'OPEN'
+                ? isDark.value
+                    ? '#71717a'
+                    : '#a1a1aa'
+                : (STATUS_META[key]?.color ?? '#888'),
+        count: statusTotals.value[key] ?? 0,
+        pct: Math.round(((statusTotals.value[key] ?? 0) / total) * 100),
+    })).filter((r) => r.count > 0);
+});
+
+const trendSeries = computed(() => {
+    const series: { name: string; data: (number | null)[] }[] = [
+        { name: 'Progress %', data: trend.value.map((t) => t.progress_pct) },
+        { name: 'Submitted %', data: trend.value.map((t) => t.submitted_pct) },
+        { name: 'Approved %', data: trend.value.map((t) => t.approved_pct) },
+    ];
+    if (projectionPoints.value.length >= 1) {
+        const nullPad: (number | null)[] = trend.value.map(() => null);
+        const last = trend.value[trend.value.length - 1]?.progress_pct ?? null;
+        series.push({
+            name: 'Proyeksi',
+            data: [...nullPad.slice(0, -1), last, ...projectionPoints.value.map((p) => p.y)],
+        });
+    }
+    return series;
+});
+const trendCategories = computed(() => {
+    const real = trend.value.map((t) => {
+        const d = new Date(t.snapshot_at);
         return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    }),
-);
+    });
+    const proj = projectionPoints.value.map((p) => p.label);
+    return [...real, ...proj];
+});
 const trendMax = computed(() => {
     const maxVal = Math.max(
         0,
@@ -645,8 +754,8 @@ const trendOptions = computed(() => ({
         zoom: { enabled: false },
     },
     theme: { mode: chartMode.value },
-    stroke: { curve: 'smooth' as const, width: 2.5 },
-    colors: ['#FFA95A', '#FF8B5A', '#22c55e'],
+    stroke: { curve: 'smooth' as const, width: [2.5, 2.5, 2.5, 2], dashArray: [0, 0, 0, 6] },
+    colors: ['#FFA95A', '#FF8B5A', '#22c55e', '#a78bfa'],
     xaxis: {
         categories: trendCategories.value,
         labels: { rotate: -30, style: { fontSize: cFontXs.value } },
@@ -1323,6 +1432,18 @@ function rowContext(row: BreakdownRow): string {
                 >
                     Tidak ada data
                 </div>
+
+                <!-- Funnel -->
+                <div v-if="funnelRows.length" class="mt-3 space-y-1.5 px-1">
+                    <p class="text-[10px] font-medium text-muted-foreground">Distribusi Status</p>
+                    <div v-for="row in funnelRows" :key="row.key" class="flex items-center gap-2">
+                        <span class="w-14 shrink-0 text-right text-[10px] text-muted-foreground">{{ row.label }}</span>
+                        <div class="h-3 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div class="h-full rounded-full transition-all" :style="{ width: `${row.pct}%`, backgroundColor: row.color }" />
+                        </div>
+                        <span class="w-12 shrink-0 text-[10px] text-muted-foreground">{{ row.count.toLocaleString('id') }}</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Bar -->
@@ -1366,6 +1487,11 @@ function rowContext(row: BreakdownRow): string {
                 class="mt-1 text-center text-xs text-muted-foreground"
             >
                 Hanya 1 snapshot — tambah snapshot lebih untuk melihat tren
+            </p>
+            <p v-if="projectionEstDate" class="mt-1 text-xs text-muted-foreground">
+                <span class="font-medium text-violet-500 dark:text-violet-400">Proyeksi selesai:</span>
+                {{ projectionEstDate }}
+                <span class="text-[10px] text-muted-foreground/60">(berdasarkan tren linear)</span>
             </p>
         </div>
 

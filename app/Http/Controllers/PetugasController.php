@@ -248,6 +248,85 @@ class PetugasController extends Controller
         return response()->json(['data' => $rows, 'total' => count($rows)]);
     }
 
+    public function matrix(Request $request): JsonResponse
+    {
+        $dbPath = config('database.connections.fasih.database');
+        if (! file_exists($dbPath)) {
+            return response()->json(['data' => []]);
+        }
+
+        $geo = $this->geoParams($request);
+
+        $conditions = [];
+        $params = [];
+        foreach (['kdkec' => 'c.kdkec', 'kddes' => 'c.kddes', 'kdsls' => 'c.kdsls', 'kdsubsls' => 'c.kdsubsls'] as $key => $col) {
+            if ($geo[$key]) {
+                $conditions[] = "$col = ?";
+                $params[] = $geo[$key];
+            }
+        }
+        $extraWhere = $conditions ? 'AND '.implode(' AND ', $conditions) : '';
+
+        $turnaroundRows = DB::connection('fasih')->select("
+            SELECT
+                hex(c.pencacah_user_id) as uid,
+                ROUND(AVG((julianday(c.change_date) - julianday(d.last_draft)) * 24 * 60), 1) as avg_minutes,
+                COUNT(*) as sample_count
+            FROM assignment_status_changes c
+            JOIN (
+                SELECT assignment_id, MAX(change_date) as last_draft
+                FROM assignment_status_changes
+                WHERE to_status_id = 0
+                GROUP BY assignment_id
+            ) d ON d.assignment_id = c.assignment_id
+              AND c.change_date > d.last_draft
+            WHERE c.to_status_id = 1
+              AND c.pencacah_user_id IS NOT NULL
+              $extraWhere
+            GROUP BY c.pencacah_user_id
+            HAVING sample_count >= 3
+        ", $params);
+
+        $qualityQuery = DB::connection('fasih')
+            ->table('assignments as a')
+            ->join('users as u', 'u.user_id', '=', 'a.pencacah_user_id')
+            ->whereNotNull('a.pencacah_user_id')
+            ->selectRaw("
+                hex(u.user_id) as uid,
+                COALESCE(NULLIF(u.fullname,''), u.email) as nama,
+                COUNT(*) as total,
+                SUM(CASE WHEN COALESCE(a.sum_error, 0) > 0 THEN 1 ELSE 0 END) as error_count
+            ");
+
+        $this->applyGeoFilter($qualityQuery, $geo);
+
+        $qualityMap = collect($qualityQuery->groupByRaw('u.user_id')->get())
+            ->keyBy('uid')
+            ->map(fn ($r) => [
+                'uid' => $r->uid,
+                'nama' => $r->nama,
+                'total' => (int) $r->total,
+                'error_pct' => (int) $r->total > 0
+                    ? round((int) $r->error_count / (int) $r->total * 100, 1)
+                    : 0.0,
+            ]);
+
+        $result = collect($turnaroundRows)
+            ->filter(fn ($r) => isset($qualityMap[$r->uid]))
+            ->map(fn ($r) => [
+                'uid' => $r->uid,
+                'nama' => $qualityMap[$r->uid]['nama'],
+                'avg_minutes' => (float) ($r->avg_minutes ?? 0),
+                'sample_count' => (int) $r->sample_count,
+                'error_pct' => $qualityMap[$r->uid]['error_pct'],
+                'total' => $qualityMap[$r->uid]['total'],
+            ])
+            ->values()
+            ->all();
+
+        return response()->json(['data' => $result]);
+    }
+
     public function gelombang(Request $request): JsonResponse
     {
         $dbPath = config('database.connections.fasih.database');

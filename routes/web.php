@@ -22,16 +22,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/heatmap', [HeatmapController::class, 'index'])->name('heatmap');
     Route::get('/api/heatmap', [HeatmapController::class, 'data'])->name('heatmap.data');
+    Route::get('/api/heatmap/hourly', [HeatmapController::class, 'hourly'])->name('heatmap.hourly');
 
     Route::get('/petugas', [PetugasController::class, 'index'])->name('petugas');
     Route::get('/api/petugas/list', [PetugasController::class, 'list'])->name('petugas.list');
     Route::get('/api/petugas/turnaround', [PetugasController::class, 'turnaround'])->name('petugas.turnaround');
     Route::get('/api/petugas/quality', [PetugasController::class, 'quality'])->name('petugas.quality');
     Route::get('/api/petugas/gelombang', [PetugasController::class, 'gelombang'])->name('petugas.gelombang');
+    Route::get('/api/petugas/matrix', [PetugasController::class, 'matrix'])->name('petugas.matrix');
 
     Route::get('/penugasan', [PenugasanController::class, 'index'])->name('penugasan');
     Route::get('/api/penugasan', [PenugasanController::class, 'data'])->name('penugasan.data');
     Route::get('/api/penugasan/history', [PenugasanController::class, 'history'])->name('penugasan.history');
+    Route::get('/api/penugasan/mangkrak', [PenugasanController::class, 'mangkrak'])->name('penugasan.mangkrak');
 
     Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik');
     Route::get('/api/statistik/proporsi', [StatistikController::class, 'proporsi'])->name('statistik.proporsi');

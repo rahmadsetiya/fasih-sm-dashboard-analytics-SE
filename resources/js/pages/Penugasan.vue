@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 
 interface WilayahNode { uuid: string; level: number; code: string; name: string; parent_uuid: string | null; }
 
@@ -185,6 +185,45 @@ watch(perPage, () => {
 
 fetchData();
 
+// ── mangkrak tab ───────────────────────────────────────────────────────────
+const activeView = ref<'list' | 'mangkrak'>('list');
+interface MangkrakRow {
+    assignment_id: string; code_identity: string;
+    pencacah_nama: string | null; pencacah_email: string | null;
+    pengawas_nama: string | null; status: string; assignment_status_id: number;
+    date_modified: string; days_stale: number; nmkec: string | null; nmdes: string | null;
+}
+const mangkrakRows = ref<MangkrakRow[]>([]);
+const mangkrakTotal = ref(0);
+const mangkrakLoading = ref(false);
+const mangkrakThreshold = ref(7);
+
+async function fetchMangkrak() {
+    if (!props.db_ready) return;
+    mangkrakLoading.value = true;
+    const p = new URLSearchParams({ threshold_days: String(mangkrakThreshold.value) });
+    if (filterKec.value) p.set('kdkec', filterKec.value);
+    if (filterDes.value) p.set('kddes', filterDes.value);
+    if (filterSls.value) p.set('kdsls', filterSls.value);
+    if (filterSubsls.value) p.set('kdsubsls', filterSubsls.value);
+    if (filterPengawas.value) p.set('pengawas', filterPengawas.value);
+    try {
+        const r = await fetch(`/api/penugasan/mangkrak?${p}`, { headers: H });
+        const d = await r.json();
+        mangkrakRows.value = d.data ?? [];
+        mangkrakTotal.value = d.total ?? 0;
+    } finally { mangkrakLoading.value = false; }
+}
+
+watch(activeView, v => { if (v === 'mangkrak') fetchMangkrak(); });
+watch(mangkrakThreshold, () => { if (activeView.value === 'mangkrak') fetchMangkrak(); });
+
+function staleClass(days: number) {
+    if (days >= 14) return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+    if (days >= 7)  return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+    return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+}
+
 function fmtDate(s: string | null) {
     if (!s) {
 return '—';
@@ -202,9 +241,18 @@ return '—';
     </div>
 
     <div v-else class="space-y-3 p-4">
-        <div>
-            <h1 class="text-lg font-semibold">Daftar Penugasan</h1>
-            <p class="text-xs text-muted-foreground">{{ total.toLocaleString('id') }} penugasan &mdash; klik baris untuk lihat history</p>
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-lg font-semibold">Daftar Penugasan</h1>
+                <p class="text-xs text-muted-foreground">{{ total.toLocaleString('id') }} penugasan &mdash; klik baris untuk lihat history</p>
+            </div>
+            <div class="flex gap-1 rounded-lg border bg-muted/40 p-1">
+                <button v-for="v in [{ id: 'list', label: 'Semua' }, { id: 'mangkrak', label: 'Mangkrak' }]" :key="v.id"
+                    :class="['rounded-md px-3 py-1.5 text-xs font-medium transition-colors', activeView === v.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground']"
+                    @click="activeView = v.id as typeof activeView">
+                    {{ v.label }}
+                </button>
+            </div>
         </div>
 
         <!-- Filter bar -->
@@ -261,6 +309,9 @@ return '—';
                 @click="() => { filterStatus=''; filterKec=''; filterDes=''; filterSls=''; filterSubsls=''; filterPengawas=''; search=''; applyFilters(); }">Reset</button>
         </div>
 
+        <!-- List view only -->
+        <template v-if="activeView === 'list'">
+
         <!-- Per-page + total -->
         <div class="flex items-center justify-between">
             <span class="text-xs text-muted-foreground">{{ total.toLocaleString('id') }} penugasan</span>
@@ -314,7 +365,55 @@ return '—';
                 <button :disabled="page>=totalPages" class="rounded border px-2 py-1 hover:bg-muted/40 disabled:opacity-40" @click="page++">›</button>
             </div>
         </div>
+
+        </template><!-- end list view -->
+
     </div>
+
+    <!-- Mangkrak panel -->
+    <template v-if="activeView === 'mangkrak'">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-xs text-muted-foreground">Tidak diubah selama ≥</span>
+            <div class="flex gap-1">
+                <button v-for="d in [3, 7, 14]" :key="d"
+                    :class="['rounded border px-2 py-1 text-xs font-medium transition-colors', mangkrakThreshold === d ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background text-muted-foreground hover:text-foreground']"
+                    @click="mangkrakThreshold = d">
+                    {{ d }} hari
+                </button>
+            </div>
+            <span class="text-xs text-muted-foreground">{{ mangkrakTotal.toLocaleString('id') }} assignment mangkrak (maks 200)</span>
+        </div>
+        <div v-if="mangkrakLoading" class="flex h-32 items-center justify-center text-sm text-muted-foreground">Memuat...</div>
+        <div v-else class="overflow-x-auto rounded-lg border">
+            <table class="w-full text-xs">
+                <thead class="bg-muted/50">
+                    <tr>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">#</th>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">Kode</th>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">Pencacah</th>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">Pengawas</th>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">Wilayah</th>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">Status</th>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">Terakhir Diubah</th>
+                        <th class="px-3 py-2 text-left font-medium text-muted-foreground">Mangkrak</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                    <tr v-if="!mangkrakRows.length"><td colspan="8" class="py-8 text-center text-muted-foreground">Tidak ada assignment mangkrak</td></tr>
+                    <tr v-for="(r, i) in mangkrakRows" :key="r.assignment_id" class="hover:bg-muted/40" @click="openHistory(r as unknown as Assignment)">
+                        <td class="px-3 py-2 text-muted-foreground">{{ i + 1 }}</td>
+                        <td class="px-3 py-2 font-mono text-[10px]">{{ r.code_identity }}</td>
+                        <td class="px-3 py-2"><div>{{ r.pencacah_nama ?? '—' }}</div><div class="text-[10px] text-muted-foreground">{{ r.pencacah_email ?? '' }}</div></td>
+                        <td class="px-3 py-2 text-muted-foreground">{{ r.pengawas_nama ?? '—' }}</td>
+                        <td class="px-3 py-2"><div>{{ r.nmkec ?? '—' }}</div><div class="text-[10px] text-muted-foreground">{{ r.nmdes ?? '' }}</div></td>
+                        <td class="px-3 py-2"><span :class="['rounded px-1.5 py-0.5 font-medium', STATUS_BADGE[r.assignment_status_id] ?? 'bg-gray-100 text-gray-700']">{{ r.status }}</span></td>
+                        <td class="px-3 py-2 text-muted-foreground">{{ fmtDate(r.date_modified) }}</td>
+                        <td class="px-3 py-2"><span :class="['rounded px-1.5 py-0.5 font-medium', staleClass(r.days_stale)]">{{ r.days_stale }} hari</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
 
     <!-- History Dialog -->
     <Teleport to="body">

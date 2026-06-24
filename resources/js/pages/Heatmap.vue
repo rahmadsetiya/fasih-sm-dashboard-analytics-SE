@@ -319,12 +319,54 @@ return;
 }
 
 watch([dimension, dateFrom, dateTo, activeFilter], fetchAll);
-onMounted(fetchAll);
+onMounted(() => { fetchAll(); fetchHourly(); });
 
 // ── reset geo ─────────────────────────────────────────────────────────────
 function resetGeo() {
     selectedKecUuid.value = '';
 }
+
+// ── hourly activity ───────────────────────────────────────────────────────
+interface HourlyPoint { hour: number; cnt: number; }
+const hourlyData = ref<HourlyPoint[]>([]);
+const hourlyLoading = ref(false);
+const hourlyStatusId = ref(0);
+const hourlyDimension = ref<'pencacah' | 'pengawas'>('pencacah');
+
+async function fetchHourly() {
+    if (!props.db_ready) return;
+    hourlyLoading.value = true;
+    try {
+        const p = new URLSearchParams({ dimension: hourlyDimension.value });
+        if (hourlyStatusId.value > 0) p.set('status_id', String(hourlyStatusId.value));
+        const res = await fetch(`/api/heatmap/hourly?${p}`, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const d = await res.json();
+        hourlyData.value = d.data ?? [];
+    } finally { hourlyLoading.value = false; }
+}
+
+watch([hourlyStatusId, hourlyDimension], fetchHourly);
+
+const hourlyChartOptions = computed(() => {
+    const tc = isDark.value ? '#a1a1aa' : '#71717a';
+    return {
+        chart: { type: 'bar' as const, background: 'transparent', toolbar: { show: false }, animations: { enabled: false } },
+        theme: { mode: (isDark.value ? 'dark' : 'light') as 'dark' | 'light' },
+        plotOptions: { bar: { borderRadius: 3, columnWidth: '70%' } },
+        dataLabels: { enabled: false },
+        xaxis: {
+            categories: hourlyData.value.map(d => `${String(d.hour).padStart(2, '0')}:00`),
+            labels: { rotate: -45, style: { fontSize: '10px', colors: tc } },
+        },
+        yaxis: { labels: { style: { colors: tc } } },
+        tooltip: { y: { formatter: (v: number) => `${v} aktivitas` } },
+        colors: ['#f97316'],
+        grid: { borderColor: isDark.value ? '#3f3f46' : '#e4e4e7' },
+    };
+});
+const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.value.map(d => d.cnt) }]);
 </script>
 
 <template>
@@ -591,6 +633,34 @@ function resetGeo() {
                     </div>
                 </div>
                 </div><!-- end grid -->
+
+                <!-- ── Jam Aktif ──────────────────────────────────────── -->
+                <div class="rounded-lg border border-zinc-200 bg-white shadow-md dark:border-zinc-700 dark:bg-zinc-900">
+                    <div class="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-700">
+                        <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Jam Aktif</span>
+                        <span class="text-xs text-zinc-400 dark:text-zinc-500">Distribusi aktivitas per jam (0–23)</span>
+                        <div class="ml-auto flex gap-2">
+                            <select v-model="hourlyStatusId"
+                                class="h-7 rounded border border-zinc-300 bg-white px-2 text-xs text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                                <option :value="0">Semua Status</option>
+                                <option :value="1">Submitted</option>
+                                <option :value="2">Approved</option>
+                                <option :value="3">Rejected</option>
+                            </select>
+                            <div class="flex rounded border border-zinc-300 text-xs dark:border-zinc-600">
+                                <button v-for="d in ['pencacah', 'pengawas']" :key="d"
+                                    :class="['px-2 py-1 transition-colors', hourlyDimension === d ? 'bg-orange-500 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-800 dark:text-zinc-300', d === 'pencacah' ? 'rounded-l' : 'rounded-r']"
+                                    @click="hourlyDimension = d as 'pencacah' | 'pengawas'">
+                                    {{ d === 'pencacah' ? 'Pencacah' : 'Pengawas' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="hourlyLoading" class="flex items-center justify-center py-12 text-sm text-zinc-400">Memuat…</div>
+                    <div v-else class="p-3">
+                        <VueApexCharts type="bar" :height="200" :options="hourlyChartOptions" :series="hourlyChartSeries" width="100%" />
+                    </div>
+                </div>
             </template>
         </div>
     </AppShell>

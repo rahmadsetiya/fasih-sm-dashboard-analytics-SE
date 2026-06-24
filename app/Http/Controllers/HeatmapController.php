@@ -115,6 +115,44 @@ class HeatmapController extends Controller
         return response()->json($this->buildSeries($rows, $dateFrom, $dateTo));
     }
 
+    public function hourly(Request $request): JsonResponse
+    {
+        $dbPath = config('database.connections.fasih.database');
+        if (! file_exists($dbPath)) {
+            return response()->json(['data' => []]);
+        }
+
+        $statusId = (int) $request->input('status_id', 0);
+        $dimension = in_array($request->input('dimension', 'pencacah'), self::VALID_DIMENSION)
+            ? $request->input('dimension', 'pencacah') : 'pencacah';
+
+        $query = DB::connection('fasih')->table('assignment_status_changes as c');
+
+        if ($statusId > 0 && in_array($statusId, self::VALID_STATUS)) {
+            $query->where('c.to_status_id', $statusId);
+        }
+
+        if ($dimension === 'pengawas') {
+            $query->whereNotNull('c.pengawas_user_id');
+        } else {
+            $query->whereNotNull('c.pencacah_user_id');
+        }
+
+        $rows = $query
+            ->selectRaw("CAST(strftime('%H', change_date) AS INTEGER) as hour, COUNT(*) as cnt")
+            ->groupByRaw("strftime('%H', change_date)")
+            ->orderBy('hour')
+            ->get();
+
+        $byHour = collect($rows)->keyBy('hour');
+        $data = [];
+        for ($h = 0; $h < 24; $h++) {
+            $data[] = ['hour' => $h, 'cnt' => (int) ($byHour[$h]->cnt ?? 0)];
+        }
+
+        return response()->json(['data' => $data]);
+    }
+
     private function buildSeries($rows, ?string $dateFrom, ?string $dateTo): array
     {
         if ($rows->isEmpty()) {

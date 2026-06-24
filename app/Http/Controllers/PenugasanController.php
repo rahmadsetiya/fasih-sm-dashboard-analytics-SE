@@ -138,6 +138,79 @@ class PenugasanController extends Controller
         ]);
     }
 
+    public function mangkrak(Request $request): JsonResponse
+    {
+        $dbPath = config('database.connections.fasih.database');
+        if (! file_exists($dbPath)) {
+            return response()->json(['data' => [], 'total' => 0]);
+        }
+
+        $threshold = max(1, min(30, (int) $request->input('threshold_days', 7)));
+        $kdkec = preg_replace('/[^0-9]/', '', $request->input('kdkec', ''));
+        $kddes = preg_replace('/[^0-9]/', '', $request->input('kddes', ''));
+        $kdsls = preg_replace('/[^0-9]/', '', $request->input('kdsls', ''));
+        $kdsubsls = preg_replace('/[^0-9]/', '', $request->input('kdsubsls', ''));
+        $pengawasEmail = trim($request->input('pengawas', ''));
+
+        $query = DB::connection('fasih')
+            ->table('assignments as a')
+            ->leftJoin('users as pnc', 'pnc.user_id', '=', 'a.pencacah_user_id')
+            ->leftJoin('users as pgw', 'pgw.user_id', '=', 'a.pengawas_user_id')
+            ->leftJoin('assignment_statuses as s', 's.id', '=', 'a.assignment_status_id')
+            ->leftJoin('wilayah as w3', function ($j) {
+                $j->on('w3.full_code', '=', 'a.kdkec')->where('w3.level', 3);
+            })
+            ->leftJoin('wilayah as w4', function ($j) {
+                $j->on('w4.full_code', '=', 'a.kddes')->where('w4.level', 4);
+            })
+            ->where('a.assignment_status_id', '!=', 2)
+            ->whereRaw("julianday('now') - julianday(a.date_modified) >= ?", [$threshold]);
+
+        if ($kdkec) {
+            $query->where('a.kdkec', $kdkec);
+        }
+        if ($kddes) {
+            $query->where('a.kddes', $kddes);
+        }
+        if ($kdsls) {
+            $query->where('a.kdsls', $kdsls);
+        }
+        if ($kdsubsls) {
+            $query->where('a.kdsubsls', $kdsubsls);
+        }
+        if ($pengawasEmail) {
+            $query->where('pgw.email', $pengawasEmail);
+        }
+
+        $total = (clone $query)->count();
+
+        $rows = (clone $query)
+            ->selectRaw("
+                printf('%s-%s-%s-%s-%s',
+                    lower(hex(substr(a.assignment_id,1,4))),
+                    lower(hex(substr(a.assignment_id,5,2))),
+                    lower(hex(substr(a.assignment_id,7,2))),
+                    lower(hex(substr(a.assignment_id,9,2))),
+                    lower(hex(substr(a.assignment_id,11,6)))
+                ) as assignment_id,
+                a.code_identity,
+                COALESCE(NULLIF(pnc.fullname,''), pnc.email) as pencacah_nama,
+                pnc.email as pencacah_email,
+                COALESCE(NULLIF(pgw.fullname,''), pgw.email) as pengawas_nama,
+                s.alias as status,
+                a.assignment_status_id,
+                a.date_modified,
+                CAST(julianday('now') - julianday(a.date_modified) AS INTEGER) as days_stale,
+                w3.name as nmkec, a.kdkec,
+                w4.name as nmdes, a.kddes
+            ")
+            ->orderByRaw("julianday('now') - julianday(a.date_modified) DESC")
+            ->limit(200)
+            ->get();
+
+        return response()->json(['data' => $rows, 'total' => $total]);
+    }
+
     public function history(Request $request): JsonResponse
     {
         $dbPath = config('database.connections.fasih.database');

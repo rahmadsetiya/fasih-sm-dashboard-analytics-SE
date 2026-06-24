@@ -89,7 +89,7 @@ watch(filterSls,    () => {
 
 // ── tab & loading state ────────────────────────────────────────────────────
 const isDark    = useDark();
-const activeTab = ref<'pencacah' | 'turnaround' | 'quality' | 'gelombang'>('pencacah');
+const activeTab = ref<'pencacah' | 'turnaround' | 'quality' | 'gelombang' | 'matrix' | 'leaderboard'>('pencacah');
 const loading   = ref(false);
 
 // ── pencacah tab ───────────────────────────────────────────────────────────
@@ -158,6 +158,23 @@ const qualityPages = computed(() => Math.ceil(qualityAll.value.length / qualityP
 const gelombangList    = ref<GelombangRow[]>([]);
 const gelombangGroupBy = ref<'gelombang' | 'kelas' | 'tc'>('gelombang');
 
+// ── matrix tab ─────────────────────────────────────────────────────────────
+interface MatrixRow { uid: string; nama: string; avg_minutes: number; error_pct: number; total: number; sample_count: number; }
+const matrixData = ref<MatrixRow[]>([]);
+
+// ── leaderboard tab ────────────────────────────────────────────────────────
+interface LeaderboardRow { rank: number; uid: string; nama: string; email: string; score: number; progress_pct: number; rejection_rate: number; total: number; approved: number; }
+const leaderboardData = computed<LeaderboardRow[]>(() =>
+    [...pencacahAll.value]
+        .filter(r => r.total >= 1)
+        .map(r => ({
+            ...r,
+            score: Math.round(r.progress_pct * 0.5 + Math.max(0, 100 - r.rejection_rate) * 0.3 + (r.total > 0 ? r.approved / r.total * 100 : 0) * 0.2),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .map((r, i) => ({ rank: i + 1, ...r }))
+);
+
 // ── fetch ─────────────────────────────────────────────────────────────────
 function geoParams(): string {
     const p = new URLSearchParams();
@@ -210,6 +227,16 @@ return;
         } else if (tab === 'gelombang') {
             const r = await fetch(`/api/petugas/gelombang?group_by=${gelombangGroupBy.value}`, { headers: H });
             gelombangList.value = await r.json();
+        } else if (tab === 'matrix') {
+            const r = await fetch(`/api/petugas/matrix?${geoParams()}`, { headers: H });
+            const d = await r.json();
+            matrixData.value = d.data ?? [];
+        } else if (tab === 'leaderboard') {
+            if (!pencacahAll.value.length) {
+                const r = await fetch(`/api/petugas/list?${geoParams()}`, { headers: H });
+                const d = await r.json();
+                pencacahAll.value = d.data ?? [];
+            }
         }
     } finally {
  loading.value = false; 
@@ -258,6 +285,50 @@ const turnaroundChart = computed(() => ({
 const turnaroundSeries = computed(() => [{
     name: 'Rata-rata (menit)',
     data: turnaroundData.value.slice(0, 20).map(r => r.avg_minutes),
+}]);
+
+const matrixMedianMinutes = computed(() => {
+    if (!matrixData.value.length) return 0;
+    const sorted = [...matrixData.value].map(r => r.avg_minutes).sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+});
+const matrixMedianError = computed(() => {
+    if (!matrixData.value.length) return 0;
+    const sorted = [...matrixData.value].map(r => r.error_pct).sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+});
+
+const matrixChartOptions = computed(() => ({
+    chart: { type: 'scatter' as const, background: 'transparent', toolbar: { show: false }, animations: { enabled: false }, zoom: { enabled: true } },
+    theme: { mode: (isDark.value ? 'dark' : 'light') as 'dark' | 'light' },
+    xaxis: {
+        title: { text: 'Rata-rata waktu submit (menit) — lebih kecil lebih cepat', style: { color: isDark.value ? '#a1a1aa' : '#71717a', fontSize: '11px' } },
+        labels: { formatter: (v: number) => fmtMin(v), style: { colors: isDark.value ? '#a1a1aa' : '#71717a' } },
+    },
+    yaxis: {
+        title: { text: '% assignment bermasalah — lebih kecil lebih baik', style: { color: isDark.value ? '#a1a1aa' : '#71717a', fontSize: '11px' } },
+        labels: { formatter: (v: number) => `${v}%`, style: { colors: isDark.value ? '#a1a1aa' : '#71717a' } },
+    },
+    annotations: {
+        xaxis: [{ x: matrixMedianMinutes.value, borderColor: isDark.value ? '#52525b' : '#d4d4d8', label: { text: 'Median', style: { color: isDark.value ? '#a1a1aa' : '#71717a', background: 'transparent' } } }],
+        yaxis: [{ y: matrixMedianError.value, borderColor: isDark.value ? '#52525b' : '#d4d4d8', label: { text: 'Median', style: { color: isDark.value ? '#a1a1aa' : '#71717a', background: 'transparent' } } }],
+    },
+    tooltip: {
+        custom: ({ seriesIndex: _s, dataPointIndex: i }: { seriesIndex: number; dataPointIndex: number }) => {
+            const r = matrixData.value[i];
+            if (!r) return '';
+            return `<div class="p-2 text-xs"><b>${r.nama}</b><br/>Waktu: ${fmtMin(r.avg_minutes)}<br/>Error: ${r.error_pct}%<br/>Total: ${r.total}</div>`;
+        },
+    },
+    colors: ['#6366f1'],
+    markers: { size: 7, strokeWidth: 0 },
+    grid: { borderColor: isDark.value ? '#374151' : '#e5e7eb' },
+}));
+const matrixSeries = computed(() => [{
+    name: 'Pencacah',
+    data: matrixData.value.map(r => [r.avg_minutes, r.error_pct]),
 }]);
 
 const gelombangChart = computed(() => ({
@@ -317,14 +388,16 @@ const gelombangSeries = computed(() => [
         </div>
 
         <!-- Tabs -->
-        <div class="flex gap-1 rounded-lg border bg-muted/40 p-1">
+        <div class="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
             <button v-for="tab in [
                     { id: 'pencacah', label: 'Pencacah' },
                     { id: 'turnaround', label: 'Kecepatan Proses' },
                     { id: 'quality', label: 'Quality Control' },
                     { id: 'gelombang', label: 'Gelombang / TC' },
+                    { id: 'matrix', label: 'Matriks Kinerja' },
+                    { id: 'leaderboard', label: 'Leaderboard' },
                 ]" :key="tab.id"
-                :class="['flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                :class="['rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                     activeTab === tab.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground']"
                 @click="activeTab = tab.id as typeof activeTab">
                 {{ tab.label }}
@@ -553,6 +626,89 @@ const gelombangSeries = computed(() => [
                             <td class="px-3 py-2 text-right font-medium">{{ row.progress_pct }}%</td>
                         </tr>
                         <tr v-if="!gelombangList.length"><td colspan="7" class="py-8 text-center text-muted-foreground">Tidak ada data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+
+        <!-- ── Tab: Matriks Kinerja ──────────────────────────────── -->
+        <template v-else-if="activeTab === 'matrix'">
+            <p class="text-xs text-muted-foreground">Scatter plot kecepatan vs akurasi per pencacah (min 3 submit). Titik kiri-bawah = ideal.</p>
+            <div v-if="!matrixData.length" class="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                Tidak ada data (pencacah perlu ≥ 3 submit).
+            </div>
+            <div v-else class="rounded-lg border p-3">
+                <div class="mb-3 grid grid-cols-2 gap-2 text-xs">
+                    <div class="rounded bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">Kiri-bawah: Cepat + Akurat (top performer)</div>
+                    <div class="rounded bg-amber-50 px-2 py-1 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">Kanan-bawah: Cepat tapi banyak error (perlu pembinaan)</div>
+                    <div class="rounded bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">Kiri-atas: Akurat tapi lambat (perlu motivasi)</div>
+                    <div class="rounded bg-red-50 px-2 py-1 text-red-700 dark:bg-red-900/20 dark:text-red-400">Kanan-atas: Lambat + banyak error (perlu bimbingan)</div>
+                </div>
+                <VueApexCharts type="scatter" :height="400" :options="matrixChartOptions" :series="matrixSeries" />
+            </div>
+            <div class="overflow-x-auto rounded-lg border">
+                <table class="w-full text-xs">
+                    <thead class="bg-muted/50">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium text-muted-foreground">Nama</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Waktu Avg</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">% Error</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Sampel</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="r in matrixData" :key="r.uid" class="hover:bg-muted/30">
+                            <td class="px-3 py-2 font-medium">{{ r.nama }}</td>
+                            <td class="px-3 py-2 text-right">{{ fmtMin(r.avg_minutes) }}</td>
+                            <td class="px-3 py-2 text-right">
+                                <span :class="['rounded px-1.5 py-0.5 font-medium', r.error_pct > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : r.error_pct > 10 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300']">{{ r.error_pct }}%</span>
+                            </td>
+                            <td class="px-3 py-2 text-right">{{ r.total }}</td>
+                            <td class="px-3 py-2 text-right text-muted-foreground">{{ r.sample_count }}</td>
+                        </tr>
+                        <tr v-if="!matrixData.length"><td colspan="5" class="py-8 text-center text-muted-foreground">Tidak ada data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+
+        <!-- ── Tab: Leaderboard ───────────────────────────────────── -->
+        <template v-else-if="activeTab === 'leaderboard'">
+            <p class="text-xs text-muted-foreground">Skor = Progress% × 50% + (100 − Reject%) × 30% + Approved% × 20%</p>
+            <div v-if="!leaderboardData.length" class="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                Tidak ada data. Muat tab Pencacah terlebih dahulu.
+            </div>
+            <div v-else class="overflow-x-auto rounded-lg border">
+                <table class="w-full text-xs">
+                    <thead class="bg-muted/50">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium text-muted-foreground">Rank</th>
+                            <th class="px-3 py-2 text-left font-medium text-muted-foreground">Nama</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Skor</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Progress</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Reject %</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
+                            <th class="px-3 py-2 text-right font-medium text-muted-foreground">Approved</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="r in leaderboardData" :key="r.uid" class="hover:bg-muted/30">
+                            <td class="px-3 py-2 font-bold">
+                                <span v-if="r.rank === 1" class="text-yellow-500">🥇 1</span>
+                                <span v-else-if="r.rank === 2" class="text-zinc-400">🥈 2</span>
+                                <span v-else-if="r.rank === 3" class="text-amber-600">🥉 3</span>
+                                <span v-else class="text-muted-foreground">{{ r.rank }}</span>
+                            </td>
+                            <td class="px-3 py-2"><div class="font-medium">{{ r.nama }}</div><div class="text-[10px] text-muted-foreground">{{ r.email }}</div></td>
+                            <td class="px-3 py-2 text-right">
+                                <span :class="['rounded px-1.5 py-0.5 font-bold', r.score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : r.score >= 60 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300']">{{ r.score }}</span>
+                            </td>
+                            <td class="px-3 py-2 text-right">{{ r.progress_pct }}%</td>
+                            <td class="px-3 py-2 text-right"><span :class="r.rejection_rate > 20 ? 'text-red-600 dark:text-red-400' : ''">{{ r.rejection_rate }}%</span></td>
+                            <td class="px-3 py-2 text-right">{{ r.total.toLocaleString('id') }}</td>
+                            <td class="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{{ r.approved.toLocaleString('id') }}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
