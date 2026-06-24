@@ -169,6 +169,18 @@ Setelah login sebagai admin, gunakan menu **Manajemen User** di sidebar untuk CR
 
 ## Manajemen Data
 
+### Generate fasih.db (Scraper)
+
+`fasih.db` dihasilkan dari scraping platform FASIH menggunakan repo private:
+
+**[https://github.com/rahmadsetiya/fasih-scraper](https://github.com/rahmadsetiya/fasih-scraper)**
+
+Jalankan scraper sesuai instruksi di repo tersebut. Output-nya adalah file `fasih.db` yang siap diupload ke dashboard ini.
+
+> **Akses repo**: Repo scraper bersifat private. Hubungi pemilik repo untuk meminta akses:
+> - GitHub: [@rahmadsetiya](https://github.com/rahmadsetiya)
+> - Email: rahmadsetiyabudi@gmail.com
+
 ### Upload fasih.db
 
 Gunakan tombol **Import Database** di sidebar. File disimpan ke `storage/app/fasih.db`.
@@ -205,7 +217,7 @@ Gunakan tombol **Import Database** di sidebar. File disimpan ke `storage/app/fas
 |---|---|
 | `deploy/public_html.index.php` | Entry point untuk `public_html/` di shared hosting |
 | `deploy/.env.production` | Template `.env` untuk production |
-| `storage/app/fasih.db` | Data sensus (diupload user, tidak di-commit) |
+| `storage/app/fasih.db` | Data sensus dari [fasih-scraper](https://github.com/rahmadsetiya/fasih-scraper) (diupload user, tidak di-commit) |
 | `database/database.sqlite` | App database (user, session, cache) |
 
 ### File auto-generated — jangan edit manual
