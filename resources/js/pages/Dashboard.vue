@@ -612,6 +612,7 @@ const barOptions = computed(() => ({
         offsetY: -20,
     },
     legend: { position: 'top' as const, fontSize: cFontMd.value },
+    grid: { padding: { top: 16 } },
 }));
 
 // ── projection ────────────────────────────────────────────────────────────
@@ -774,6 +775,10 @@ const trendOptions = computed(() => ({
     markers: { size: 5 },
     tooltip: { y: { formatter: (v: number) => v.toFixed(1) + '%' } },
     legend: { position: 'top' as const, fontSize: cFontMd.value },
+    grid: {
+        padding: { right: 24 },
+        borderColor: isDark.value ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+    },
 }));
 
 // ── compare chart ─────────────────────────────────────────────────────────
@@ -1048,7 +1053,7 @@ function rowContext(row: BreakdownRow): string {
     <div v-else class="flex h-full flex-1 flex-col gap-3 overflow-x-auto p-4">
         <!-- Filter bar -->
         <div
-            class="flex flex-wrap items-center gap-2 rounded-xl border border-sidebar-border/70 bg-card shadow-md px-3 py-2 dark:border-sidebar-border"
+            class="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2"
         >
             <!-- Snapshot -->
             <div class="flex items-center gap-1.5">
@@ -1119,7 +1124,7 @@ function rowContext(row: BreakdownRow): string {
             <!-- Active filter badge -->
             <div
                 v-if="totalActiveFilters"
-                class="ml-auto flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                class="ml-auto flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-accent-ink"
             >
                 {{ totalActiveFilters }} filter aktif
                 <button
@@ -1158,21 +1163,21 @@ function rowContext(row: BreakdownRow): string {
         <!-- Filter Wilayah — stacked cascading panel -->
         <div
             v-if="filterOptions !== null"
-            class="rounded-xl border-2 border-orange-400/60 bg-card dark:border-orange-500/40"
+            class="rounded-xl border border-border bg-card"
         >
             <!-- Toggle header -->
             <button
                 :class="[
                     'flex w-full items-center justify-between rounded-t-xl px-4 py-2.5 text-sm font-semibold transition-colors',
                     filterPanelOpen
-                        ? 'bg-orange-50/60 dark:bg-orange-950/30'
-                        : 'hover:bg-orange-50/40 dark:hover:bg-orange-950/20',
+                        ? 'bg-secondary'
+                        : 'hover:bg-secondary/60',
                 ]"
                 @click="filterPanelOpen = !filterPanelOpen"
             >
                 <div class="flex items-center gap-2">
                     <span
-                        class="text-xs font-bold tracking-wide text-orange-600 uppercase dark:text-orange-400"
+                        class="text-xs font-bold tracking-wide text-accent-ink uppercase"
                         >Filter Wilayah</span
                     >
                     <span
@@ -1183,14 +1188,14 @@ function rowContext(row: BreakdownRow): string {
                 </div>
                 <ChevronDown
                     v-if="!filterPanelOpen"
-                    class="size-4 text-orange-500"
+                    class="size-4 text-muted-foreground"
                 />
-                <ChevronUp v-else class="size-4 text-orange-500" />
+                <ChevronUp v-else class="size-4 text-muted-foreground" />
             </button>
 
             <div
                 v-if="filterPanelOpen"
-                class="space-y-3 border-t border-sidebar-border/70 px-4 py-3 dark:border-sidebar-border"
+                class="grid grid-cols-1 gap-3 border-t border-border px-4 py-3 sm:grid-cols-2 lg:grid-cols-3"
             >
                 <!-- PROVINSI (readonly) -->
                 <div v-if="filterOptions.prov.length">
@@ -1297,7 +1302,7 @@ function rowContext(row: BreakdownRow): string {
                 <!-- Reset button -->
                 <button
                     v-if="totalActiveFilters"
-                    class="w-full rounded-md border border-input py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted focus:outline-none"
+                    class="col-span-full rounded-md border border-input py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted focus:outline-none"
                     @click="clearAllFilters"
                 >
                     Reset
@@ -1384,7 +1389,7 @@ function rowContext(row: BreakdownRow): string {
                     'rounded-xl border px-4 py-3',
                     card.ring
                         ? card.ring
-                        : 'border-sidebar-border/70 bg-card shadow-md dark:border-sidebar-border',
+                        : 'border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border',
                 ]"
             >
                 <p
@@ -1420,7 +1425,7 @@ function rowContext(row: BreakdownRow): string {
         <div class="grid gap-3 md:grid-cols-3">
             <!-- Donut -->
             <div
-                class="rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
+                class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
             >
                 <h3 class="mb-1 text-sm font-semibold">Komposisi Status</h3>
                 <VueApexCharts
@@ -1452,24 +1457,26 @@ function rowContext(row: BreakdownRow): string {
 
             <!-- Bar -->
             <div
-                class="col-span-2 rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
+                class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
             >
-                <h3 class="mb-1 text-sm font-semibold">
+                <h3 class="mb-1 shrink-0 text-sm font-semibold">
                     Top {{ TOP_N }} {{ LEVEL_LABELS[filters.level] }} — Progress
                     & Approved %
                 </h3>
-                <VueApexCharts
-                    v-if="barSeries[0]?.data.length"
-                    type="bar"
-                    height="300"
-                    :options="barOptions"
-                    :series="barSeries"
-                />
-                <div
-                    v-else
-                    class="flex h-52 items-center justify-center text-sm text-muted-foreground"
-                >
-                    Tidak ada data
+                <div class="min-h-0 flex-1">
+                    <VueApexCharts
+                        v-if="barSeries[0]?.data.length"
+                        type="bar"
+                        height="100%"
+                        :options="barOptions"
+                        :series="barSeries"
+                    />
+                    <div
+                        v-else
+                        class="flex h-full items-center justify-center text-sm text-muted-foreground"
+                    >
+                        Tidak ada data
+                    </div>
                 </div>
             </div>
         </div>
@@ -1477,7 +1484,7 @@ function rowContext(row: BreakdownRow): string {
         <!-- Trend -->
         <div
             v-if="trend.length >= 1"
-            class="rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
         >
             <h3 class="mb-1 text-sm font-semibold">Tren Progress Over Time</h3>
             <VueApexCharts
@@ -1604,7 +1611,7 @@ function rowContext(row: BreakdownRow): string {
 
         <!-- Breakdown table -->
         <div
-            class="rounded-xl border border-sidebar-border/70 bg-card shadow-md dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm dark:border-sidebar-border"
         >
             <!-- Table header -->
             <div

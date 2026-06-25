@@ -57,6 +57,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Admin panel
     Route::middleware('can:admin')->prefix('admin')->group(function () {
+        Route::get('/download-db', [DatabaseImportController::class, 'download'])->name('admin.db.download');
         Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
         Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');

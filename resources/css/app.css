@@ -9,7 +9,7 @@
 
 @theme inline {
     --font-sans:
-        Instrument Sans, ui-sans-serif, system-ui, sans-serif,
+        'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
@@ -28,6 +28,10 @@
 
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
+
+    /* Aksen oranye versi gelap — pakai untuk TEKS/angka/badge beraksen
+       agar kontras lolos WCAG AA (jangan pakai --primary untuk teks di atas terang). */
+    --color-accent-ink: var(--accent-ink);
 
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -83,83 +87,93 @@
     body,
     html {
         --font-sans:
-            'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+            'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
             'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
             'Noto Color Emoji';
+    }
+
+    /* Angka rata kolom (metrik, tabel) */
+    .tabular-nums,
+    .tnum {
+        font-variant-numeric: tabular-nums;
     }
 }
 
 :root {
-    --background: hsl(0 0% 100%);
-    --foreground: hsl(0 0% 3.9%);
+    /* Neutral hangat (warm) — bukan abu murni */
+    --background: hsl(40 14% 98%); /* #FAFAF9 */
+    --foreground: hsl(24 10% 10%); /* #1C1917 */
     --card: hsl(0 0% 100%);
-    --card-foreground: hsl(0 0% 3.9%);
+    --card-foreground: hsl(24 10% 10%);
     --popover: hsl(0 0% 100%);
-    --popover-foreground: hsl(0 0% 3.9%);
-    --primary: hsl(29 100% 68%);
-    --primary-foreground: hsl(0 0% 10%);
-    --secondary: hsl(0 0% 92.1%);
-    --secondary-foreground: hsl(0 0% 9%);
-    --muted: hsl(0 0% 96.1%);
-    --muted-foreground: hsl(0 0% 45.1%);
-    --accent: hsl(0 0% 96.1%);
-    --accent-foreground: hsl(0 0% 9%);
-    --destructive: hsl(0 84.2% 60.2%);
+    --popover-foreground: hsl(24 10% 10%);
+    --primary: hsl(29 100% 64%); /* #FF9F45 aksen oranye SE2026 */
+    --primary-foreground: hsl(24 10% 10%);
+    --accent-ink: hsl(21 90% 40%); /* #C2410C — teks/badge oranye, lolos AA di atas terang */
+    --secondary: hsl(40 9% 96%); /* #F5F4F2 */
+    --secondary-foreground: hsl(24 10% 10%);
+    --muted: hsl(40 9% 96%);
+    --muted-foreground: hsl(30 6% 40%); /* #6B645E — digelapkan utk WCAG AA teks sekunder */
+    --accent: hsl(40 9% 96%);
+    --accent-foreground: hsl(24 10% 10%);
+    --destructive: hsl(0 72% 51%); /* #DC2626 */
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 92.8%);
-    --input: hsl(0 0% 89.8%);
-    --ring: hsl(29 100% 68%);
-    --chart-1: hsl(12 76% 61%);
-    --chart-2: hsl(173 58% 39%);
-    --chart-3: hsl(197 37% 24%);
-    --chart-4: hsl(43 74% 66%);
-    --chart-5: hsl(27 87% 67%);
-    --radius: 0.5rem;
-    --sidebar-background: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    --sidebar-primary: hsl(29 100% 68%);
-    --sidebar-primary-foreground: hsl(0 0% 10%);
-    --sidebar-accent: hsl(0 0% 94%);
-    --sidebar-accent-foreground: hsl(0 0% 30%);
-    --sidebar-border: hsl(0 0% 91%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(0 0% 98%);
+    --border: hsl(40 12% 90%); /* #E9E7E3 hairline */
+    --input: hsl(40 10% 84%); /* #D9D5CF */
+    --ring: hsl(29 100% 64%);
+    /* Palet status — konsisten dgn tabel & badge di seluruh dashboard */
+    --chart-1: hsl(142 71% 45%); /* Approved  #22C55E */
+    --chart-2: hsl(217 91% 60%); /* Submitted #3B82F6 */
+    --chart-3: hsl(38 92% 50%); /* Draft     #F59E0B */
+    --chart-4: hsl(0 84% 60%); /* Rejected  #EF4444 */
+    --chart-5: hsl(271 91% 65%); /* Lainnya   #A855F7 */
+    --radius: 0.75rem; /* 12px — sudut lebih lembut */
+    --sidebar-background: hsl(0 0% 100%);
+    --sidebar-foreground: hsl(30 8% 26%);
+    --sidebar-primary: hsl(29 100% 64%);
+    --sidebar-primary-foreground: hsl(24 10% 10%);
+    --sidebar-accent: hsl(33 100% 95%); /* oranye soft — item aktif */
+    --sidebar-accent-foreground: hsl(21 90% 40%); /* #C2410C */
+    --sidebar-border: hsl(40 12% 90%);
+    --sidebar-ring: hsl(29 100% 64%);
+    --sidebar: hsl(0 0% 100%);
 }
 
 .dark {
-    --background: hsl(0 0% 3.9%);
-    --foreground: hsl(0 0% 98%);
-    --card: hsl(0 0% 3.9%);
-    --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(0 0% 3.9%);
-    --popover-foreground: hsl(0 0% 98%);
-    --primary: hsl(29 100% 65%);
-    --primary-foreground: hsl(0 0% 10%);
-    --secondary: hsl(0 0% 14.9%);
-    --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(0 0% 16.08%);
-    --muted-foreground: hsl(0 0% 63.9%);
-    --accent: hsl(0 0% 14.9%);
-    --accent-foreground: hsl(0 0% 98%);
-    --destructive: hsl(0 84% 60%);
+    --background: hsl(30 11% 5%); /* #0B0A09 */
+    --foreground: hsl(40 14% 98%);
+    --card: hsl(30 13% 8%); /* #171513 */
+    --card-foreground: hsl(40 14% 98%);
+    --popover: hsl(30 13% 8%);
+    --popover-foreground: hsl(40 14% 98%);
+    --primary: hsl(29 100% 64%);
+    --primary-foreground: hsl(24 10% 10%);
+    --accent-ink: hsl(33 95% 72%); /* #FDBA74 — teks oranye di atas gelap */
+    --secondary: hsl(30 9% 11%); /* #211E1A */
+    --secondary-foreground: hsl(40 14% 98%);
+    --muted: hsl(30 9% 11%);
+    --muted-foreground: hsl(30 5% 64%); /* #A8A29E */
+    --accent: hsl(30 9% 11%);
+    --accent-foreground: hsl(40 14% 98%);
+    --destructive: hsl(0 72% 60%);
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 14.9%);
-    --input: hsl(0 0% 14.9%);
-    --ring: hsl(29 100% 65%);
-    --chart-1: hsl(220 70% 50%);
-    --chart-2: hsl(160 60% 45%);
-    --chart-3: hsl(30 80% 55%);
-    --chart-4: hsl(280 65% 60%);
-    --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(0 0% 7%);
-    --sidebar-foreground: hsl(0 0% 95.9%);
-    --sidebar-primary: hsl(29 100% 65%);
-    --sidebar-primary-foreground: hsl(0 0% 10%);
-    --sidebar-accent: hsl(0 0% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(0 0% 15.9%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(240 5.9% 10%);
+    --border: hsl(30 9% 15%); /* #2A2622 */
+    --input: hsl(30 9% 15%);
+    --ring: hsl(29 100% 64%);
+    --chart-1: hsl(142 69% 52%); /* Approved */
+    --chart-2: hsl(217 91% 65%); /* Submitted */
+    --chart-3: hsl(38 92% 55%); /* Draft */
+    --chart-4: hsl(0 84% 65%); /* Rejected */
+    --chart-5: hsl(271 91% 72%); /* Lainnya */
+    --sidebar-background: hsl(30 13% 8%);
+    --sidebar-foreground: hsl(40 10% 88%);
+    --sidebar-primary: hsl(29 100% 64%);
+    --sidebar-primary-foreground: hsl(24 10% 10%);
+    --sidebar-accent: hsl(28 55% 12%); /* oranye gelap soft — item aktif */
+    --sidebar-accent-foreground: hsl(33 95% 72%); /* #FDBA74 */
+    --sidebar-border: hsl(30 9% 15%);
+    --sidebar-ring: hsl(29 100% 64%);
+    --sidebar: hsl(30 13% 8%);
 }
 
 @layer base {

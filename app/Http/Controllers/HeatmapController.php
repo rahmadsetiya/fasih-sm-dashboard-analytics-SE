@@ -130,6 +130,8 @@ class HeatmapController extends Controller
 
         if ($statusId > 0 && in_array($statusId, self::VALID_STATUS)) {
             $query->where('c.to_status_id', $statusId);
+        } else {
+            $query->whereIn('c.to_status_id', self::VALID_STATUS);
         }
 
         if ($dimension === 'pengawas') {

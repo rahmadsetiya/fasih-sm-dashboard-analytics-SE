@@ -334,8 +334,8 @@ const matrixChartOptions = computed(() => ({
         labels: { formatter: (v: number) => `${v}%`, style: { colors: isDark.value ? '#a1a1aa' : '#71717a' } },
     },
     annotations: {
-        xaxis: [{ x: matrixMedianMinutes.value, borderColor: isDark.value ? '#52525b' : '#d4d4d8', label: { text: 'Median', style: { color: isDark.value ? '#a1a1aa' : '#71717a', background: 'transparent' } } }],
-        yaxis: [{ y: matrixMedianError.value, borderColor: isDark.value ? '#52525b' : '#d4d4d8', label: { text: 'Median', style: { color: isDark.value ? '#a1a1aa' : '#71717a', background: 'transparent' } } }],
+        xaxis: [{ x: matrixMedianMinutes.value, borderColor: '#f97316', borderWidth: 2, strokeDashArray: 5, label: { text: 'Median', style: { color: '#f97316', background: 'transparent', fontWeight: 600 } } }],
+        yaxis: [{ y: matrixMedianError.value, borderColor: '#6366f1', borderWidth: 2, strokeDashArray: 5, label: { text: 'Median', style: { color: '#6366f1', background: 'transparent', fontWeight: 600 } } }],
     },
     tooltip: {
         custom: ({ seriesIndex: _s, dataPointIndex: i }: { seriesIndex: number; dataPointIndex: number }) => {

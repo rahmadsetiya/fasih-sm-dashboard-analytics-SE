@@ -52,6 +52,19 @@ class DatabaseImportController extends Controller
         ], $extra));
     }
 
+    public function download(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $path = storage_path('app/fasih.db');
+
+        if (! file_exists($path)) {
+            abort(404, 'Database belum diimport.');
+        }
+
+        return response()->download($path, 'fasih.db', [
+            'Content-Type' => 'application/octet-stream',
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         // PHP drops uploads silently when file exceeds upload_max_filesize.

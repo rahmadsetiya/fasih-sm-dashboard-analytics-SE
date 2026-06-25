@@ -147,6 +147,24 @@ function fmtDate(s: string) {
             </button>
         </div>
 
+        <!-- Database download card -->
+        <div class="mb-5 rounded-xl border border-border bg-card p-4">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-sm font-semibold">Database Fasih</p>
+                    <p class="mt-0.5 text-xs text-muted-foreground">
+                        Download salinan <code class="rounded bg-muted px-1">fasih.db</code> yang sedang aktif di server
+                    </p>
+                </div>
+                <a
+                    href="/admin/download-db"
+                    class="shrink-0 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                    Download fasih.db
+                </a>
+            </div>
+        </div>
+
         <!-- User table -->
         <div
             class="rounded-xl border border-sidebar-border/70 bg-card dark:border-sidebar-border"
@@ -178,7 +196,7 @@ function fmtDate(s: string) {
                                 :class="[
                                     'rounded-full px-2 py-0.5 text-xs font-medium',
                                     user.is_admin
-                                        ? 'bg-primary/10 text-primary'
+                                        ? 'bg-primary/10 text-accent-ink'
                                         : 'bg-muted text-muted-foreground',
                                 ]"
                             >

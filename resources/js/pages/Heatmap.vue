@@ -377,8 +377,8 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-zinc-900 dark:text-zinc-100">Heatmap Aktivitas</h1>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                    <h1 class="text-xl font-bold text-foreground dark:text-foreground">Heatmap Aktivitas</h1>
+                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
                         Perubahan status per petugas per hari
                         <span v-if="db_ready && date_range">
                             — {{ date_range.min }} s.d. {{ date_range.max }}
@@ -387,7 +387,7 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                     </p>
                 </div>
                 <button
-                    class="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    class="rounded-md p-2 text-muted-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
                     :aria-label="isDark ? 'Mode terang' : 'Mode gelap'"
                     @click="isDark = !isDark"
                 >
@@ -407,39 +407,39 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
             <template v-else>
                 <!-- ── Filter bar ─────────────────────────────────────────── -->
                 <div
-                    class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+                    class="space-y-3 rounded-lg border border-border bg-secondary px-4 py-3 dark:border-border dark:bg-card"
                 >
                     <!-- Row 1: date + dimension -->
                     <div class="flex flex-wrap items-end gap-3">
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Dari</label>
+                            <label class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">Dari</label>
                             <input
                                 v-model="dateFrom"
                                 type="date"
-                                class="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                class="h-8 rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                             />
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Sampai</label>
+                            <label class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">Sampai</label>
                             <input
                                 v-model="dateTo"
                                 type="date"
-                                class="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                class="h-8 rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                             />
                         </div>
 
                         <!-- Dimension toggle -->
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Tampilkan</label>
+                            <label class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">Tampilkan</label>
                             <div
-                                class="flex rounded-md border border-zinc-300 bg-white text-sm dark:border-zinc-600 dark:bg-zinc-800"
+                                class="flex rounded-md border border-input bg-card text-sm dark:border-input dark:bg-secondary"
                             >
                                 <button
                                     class="rounded-l-md px-3 py-1.5 font-medium transition-colors"
                                     :class="
                                         dimension === 'pencacah'
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-muted-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted'
                                     "
                                     @click="dimension = 'pencacah'"
                                 >
@@ -449,8 +449,8 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                                     class="rounded-r-md px-3 py-1.5 font-medium transition-colors"
                                     :class="
                                         dimension === 'pengawas'
-                                            ? 'bg-orange-500 text-white'
-                                            : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-muted-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted'
                                     "
                                     @click="dimension = 'pengawas'"
                                 >
@@ -462,16 +462,16 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                     <!-- Row 2: Geo cascade -->
                     <div class="flex flex-wrap items-end gap-2">
-                        <span class="self-center text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                        <span class="self-center text-xs font-medium text-muted-foreground dark:text-muted-foreground">
                             Filter Wilayah:
                         </span>
 
                         <!-- Kecamatan -->
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs text-zinc-400 dark:text-zinc-500">Kecamatan</label>
+                            <label class="text-xs text-muted-foreground dark:text-muted-foreground">Kecamatan</label>
                             <select
                                 v-model="selectedKecUuid"
-                                class="h-8 min-w-[140px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                class="h-8 min-w-[140px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                             >
                                 <option value="">— Semua —</option>
                                 <option v-for="k in kecList" :key="k.uuid" :value="k.uuid">
@@ -482,12 +482,12 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                         <!-- Desa — only when kec selected -->
                         <template v-if="selectedKec">
-                            <span class="self-center text-zinc-400">›</span>
+                            <span class="self-center text-muted-foreground">›</span>
                             <div class="flex flex-col gap-1">
-                                <label class="text-xs text-zinc-400 dark:text-zinc-500">Desa/Kel</label>
+                                <label class="text-xs text-muted-foreground dark:text-muted-foreground">Desa/Kel</label>
                                 <select
                                     v-model="selectedDesaUuid"
-                                    class="h-8 min-w-[160px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    class="h-8 min-w-[160px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                                 >
                                     <option value="">— Semua —</option>
                                     <option v-for="d in desaList" :key="d.uuid" :value="d.uuid">
@@ -499,12 +499,12 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                         <!-- SLS — only when desa selected -->
                         <template v-if="selectedDesa">
-                            <span class="self-center text-zinc-400">›</span>
+                            <span class="self-center text-muted-foreground">›</span>
                             <div class="flex flex-col gap-1">
-                                <label class="text-xs text-zinc-400 dark:text-zinc-500">SLS</label>
+                                <label class="text-xs text-muted-foreground dark:text-muted-foreground">SLS</label>
                                 <select
                                     v-model="selectedSlsUuid"
-                                    class="h-8 min-w-[160px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    class="h-8 min-w-[160px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                                 >
                                     <option value="">— Semua —</option>
                                     <option v-for="s in slsList" :key="s.uuid" :value="s.uuid">
@@ -516,12 +516,12 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                         <!-- Sub-SLS — only when sls selected -->
                         <template v-if="selectedSls">
-                            <span class="self-center text-zinc-400">›</span>
+                            <span class="self-center text-muted-foreground">›</span>
                             <div class="flex flex-col gap-1">
-                                <label class="text-xs text-zinc-400 dark:text-zinc-500">Sub-SLS</label>
+                                <label class="text-xs text-muted-foreground dark:text-muted-foreground">Sub-SLS</label>
                                 <select
                                     v-model="selectedSubslsUuid"
-                                    class="h-8 min-w-[160px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                    class="h-8 min-w-[160px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                                 >
                                     <option value="">— Semua —</option>
                                     <option v-for="ss in subslsList" :key="ss.uuid" :value="ss.uuid">
@@ -534,7 +534,7 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                         <!-- Reset button -->
                         <button
                             v-if="selectedKec"
-                            class="flex h-8 items-center gap-1 self-end rounded-md border border-zinc-300 px-2 text-xs text-zinc-500 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                            class="flex h-8 items-center gap-1 self-end rounded-md border border-input px-2 text-xs text-muted-foreground hover:bg-muted dark:border-input dark:text-muted-foreground dark:hover:bg-muted"
                             @click="resetGeo"
                         >
                             <X class="size-3" />
@@ -545,10 +545,10 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                     <!-- Active filter breadcrumb -->
                     <div
                         v-if="geoBreadcrumb"
-                        class="text-xs text-orange-600 dark:text-orange-400"
+                        class="text-xs text-accent-ink"
                     >
                         Filter aktif: {{ geoBreadcrumb }}
-                        <span class="ml-1 text-zinc-400">({{ activeFilter?.level }})</span>
+                        <span class="ml-1 text-muted-foreground">({{ activeFilter?.level }})</span>
                     </div>
                 </div>
 
@@ -557,22 +557,22 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                 <div
                     v-for="s in STATUS_OPTIONS"
                     :key="s.id"
-                    class="rounded-lg border border-zinc-200 bg-white shadow-md dark:border-zinc-700 dark:bg-zinc-900"
+                    class="rounded-lg border border-border bg-card shadow-sm dark:border-border dark:bg-card"
                 >
                     <!-- Panel header -->
                     <div
-                        class="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-700"
+                        class="flex items-center gap-2 border-b border-border px-4 py-2.5 dark:border-border"
                     >
                         <span
                             class="inline-block size-2.5 rounded-full"
                             :style="{ backgroundColor: s.color }"
                         />
-                        <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                        <span class="text-sm font-semibold text-foreground dark:text-foreground">
                             {{ s.label }}
                         </span>
                         <span
                             v-if="!panelLoading[s.id] && seriesData[s.id].length"
-                            class="ml-auto text-xs text-zinc-400 dark:text-zinc-500"
+                            class="ml-auto text-xs text-muted-foreground dark:text-muted-foreground"
                         >
                             {{ seriesData[s.id].reduce((sum, r) => sum + r.total, 0).toLocaleString('id-ID') }}
                             perubahan
@@ -583,24 +583,24 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                     </div>
 
                     <!-- Legend -->
-                    <div class="flex items-center gap-3 border-b border-zinc-100 px-4 py-1.5 dark:border-zinc-700">
-                        <span class="text-[10px] text-zinc-400 dark:text-zinc-500">Jumlah:</span>
+                    <div class="flex items-center gap-3 border-b border-border px-4 py-1.5 dark:border-border">
+                        <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">Jumlah:</span>
                         <div class="flex items-center gap-2">
                             <span class="flex items-center gap-1">
                                 <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: isDark ? '#27272a' : '#f4f4f5' }" />
-                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">0</span>
+                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">0</span>
                             </span>
                             <span class="flex items-center gap-1">
                                 <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: colorWithOpacity(s.color, 0.3) }" />
-                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">1–3</span>
+                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">1–3</span>
                             </span>
                             <span class="flex items-center gap-1">
                                 <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: colorWithOpacity(s.color, 0.65) }" />
-                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">4–10</span>
+                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">4–10</span>
                             </span>
                             <span class="flex items-center gap-1">
                                 <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: s.color }" />
-                                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">11+</span>
+                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">11+</span>
                             </span>
                         </div>
                     </div>
@@ -608,7 +608,7 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                     <!-- Loading -->
                     <div
                         v-if="panelLoading[s.id]"
-                        class="flex items-center justify-center py-12 text-sm text-zinc-400"
+                        class="flex items-center justify-center py-12 text-sm text-muted-foreground"
                     >
                         Memuat…
                     </div>
@@ -616,7 +616,7 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                     <!-- Empty -->
                     <div
                         v-else-if="!seriesData[s.id].length"
-                        class="flex items-center justify-center py-12 text-sm text-zinc-400"
+                        class="flex items-center justify-center py-12 text-sm text-muted-foreground"
                     >
                         Tidak ada data.
                     </div>
@@ -635,28 +635,28 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                 </div><!-- end grid -->
 
                 <!-- ── Jam Aktif ──────────────────────────────────────── -->
-                <div class="rounded-lg border border-zinc-200 bg-white shadow-md dark:border-zinc-700 dark:bg-zinc-900">
-                    <div class="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-700">
-                        <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Jam Aktif</span>
-                        <span class="text-xs text-zinc-400 dark:text-zinc-500">Distribusi aktivitas per jam (0–23)</span>
+                <div class="rounded-lg border border-border bg-card shadow-sm dark:border-border dark:bg-card">
+                    <div class="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2.5 dark:border-border">
+                        <span class="text-sm font-semibold text-foreground dark:text-foreground">Jam Aktif</span>
+                        <span class="text-xs text-muted-foreground dark:text-muted-foreground">Distribusi aktivitas per jam (0–23)</span>
                         <div class="ml-auto flex gap-2">
                             <select v-model="hourlyStatusId"
-                                class="h-7 rounded border border-zinc-300 bg-white px-2 text-xs text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                                class="h-7 rounded border border-input bg-card px-2 text-xs text-foreground dark:border-input dark:bg-secondary dark:text-foreground">
                                 <option :value="0">Semua Status</option>
                                 <option :value="1">Submitted</option>
                                 <option :value="2">Approved</option>
                                 <option :value="3">Rejected</option>
                             </select>
-                            <div class="flex rounded border border-zinc-300 text-xs dark:border-zinc-600">
+                            <div class="flex rounded border border-input text-xs dark:border-input">
                                 <button v-for="d in ['pencacah', 'pengawas']" :key="d"
-                                    :class="['px-2 py-1 transition-colors', hourlyDimension === d ? 'bg-orange-500 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-800 dark:text-zinc-300', d === 'pencacah' ? 'rounded-l' : 'rounded-r']"
+                                    :class="['px-2 py-1 transition-colors', hourlyDimension === d ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted dark:bg-secondary dark:text-muted-foreground', d === 'pencacah' ? 'rounded-l' : 'rounded-r']"
                                     @click="hourlyDimension = d as 'pencacah' | 'pengawas'">
                                     {{ d === 'pencacah' ? 'Pencacah' : 'Pengawas' }}
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <div v-if="hourlyLoading" class="flex items-center justify-center py-12 text-sm text-zinc-400">Memuat…</div>
+                    <div v-if="hourlyLoading" class="flex items-center justify-center py-12 text-sm text-muted-foreground">Memuat…</div>
                     <div v-else class="p-3">
                         <VueApexCharts type="bar" :height="200" :options="hourlyChartOptions" :series="hourlyChartSeries" width="100%" />
                     </div>

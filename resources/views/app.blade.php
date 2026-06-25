@@ -22,17 +22,21 @@
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {
-                background-color: oklch(1 0 0);
+                background-color: oklch(0.985 0.002 90); /* warm white #FAFAF9 */
             }
 
             html.dark {
-                background-color: oklch(0.145 0 0);
+                background-color: oklch(0.155 0.002 60); /* warm black #0B0A09 */
             }
         </style>
 
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+        <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
 
-        @fonts
+        {{-- Plus Jakarta Sans (menggantikan @fonts / Instrument Sans) --}}
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         <x-inertia::head>

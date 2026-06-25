@@ -276,7 +276,7 @@ function pct(v: number) {
     <div v-else class="flex flex-col gap-3 p-4">
         <!-- header kabupaten -->
         <div
-            class="rounded-xl border border-sidebar-border/70 bg-card shadow-md px-4 py-2.5 dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm px-4 py-2.5 dark:border-sidebar-border"
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -379,7 +379,7 @@ function pct(v: number) {
                     },
                 ]"
                 :key="card.label"
-                class="rounded-xl border border-sidebar-border/70 bg-card shadow-md px-3 py-2 dark:border-sidebar-border"
+                class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm px-3 py-2 dark:border-sidebar-border"
             >
                 <p class="text-xs text-muted-foreground">{{ card.label }}</p>
                 <p
@@ -481,7 +481,7 @@ function pct(v: number) {
         <div class="grid gap-3 md:grid-cols-3">
             <!-- Status Table -->
             <div
-                class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
+                class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
             >
                 <h3 class="mb-2 shrink-0 text-sm font-semibold">
                     Komposisi Status
@@ -560,7 +560,7 @@ function pct(v: number) {
 
             <!-- Trend -->
             <div
-                class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-md p-4 dark:border-sidebar-border"
+                class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
             >
                 <h3 class="mb-1 shrink-0 text-sm font-semibold">
                     Tren Progress Over Time
