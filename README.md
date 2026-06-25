@@ -166,12 +166,12 @@ Setelah scraper dijalankan sesuai instruksinya, output-nya adalah file `fasih.db
 ```
 ~/
 ├── public_html/
-│   └── dashboard-se.enrekang.stat7300.net/   <- web root (domain)
-│       ├── index.php                          <- dari deploy/public_html.index.php
-│       ├── .htaccess                          <- dari public/.htaccess
-│       └── build/                             <- symlink ke APP_FOLDER/.../public/build
-└── APP_FOLDER/
-    └── dashboard-se.enrekang.stat7300.net/    <- seluruh app Laravel (di luar web root!)
+│   └── <domain>/          <- web root (subdomain/domain yang kamu daftarkan)
+│       ├── index.php       <- dari deploy/public_html.index.php
+│       ├── .htaccess       <- dari public/.htaccess
+│       └── build/          <- symlink ke $APPDIR/public/build
+└── <app-dir>/
+    └── <domain>/           <- seluruh app Laravel (di luar web root!)
         ├── app/
         ├── config/
         ├── database/
@@ -188,6 +188,22 @@ Setelah scraper dijalankan sesuai instruksinya, output-nya adalah file `fasih.db
 
 ### Langkah Deploy
 
+#### 0. Tentukan path server kamu
+
+Di cPanel Terminal, definisikan dua variabel ini sesuai setup servermu. Semua perintah di bawah menggunakan variabel ini.
+
+```bash
+# Ganti sesuai domain dan nama folder yang kamu pakai di server
+export DOMAIN="namadomain.com"           # contoh: dashboard.kantorku.net
+export APPDIR="$HOME/laravel/$DOMAIN"    # lokasi app Laravel (di luar public_html)
+export PUBDIR="$HOME/public_html/$DOMAIN" # web root domain
+export PHP="/usr/local/bin/ea-php83"     # path PHP 8.3 di cPanel (biasanya ini)
+```
+
+> Folder `$APPDIR` bisa di mana saja asal di luar `public_html/`. Nama foldernya bebas — `laravel/`, `apps/`, `private/`, dll.
+
+---
+
 #### A. Persiapan di Lokal
 
 **1. Build frontend:**
@@ -198,7 +214,7 @@ npm run build
 
 Menghasilkan file statis di `public/build/` yang siap production.
 
-**2. Pastikan `vendor/` ada** (dari `composer install`). Jika tidak mau upload `vendor/`, install ulang di server (lihat langkah B.2).
+**2. Pastikan `vendor/` ada** (dari `composer install`). Jika tidak mau upload `vendor/`, install ulang di server (lihat langkah B, poin 2).
 
 ---
 
@@ -208,7 +224,7 @@ Ada dua metode:
 
 **Metode 1 — Git Deploy Otomatis (Direkomendasikan)**
 
-Jika sudah dikonfigurasi Git Version Control di cPanel, deploy berjalan otomatis setiap `git push`. File `.cpanel.yml` di root repo berisi skrip deploy-nya — meliputi `composer install`, symlink, cache, migrasi, dan permissions.
+Jika sudah dikonfigurasi Git Version Control di cPanel, deploy berjalan otomatis setiap `git push`. Sesuaikan dulu path di `.cpanel.yml` (baris `export APPDIR` dan `export PUBDIR`) dengan path servermu, lalu:
 
 ```bash
 git push origin main
@@ -222,33 +238,28 @@ Upload file berikut via cPanel File Manager atau FTP/SFTP:
 
 | Sumber (lokal) | Tujuan (server) |
 |---|---|
-| Seluruh project (kecuali `node_modules/`, `.git/`) | `~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/` |
-| `deploy/public_html.index.php` | `~/public_html/dashboard-se.enrekang.stat7300.net/index.php` |
-| `public/.htaccess` | `~/public_html/dashboard-se.enrekang.stat7300.net/.htaccess` |
-| `public/build/` | `~/public_html/dashboard-se.enrekang.stat7300.net/build/` |
-| `public/*.jpg`, `public/*.png`, `public/favicon*` | `~/public_html/dashboard-se.enrekang.stat7300.net/` |
+| Seluruh project (kecuali `node_modules/`, `.git/`) | `$APPDIR/` |
+| `deploy/public_html.index.php` | `$PUBDIR/index.php` |
+| `public/.htaccess` | `$PUBDIR/.htaccess` |
+| `public/build/` | `$PUBDIR/build/` |
+| `public/*.jpg`, `public/*.png`, `public/favicon*` | `$PUBDIR/` |
 
 ---
 
 #### C. Konfigurasi Server (via cPanel Terminal)
 
-Masuk ke **cPanel → Terminal**, lalu jalankan:
+Masuk ke **cPanel → Terminal**. Pastikan variabel di [Langkah 0](#0-tentukan-path-server-kamu) sudah di-set, lalu jalankan:
 
 **1. Pindah ke direktori app:**
 
 ```bash
-cd ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net
+cd "$APPDIR"
 ```
-
-> Tip: Set alias PHP agar tidak perlu tulis path penuh setiap kali:
-> ```bash
-> alias php=/usr/local/bin/ea-php83
-> ```
 
 **2. Install Composer dependencies (jika `vendor/` belum ada):**
 
 ```bash
-/usr/local/bin/ea-php83 ~/bin/composer install \
+$PHP ~/bin/composer install \
   --no-dev --optimize-autoloader --no-interaction \
   --ignore-platform-req=ext-fileinfo
 ```
@@ -259,14 +270,14 @@ cd ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net
 cp deploy/env.production.example .env
 ```
 
-Edit `.env` — nilai minimal yang harus diisi:
+Edit `.env` — sesuaikan minimal dua nilai ini:
 
 ```env
 APP_NAME="FASIH Dashboard"
 APP_ENV=production
 APP_KEY=                    # dikosongkan dulu, akan diisi oleh key:generate
 APP_DEBUG=false
-APP_URL=https://dashboard-se.enrekang.stat7300.net
+APP_URL=https://<domain-kamu>
 
 APP_LOCALE=id
 APP_FALLBACK_LOCALE=id
@@ -284,21 +295,21 @@ LOG_LEVEL=error
 **4. Generate APP_KEY:**
 
 ```bash
-/usr/local/bin/ea-php83 artisan key:generate
+$PHP artisan key:generate
 ```
 
 **5. Jalankan migrasi:**
 
 ```bash
-/usr/local/bin/ea-php83 artisan migrate --force
+$PHP artisan migrate --force
 ```
 
 **6. Cache konfigurasi (wajib di production):**
 
 ```bash
-/usr/local/bin/ea-php83 artisan config:cache
-/usr/local/bin/ea-php83 artisan route:cache
-/usr/local/bin/ea-php83 artisan view:cache
+$PHP artisan config:cache
+$PHP artisan route:cache
+$PHP artisan view:cache
 ```
 
 **7. Set permissions:**
@@ -310,8 +321,7 @@ chmod -R 775 storage bootstrap/cache
 **8. Symlink `public/build` ke web root:**
 
 ```bash
-ln -sfn ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/public/build \
-        ~/public_html/dashboard-se.enrekang.stat7300.net/build
+ln -sfn "$APPDIR/public/build" "$PUBDIR/build"
 ```
 
 ---
@@ -320,11 +330,11 @@ ln -sfn ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/public/build \
 
 ### Buat user admin pertama
 
-Jalankan via cPanel Terminal:
+Jalankan via cPanel Terminal (variabel `$APPDIR` dan `$PHP` dari [Langkah 0](#0-tentukan-path-server-kamu)):
 
 ```bash
-cd ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net
-/usr/local/bin/ea-php83 artisan tinker
+cd "$APPDIR"
+$PHP artisan tinker
 ```
 
 ```php
@@ -357,16 +367,16 @@ Setelah login:
 
 ### Queue Worker di Production
 
-Di shared hosting, queue tidak berjalan sebagai daemon. Untuk memproses job import database, setup **Cron Job** di cPanel:
+Di shared hosting, queue tidak berjalan sebagai daemon. Untuk memproses job import database, setup **Cron Job** di cPanel (ganti path sesuai servermu):
 
 ```
-* * * * * /usr/local/bin/ea-php83 ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/artisan queue:work --once --tries=1 2>/dev/null
+* * * * * /usr/local/bin/ea-php83 /home/<cpanel-user>/<app-dir>/<domain>/artisan queue:work --once --tries=1 2>/dev/null
 ```
 
-Atau jalankan manual setelah upload:
+Atau jalankan manual setelah upload (dari cPanel Terminal):
 
 ```bash
-/usr/local/bin/ea-php83 artisan queue:work --once
+$PHP artisan queue:work --once
 ```
 
 ### Manajemen Nama Wilayah
@@ -499,11 +509,10 @@ Queue worker belum berjalan. Jalankan manual:
 
 **Asset tidak ditemukan (404 pada `/build/...`)**
 
-Symlink `public/build` → `public_html/.../build` belum dibuat. Jalankan:
+Symlink `public/build` → web root belum dibuat. Jalankan (variabel dari [Langkah 0](#0-tentukan-path-server-kamu)):
 
 ```bash
-ln -sfn ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/public/build \
-        ~/public_html/dashboard-se.enrekang.stat7300.net/build
+ln -sfn "$APPDIR/public/build" "$PUBDIR/build"
 ```
 
 **Route tidak ditemukan setelah deploy**
@@ -519,12 +528,12 @@ Cache route lama masih aktif. Jalankan:
 Di shared hosting tanpa daemon queue, jalankan manual:
 
 ```bash
-/usr/local/bin/ea-php83 artisan queue:work --once --tries=1
+$PHP artisan queue:work --once --tries=1
 ```
 
 **cPanel Terminal PHP salah versi**
 
-cPanel Terminal default ke PHP sistem (bisa beda versi). Selalu gunakan path eksplisit:
+cPanel Terminal default ke PHP sistem (bisa beda versi). Selalu gunakan path eksplisit atau via variabel `$PHP` dari [Langkah 0](#0-tentukan-path-server-kamu):
 
 ```bash
 /usr/local/bin/ea-php83 artisan ...
