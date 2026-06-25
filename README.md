@@ -1,227 +1,535 @@
 # Dashboard SE Enrekang — Monitoring SE2026
 
-Dashboard monitoring FASIH (Sensus/Survey) berbasis web untuk Kabupaten Enrekang.
-
-## Tech Stack
-
-- **Backend**: Laravel 13 (PHP 8.3+)
-- **Frontend**: Vue 3 + Inertia.js + TypeScript + Tailwind CSS 4 + Vite
-- **UI**: Reka UI (shadcn-style), Charts via `vue3-apexcharts`
-- **Auth**: Laravel Fortify + Passkeys
+Dashboard monitoring berbasis web untuk memantau progres kerja lapangan **Sensus/Survey FASIH** di Kabupaten Enrekang. Dibuat oleh IPDS BPS Enrekang.
 
 ---
 
-## Pengembangan Lokal
+## Daftar Isi
 
-### Prasyarat
+1. [Fitur](#fitur)
+2. [Tech Stack](#tech-stack)
+3. [Prasyarat](#prasyarat)
+4. [Setup Lokal](#setup-lokal)
+5. [Generate fasih.db (Scraper)](#generate-fasihdb-scraper)
+6. [Deploy ke Shared Hosting (cPanel)](#deploy-ke-shared-hosting-cpanel)
+7. [Setup Pertama Kali di Server](#setup-pertama-kali-di-server)
+8. [Manajemen Data](#manajemen-data)
+9. [Halaman & Fitur](#halaman--fitur)
+10. [Struktur Database](#struktur-database)
+11. [File Penting](#file-penting)
+12. [Troubleshooting](#troubleshooting)
 
-- PHP 8.3+
-- Composer
-- Node.js + npm
+---
 
-### Setup
+## Fitur
+
+- **Dashboard utama** — filter per snapshot, role (Pengawas/Pencacah), level wilayah, dan region; metric cards, donut chart, bar chart, line trend
+- **Ringkasan Kabupaten** — tabel rekap per kecamatan dengan persentase progres dan approval
+- **Heatmap Aktivitas** — aktivitas petugas per hari dan per jam; filter tanggal dan wilayah
+- **Analitik Petugas** — 6 tab analitik: Daftar, Funnel Status, Matrix, Leaderboard, Mangkrak, Proyeksi Selesai
+- **Daftar Penugasan** — tabel seluruh assignment + riwayat perubahan status per penugasan
+- **Statistik Inferensial** — uji proporsi, komparasi wilayah, chi-square, korelasi, analisis bangunan kosong
+- **Import Database** — upload `fasih.db` langsung dari browser tanpa akses server
+- **Admin Panel** — manajemen user (CRUD), nama petugas, dan nama wilayah
+- **Dark mode** + timezone WITA (UTC+8)
+- **Autentikasi** — login password + Passkeys (WebAuthn)
+
+---
+
+## Tech Stack
+
+| Layer | Teknologi |
+|---|---|
+| Backend | Laravel 13, PHP 8.3+ |
+| Frontend | Vue 3, TypeScript, Tailwind CSS 4 |
+| Routing | Inertia.js (SSR-style SPA, tanpa REST API publik) |
+| Charts | ApexCharts via `vue3-apexcharts` |
+| UI Components | Reka UI (shadcn-style), PrimeVue, Lucide icons |
+| Auth | Laravel Fortify + Passkeys (WebAuthn) |
+| Build Tool | Vite |
+| Database | SQLite (2 koneksi terpisah) |
+
+---
+
+## Prasyarat
+
+Pastikan sudah terinstal di mesin lokal:
+
+| Software | Versi Minimum | Cek |
+|---|---|---|
+| PHP | 8.3+ | `php -v` |
+| Composer | 2.x | `composer -V` |
+| Node.js | 18+ | `node -v` |
+| npm | 9+ | `npm -v` |
+
+> **Windows**: Disarankan pakai [Laragon](https://laragon.org/) — sudah include PHP 8.3, Composer, dan Node.js dalam satu installer.
+>
+> **Linux/Mac**: Gunakan `brew` (macOS) atau `apt`/`dnf` (Linux).
+
+---
+
+## Setup Lokal
+
+### 1. Clone repository
+
+```bash
+git clone https://github.com/rahmadsetiya/fasih-sm-dashboard-analytics-SE.git
+cd fasih-sm-dashboard-analytics-SE
+```
+
+### 2. Install dependencies
 
 ```bash
 composer install
 npm install
+```
+
+### 3. Konfigurasi environment
+
+```bash
 cp .env.example .env
 php artisan key:generate
+```
+
+Buka `.env` — untuk dev lokal nilai defaultnya sudah cukup:
+
+```env
+APP_NAME="FASIH Dashboard"
+APP_URL=http://localhost:8000
+DB_CONNECTION=sqlite
+```
+
+### 4. Setup database
+
+```bash
 php artisan migrate
 ```
 
-### Jalankan dev server
+Ini membuat `database/database.sqlite` untuk data user, session, cache, dan queue.
+
+> File `storage/app/fasih.db` (data sensus) **tidak dibuat otomatis** — diupload via UI setelah app berjalan.
+
+### 5. Buat user pertama
+
+```bash
+php artisan tinker
+```
+
+```php
+$user = \App\Models\User::create([
+    'name'     => 'Admin',
+    'email'    => 'email@example.com',
+    'password' => bcrypt('passwordmu'),
+]);
+$user->update(['is_admin' => true]);
+exit
+```
+
+### 6. Jalankan dev server
 
 ```bash
 composer run dev
 ```
 
-Menjalankan `artisan serve` + `queue:listen` + Vite HMR secara bersamaan.
+Perintah ini menjalankan tiga proses sekaligus:
 
-### Perintah lainnya
+- `php artisan serve` — Laravel backend (port 8000)
+- `php artisan queue:listen` — queue worker untuk background jobs
+- `npm run dev` — Vite HMR (hot reload frontend)
 
-```bash
-composer run test        # config:clear → pint → tsc → phpunit
-composer run lint        # perbaiki code style PHP
-composer run ci:check    # full CI pipeline
+Buka browser ke **http://localhost:8000**.
 
-npm run lint             # ESLint auto-fix
-npm run format           # Prettier write
-npm run types:check      # TypeScript type-check
-```
+### 7. Upload fasih.db
+
+Setelah login, klik tombol **Import Database** di sidebar dan upload file `fasih.db`. Lihat bagian [Generate fasih.db](#generate-fasihdb-scraper) untuk cara mendapatkan file ini.
 
 ---
 
-## Database
+## Generate fasih.db (Scraper)
 
-Dua koneksi SQLite:
+`fasih.db` adalah database SQLite berisi data progres lapangan hasil scraping dari platform FASIH. File ini **tidak tersimpan di repo ini** — harus di-generate menggunakan scraper terpisah.
 
-| Koneksi | File | Isi |
-|---|---|---|
-| `sqlite` (default) | `database/database.sqlite` | App data: user, session, cache, queue |
-| `fasih` (read-only) | `storage/app/fasih.db` | Data sensus — diupload user via UI |
+**Repo scraper:** [https://github.com/rahmadsetiya/fasih-scraper](https://github.com/rahmadsetiya/fasih-scraper)
 
-`fasih.db` **tidak ada saat fresh install** — selalu cek `file_exists()` sebelum query.
+> Repo scraper bersifat **private**. Hubungi pemilik untuk meminta akses:
+> - GitHub: [@rahmadsetiya](https://github.com/rahmadsetiya)
+> - Email: rahmadsetiyabudi@gmail.com
 
-Tabel `progress_pengawas` dan `progress_pencacah` pakai kolom `snapshot_at` untuk membedakan snapshot per waktu dalam satu file.
+Setelah scraper dijalankan sesuai instruksinya, output-nya adalah file `fasih.db` yang langsung bisa diupload ke dashboard via tombol **Import Database**.
 
 ---
 
 ## Deploy ke Shared Hosting (cPanel)
 
-### Struktur direktori server
+### Gambaran Struktur Direktori Server
 
 ```
 ~/
 ├── public_html/
-│   └── dashboard-se.enrekang.stat7300.net/   <- web root
+│   └── dashboard-se.enrekang.stat7300.net/   <- web root (domain)
 │       ├── index.php                          <- dari deploy/public_html.index.php
 │       ├── .htaccess                          <- dari public/.htaccess
-│       └── build/                             <- dari public/build/ (hasil npm run build)
+│       └── build/                             <- symlink ke APP_FOLDER/.../public/build
 └── APP_FOLDER/
-    └── dashboard-se.enrekang.stat7300.net/    <- seluruh app Laravel
+    └── dashboard-se.enrekang.stat7300.net/    <- seluruh app Laravel (di luar web root!)
+        ├── app/
+        ├── config/
+        ├── database/
+        ├── public/build/
+        ├── storage/
+        ├── vendor/
+        ├── .env
+        └── ...
 ```
 
-### Langkah deploy
+> Laravel ditaruh di luar `public_html/` agar `app/`, `config/`, `.env`, dan file sensitif tidak bisa diakses langsung dari browser.
 
-**1. Build frontend (lokal):**
+---
+
+### Langkah Deploy
+
+#### A. Persiapan di Lokal
+
+**1. Build frontend:**
 
 ```bash
 npm run build
 ```
 
-**2. Upload ke server:**
+Menghasilkan file statis di `public/build/` yang siap production.
 
-- Seluruh project (kecuali `node_modules/`, `public/`, `.git/`, `deploy/`) ke `APP_FOLDER/dashboard-se.enrekang.stat7300.net/`
-- `deploy/public_html.index.php` ke `public_html/dashboard-se.enrekang.stat7300.net/index.php`
-- `public/.htaccess` ke `public_html/dashboard-se.enrekang.stat7300.net/.htaccess`
-- `public/build/` ke `public_html/dashboard-se.enrekang.stat7300.net/build/`
-- `public/logo-se2026.jpg` (dan aset publik lain) ke `public_html/dashboard-se.enrekang.stat7300.net/`
+**2. Pastikan `vendor/` ada** (dari `composer install`). Jika tidak mau upload `vendor/`, install ulang di server (lihat langkah B.2).
 
-**3. Konfigurasi server (via cPanel Terminal):**
+---
+
+#### B. Upload ke Server
+
+Ada dua metode:
+
+**Metode 1 — Git Deploy Otomatis (Direkomendasikan)**
+
+Jika sudah dikonfigurasi Git Version Control di cPanel, deploy berjalan otomatis setiap `git push`. File `.cpanel.yml` di root repo berisi skrip deploy-nya — meliputi `composer install`, symlink, cache, migrasi, dan permissions.
+
+```bash
+git push origin main
+```
+
+Setelah push, login ke cPanel → **Git Version Control** → klik **Update** (atau tunggu webhook trigger).
+
+**Metode 2 — Upload Manual**
+
+Upload file berikut via cPanel File Manager atau FTP/SFTP:
+
+| Sumber (lokal) | Tujuan (server) |
+|---|---|
+| Seluruh project (kecuali `node_modules/`, `.git/`) | `~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/` |
+| `deploy/public_html.index.php` | `~/public_html/dashboard-se.enrekang.stat7300.net/index.php` |
+| `public/.htaccess` | `~/public_html/dashboard-se.enrekang.stat7300.net/.htaccess` |
+| `public/build/` | `~/public_html/dashboard-se.enrekang.stat7300.net/build/` |
+| `public/*.jpg`, `public/*.png`, `public/favicon*` | `~/public_html/dashboard-se.enrekang.stat7300.net/` |
+
+---
+
+#### C. Konfigurasi Server (via cPanel Terminal)
+
+Masuk ke **cPanel → Terminal**, lalu jalankan:
+
+**1. Pindah ke direktori app:**
 
 ```bash
 cd ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net
-
-# Salin dan isi .env
-cp deploy/.env.production .env
-# Edit: isi APP_KEY setelah generate
-
-# Generate key
-/usr/local/bin/ea-php83 artisan key:generate
-
-# Migrasi database
-/usr/local/bin/ea-php83 artisan migrate --force
-
-# Optimize
-/usr/local/bin/ea-php83 artisan optimize
-
-# Permission storage
-chmod -R 775 storage bootstrap/cache
 ```
 
-> **Catatan PHP CLI**: cPanel Terminal pakai PHP sistem (8.2). Gunakan `/usr/local/bin/ea-php83` untuk PHP 8.3.
-> Bisa set alias sekali pakai: `alias php=/usr/local/bin/ea-php83`
+> Tip: Set alias PHP agar tidak perlu tulis path penuh setiap kali:
+> ```bash
+> alias php=/usr/local/bin/ea-php83
+> ```
 
-**4. Isi `.env` production:**
+**2. Install Composer dependencies (jika `vendor/` belum ada):**
+
+```bash
+/usr/local/bin/ea-php83 ~/bin/composer install \
+  --no-dev --optimize-autoloader --no-interaction \
+  --ignore-platform-req=ext-fileinfo
+```
+
+**3. Buat dan isi file `.env`:**
+
+```bash
+cp deploy/env.production.example .env
+```
+
+Edit `.env` — nilai minimal yang harus diisi:
 
 ```env
-APP_NAME="Dashboard SE Enrekang"
+APP_NAME="FASIH Dashboard"
 APP_ENV=production
-APP_KEY=           # diisi otomatis oleh key:generate
+APP_KEY=                    # dikosongkan dulu, akan diisi oleh key:generate
 APP_DEBUG=false
 APP_URL=https://dashboard-se.enrekang.stat7300.net
 
+APP_LOCALE=id
+APP_FALLBACK_LOCALE=id
+
 DB_CONNECTION=sqlite
+
 SESSION_DRIVER=database
 QUEUE_CONNECTION=database
 CACHE_STORE=database
+
 LOG_CHANNEL=single
 LOG_LEVEL=error
 ```
 
----
-
-## Setup Pertama Kali
-
-### Buat user pertama
+**4. Generate APP_KEY:**
 
 ```bash
+/usr/local/bin/ea-php83 artisan key:generate
+```
+
+**5. Jalankan migrasi:**
+
+```bash
+/usr/local/bin/ea-php83 artisan migrate --force
+```
+
+**6. Cache konfigurasi (wajib di production):**
+
+```bash
+/usr/local/bin/ea-php83 artisan config:cache
+/usr/local/bin/ea-php83 artisan route:cache
+/usr/local/bin/ea-php83 artisan view:cache
+```
+
+**7. Set permissions:**
+
+```bash
+chmod -R 775 storage bootstrap/cache
+```
+
+**8. Symlink `public/build` ke web root:**
+
+```bash
+ln -sfn ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/public/build \
+        ~/public_html/dashboard-se.enrekang.stat7300.net/build
+```
+
+---
+
+## Setup Pertama Kali di Server
+
+### Buat user admin pertama
+
+Jalankan via cPanel Terminal:
+
+```bash
+cd ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net
 /usr/local/bin/ea-php83 artisan tinker
 ```
 
 ```php
-\App\Models\User::create([
-    'name' => 'Admin',
-    'email' => 'email@example.com',
+$user = \App\Models\User::create([
+    'name'     => 'Admin',
+    'email'    => 'email@example.com',
     'password' => bcrypt('passwordmu'),
 ]);
+$user->update(['is_admin' => true]);
+exit
 ```
 
-### Set sebagai admin (satu kali saja)
-
-```php
-\App\Models\User::where('email', 'email@example.com')->update(['is_admin' => true]);
-```
-
-Setelah login sebagai admin, gunakan menu **Manajemen User** di sidebar untuk CRUD user selanjutnya tanpa tinker.
+Setelah login sebagai admin, gunakan menu **Admin → Manajemen User** di sidebar untuk menambah/mengedit/menghapus user selanjutnya — tanpa perlu tinker lagi.
 
 ---
 
 ## Manajemen Data
 
-### Generate fasih.db (Scraper)
+### Import fasih.db
 
-`fasih.db` dihasilkan dari scraping platform FASIH menggunakan repo private:
+Setelah login:
 
-**[https://github.com/rahmadsetiya/fasih-scraper](https://github.com/rahmadsetiya/fasih-scraper)**
+1. Klik tombol **Import Database** di sidebar kiri
+2. Pilih file `fasih.db`
+3. Klik Upload — proses berjalan sebagai background job via queue
 
-Jalankan scraper sesuai instruksi di repo tersebut. Output-nya adalah file `fasih.db` yang siap diupload ke dashboard ini.
+> File disimpan ke `storage/app/fasih.db`.
+>
+> Import ulang **tidak menghapus** data user/session — `database/database.sqlite` terpisah dari `fasih.db`.
 
-> **Akses repo**: Repo scraper bersifat private. Hubungi pemilik repo untuk meminta akses:
-> - GitHub: [@rahmadsetiya](https://github.com/rahmadsetiya)
-> - Email: rahmadsetiyabudi@gmail.com
+### Queue Worker di Production
 
-### Upload fasih.db
+Di shared hosting, queue tidak berjalan sebagai daemon. Untuk memproses job import database, setup **Cron Job** di cPanel:
 
-Gunakan tombol **Import Database** di sidebar. File disimpan ke `storage/app/fasih.db`.
+```
+* * * * * /usr/local/bin/ea-php83 ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/artisan queue:work --once --tries=1 2>/dev/null
+```
 
-> **Penting**: User login disimpan di `database/database.sqlite` (bukan `fasih.db`).
-> Import ulang `fasih.db` **tidak menghapus** data user/session.
+Atau jalankan manual setelah upload:
 
-### Tabel yang harus ada di fasih.db
+```bash
+/usr/local/bin/ea-php83 artisan queue:work --once
+```
 
-- `progress_pengawas`
-- `progress_pencacah`
-- `assignments`
-- `scrape_runs`
-- `wilayah`
-- `assignment_status_changes`
-- `users` (user FASIH — bukan user login app)
+### Manajemen Nama Wilayah
+
+Nama wilayah disimpan di tabel `region_names` (`database.sqlite`). Bisa diimport via file CSV di halaman Admin → Settings.
+
+### Manajemen Nama Petugas
+
+Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username FASIH sebagai key.
 
 ---
 
-## Halaman
+## Halaman & Fitur
 
-| URL | Keterangan |
+| URL | Nama | Keterangan |
+|---|---|---|
+| `/` | Dashboard | Filter snapshot, role, level wilayah; metric cards, chart status, bar top wilayah, trend |
+| `/ringkasan` | Ringkasan Kabupaten | Tabel rekap per kecamatan: total, selesai, approved, % |
+| `/heatmap` | Heatmap Aktivitas | Aktivitas per petugas per hari; drill-down per jam |
+| `/petugas` | Analitik Petugas | 6 tab analitik (lihat di bawah) |
+| `/penugasan` | Daftar Penugasan | Tabel semua assignment + riwayat perubahan status |
+| `/statistik` | Statistik | Uji proporsi, komparasi, chi-square, korelasi, bangunan kosong |
+| `/admin/users` | Manajemen User | CRUD user (admin only) |
+
+### Tab di Halaman Analitik Petugas (`/petugas`)
+
+| Tab | Isi |
 |---|---|
-| `/` | Dashboard utama per petugas/wilayah |
-| `/ringkasan` | Ringkasan kabupaten (tabel kecamatan) |
-| `/heatmap` | Heatmap aktivitas per petugas per hari |
-| `/admin/users` | Manajemen user (admin only) |
+| Daftar | Tabel seluruh petugas dengan jumlah assignment dan ringkasan status |
+| Funnel Status | Funnel chart: OPEN → SUBMITTED → APPROVED |
+| Matrix | Scatter plot: kecepatan penyelesaian (hari) vs rejection rate (% ditolak pengawas) |
+| Leaderboard | Ranking petugas berdasarkan approval rate, dengan pagination |
+| Mangkrak | Assignment yang sudah lama tidak ada pergerakan status |
+| Proyeksi | Estimasi tanggal selesai berdasarkan laju saat ini (deadline: 31 Agustus 2026) |
+
+---
+
+## Struktur Database
+
+### `database/database.sqlite` — koneksi default
+
+Dibuat otomatis oleh `php artisan migrate`.
+
+| Tabel | Isi |
+|---|---|
+| `users` | Akun login dashboard |
+| `petugas_names` | Nama tampilan petugas (key: username FASIH) |
+| `region_names` | Nama wilayah (key: region_code) |
+| `jobs` | Queue jobs |
+| `sessions`, `cache` | Session dan cache aplikasi |
+
+### `storage/app/fasih.db` — koneksi `fasih` (read-only)
+
+Diupload via UI. **Tidak ada saat fresh install.**
+
+| Tabel | Isi |
+|---|---|
+| `progress_pengawas` | Progres per pengawas per snapshot waktu |
+| `progress_pencacah` | Progres per pencacah per snapshot waktu |
+| `assignments` | Daftar semua penugasan |
+| `assignment_status_changes` | Riwayat perubahan status per penugasan |
+| `scrape_runs` | Metadata tiap kali scraper dijalankan |
+| `wilayah` | Hierarki wilayah (kab/kec/desa/SLS) |
+| `users` | User FASIH (bukan user login dashboard) |
+
+Kolom `snapshot_at` di `progress_pengawas` dan `progress_pencacah` membedakan data antar titik waktu scraping dalam satu file.
+
+---
+
+## Perintah yang Sering Digunakan
+
+```bash
+# Dev server (Laravel + Queue + Vite HMR sekaligus)
+composer run dev
+
+# Jalankan semua test
+composer run test
+
+# Fix PHP code style
+composer run lint
+
+# Full CI check (lint + types + phpunit)
+composer run ci:check
+
+# Frontend checks
+npm run lint             # ESLint auto-fix
+npm run format           # Prettier write
+npm run types:check      # TypeScript type-check
+npm run build            # Build production frontend
+```
 
 ---
 
 ## File Penting
 
-| File | Keterangan |
+| File/Folder | Keterangan |
 |---|---|
-| `deploy/public_html.index.php` | Entry point untuk `public_html/` di shared hosting |
-| `deploy/.env.production` | Template `.env` untuk production |
-| `storage/app/fasih.db` | Data sensus dari [fasih-scraper](https://github.com/rahmadsetiya/fasih-scraper) (diupload user, tidak di-commit) |
-| `database/database.sqlite` | App database (user, session, cache) |
+| `.cpanel.yml` | Skrip deploy otomatis untuk cPanel Git Version Control |
+| `deploy/public_html.index.php` | Entry point `public_html/` untuk shared hosting |
+| `deploy/env.production.example` | Template `.env` untuk production |
+| `storage/app/fasih.db` | Data sensus dari scraper (diupload user, **tidak di-commit**) |
+| `database/database.sqlite` | App database (user, session, cache) — tidak di-commit |
 
 ### File auto-generated — jangan edit manual
 
-- `resources/js/actions/**` — Wayfinder action types
-- `resources/js/routes/**` — Wayfinder route helpers
-- `resources/js/components/ui/*` — shadcn/reka-ui templates
+| Path | Di-generate oleh |
+|---|---|
+| `resources/js/actions/**` | `php artisan wayfinder:generate` |
+| `resources/js/routes/**` | `php artisan wayfinder:generate` |
+| `resources/js/components/ui/*` | shadcn/reka-ui CLI |
+
+---
+
+## Troubleshooting
+
+**`storage/app/fasih.db` tidak ditemukan setelah upload**
+
+Queue worker belum berjalan. Jalankan manual:
+
+```bash
+/usr/local/bin/ea-php83 artisan queue:work --once
+```
+
+**500 error di production**
+
+1. Cek `storage/logs/laravel.log`
+2. Sementara set `APP_DEBUG=true` di `.env` untuk lihat pesan error lengkap
+3. Pastikan `storage/` dan `bootstrap/cache/` writable: `chmod -R 775 storage bootstrap/cache`
+4. Pastikan `APP_KEY` sudah diisi (jalankan `artisan key:generate`)
+
+**Asset tidak ditemukan (404 pada `/build/...`)**
+
+Symlink `public/build` → `public_html/.../build` belum dibuat. Jalankan:
+
+```bash
+ln -sfn ~/APP_FOLDER/dashboard-se.enrekang.stat7300.net/public/build \
+        ~/public_html/dashboard-se.enrekang.stat7300.net/build
+```
+
+**Route tidak ditemukan setelah deploy**
+
+Cache route lama masih aktif. Jalankan:
+
+```bash
+/usr/local/bin/ea-php83 artisan route:cache
+```
+
+**Queue stuck / import tidak selesai**
+
+Di shared hosting tanpa daemon queue, jalankan manual:
+
+```bash
+/usr/local/bin/ea-php83 artisan queue:work --once --tries=1
+```
+
+**cPanel Terminal PHP salah versi**
+
+cPanel Terminal default ke PHP sistem (bisa beda versi). Selalu gunakan path eksplisit:
+
+```bash
+/usr/local/bin/ea-php83 artisan ...
+```
+
+---
+
+*Made with ♥ @ IPDS BPS Enrekang*
