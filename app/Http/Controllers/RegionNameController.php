@@ -17,7 +17,7 @@ class RegionNameController extends Controller
     {
         $request->validate(['csv' => ['required', 'string']]);
 
-        $lines = preg_split('/\r?\n/', trim($request->input('csv')));
+        $lines = preg_split('/\r?\n/', trim($request->input('csv'))) ?: [];
         $rows = [];
         $skipped = 0;
 

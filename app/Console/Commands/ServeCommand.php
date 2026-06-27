@@ -6,6 +6,9 @@ use Illuminate\Foundation\Console\ServeCommand as BaseServeCommand;
 
 class ServeCommand extends BaseServeCommand
 {
+    /**
+     * @return array<int, string>
+     */
     protected function serverCommand(): array
     {
         $command = parent::serverCommand();
