@@ -10,6 +10,16 @@ use Inertia\Response;
 
 class StatistikController extends Controller
 {
+    /** @return literal-string */
+    private function groupExpression(string $groupBy): string
+    {
+        return match ($groupBy) {
+            'kelas' => 'TRIM(kelas)',
+            'tc' => 'TRIM(tc)',
+            default => 'TRIM(gelombang)',
+        };
+    }
+
     // Standard normal CDF approximation (Abramowitz & Stegun 26.2.17)
     private function normalCdf(float $z): float
     {
@@ -73,6 +83,7 @@ class StatistikController extends Controller
 
         $groupBy = in_array($request->input('group_by'), ['kecamatan', 'gelombang', 'kelas', 'tc'])
             ? $request->input('group_by') : 'kecamatan';
+        $groupExpression = $this->groupExpression($groupBy);
 
         if ($groupBy === 'kecamatan') {
             $rows = DB::connection('fasih')
@@ -99,15 +110,15 @@ class StatistikController extends Controller
                 ->whereNotNull($groupBy)
                 ->where($groupBy, '!=', '')
                 ->selectRaw("
-                    TRIM($groupBy) as group_code,
-                    TRIM($groupBy) as group_label,
+                    $groupExpression as group_code,
+                    $groupExpression as group_label,
                     SUM(region_total) as total,
                     SUM(\"APPROVED BY Pengawas\") as approved,
                     SUM(\"SUBMITTED BY Pencacah\") as submitted,
                     SUM(\"REJECTED BY Pengawas\") as rejected
                 ")
-                ->groupByRaw("TRIM($groupBy)")
-                ->orderByRaw("TRIM($groupBy)")
+                ->groupByRaw($groupExpression)
+                ->orderByRaw($groupExpression)
                 ->get();
         }
 
@@ -145,6 +156,7 @@ class StatistikController extends Controller
         $validGroups = ['kecamatan', 'gelombang', 'kelas', 'tc'];
         $groupBy = in_array($request->input('group_by'), $validGroups)
             ? $request->input('group_by') : 'kecamatan';
+        $groupExpression = $this->groupExpression($groupBy);
         $groupA = trim($request->input('group_a', ''));
         $groupB = trim($request->input('group_b', ''));
 
@@ -152,7 +164,7 @@ class StatistikController extends Controller
             return response()->json(['error' => 'Pilih dua kelompok yang berbeda']);
         }
 
-        $getData = function (string $group) use ($groupBy) {
+        $getData = function (string $group) use ($groupBy, $groupExpression) {
             if ($groupBy === 'kecamatan') {
                 return DB::connection('fasih')
                     ->table('assignments')
@@ -165,7 +177,7 @@ class StatistikController extends Controller
             return DB::connection('fasih')
                 ->table('progress_pencacah')
                 ->where('snapshot_at', $snap ?? '')
-                ->whereRaw("TRIM($groupBy) = ?", [$group])
+                ->whereRaw("$groupExpression = ?", [$group])
                 ->selectRaw('SUM(region_total) as total, SUM("APPROVED BY Pengawas") as approved')
                 ->first();
         };
@@ -208,6 +220,7 @@ class StatistikController extends Controller
         $validGroups = ['gelombang', 'kelas', 'tc'];
         $groupBy = in_array($request->input('group_by'), $validGroups)
             ? $request->input('group_by') : 'gelombang';
+        $groupExpression = $this->groupExpression($groupBy);
 
         $latestSnap = DB::connection('fasih')->table('progress_pencacah')->max('snapshot_at');
 
@@ -217,15 +230,15 @@ class StatistikController extends Controller
             ->whereNotNull($groupBy)
             ->where($groupBy, '!=', '')
             ->selectRaw("
-                TRIM($groupBy) as grp,
+                $groupExpression as grp,
                 SUM(\"APPROVED BY Pengawas\") as approved,
                 SUM(\"SUBMITTED BY Pencacah\") as submitted,
                 SUM(\"REJECTED BY Pengawas\") as rejected,
                 SUM(\"OPEN\") as open_count,
                 SUM(region_total) as total
             ")
-            ->groupByRaw("TRIM($groupBy)")
-            ->orderByRaw("TRIM($groupBy)")
+            ->groupByRaw($groupExpression)
+            ->orderByRaw($groupExpression)
             ->get();
 
         if ($rows->isEmpty()) {
