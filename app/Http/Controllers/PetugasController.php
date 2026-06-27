@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,9 @@ use Inertia\Response;
 
 class PetugasController extends Controller
 {
+    /**
+     * @return array<string, string|null>
+     */
     private function geoParams(Request $r): array
     {
         return [
@@ -20,7 +24,10 @@ class PetugasController extends Controller
         ];
     }
 
-    private function applyGeoFilter($query, array $geo, string $prefix = 'a'): void
+    /**
+     * @param  array<string, string|null>  $geo
+     */
+    private function applyGeoFilter(Builder $query, array $geo, string $prefix = 'a'): void
     {
         if ($geo['kdkec']) {
             $query->where("$prefix.kdkec", $geo['kdkec']);
@@ -338,6 +345,11 @@ class PetugasController extends Controller
         $validGroups = ['gelombang', 'kelas', 'tc'];
         $groupBy = in_array($request->input('group_by'), $validGroups)
             ? $request->input('group_by') : 'gelombang';
+        $groupExpression = match ($groupBy) {
+            'kelas' => 'TRIM(kelas)',
+            'tc' => 'TRIM(tc)',
+            default => 'TRIM(gelombang)',
+        };
 
         $latestSnap = DB::connection('fasih')
             ->table('progress_pencacah')
@@ -354,7 +366,7 @@ class PetugasController extends Controller
                 ->whereNotNull($groupBy)
                 ->where($groupBy, '!=', '')
                 ->selectRaw("
-                    TRIM($groupBy) as group_label,
+                    $groupExpression as group_label,
                     COUNT(DISTINCT username) as total_pencacah,
                     SUM(region_total) as total_assignment,
                     SUM(\"OPEN\") as total_open,
@@ -363,8 +375,8 @@ class PetugasController extends Controller
                     SUM(\"APPROVED BY Pengawas\") as total_approved,
                     SUM(\"REJECTED BY Pengawas\") as total_rejected
                 ")
-                ->groupByRaw("TRIM($groupBy)")
-                ->orderByRaw("TRIM($groupBy)")
+                ->groupByRaw($groupExpression)
+                ->orderByRaw($groupExpression)
                 ->get()
                 ->map(function ($r) {
                     $total = (int) ($r->total_assignment ?: 1);
