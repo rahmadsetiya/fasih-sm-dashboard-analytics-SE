@@ -50,16 +50,16 @@ function onDrop(e: DragEvent) {
     const file = e.dataTransfer?.files?.[0];
 
     if (file) {
-handleFile(file);
-}
+        handleFile(file);
+    }
 }
 
 function onFileChange(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
 
     if (file) {
-handleFile(file);
-}
+        handleFile(file);
+    }
 }
 
 function handleFile(file: File) {
@@ -106,13 +106,11 @@ function uploadFile(file: File) {
                 .slice(0, 120)
                 .replace(/<[^>]+>/g, ' ')
                 .trim();
-            toast.error(
-                `HTTP ${xhr.status}: ${preview || 'No response body'}`,
-            );
+            toast.error(`HTTP ${xhr.status}: ${preview || 'No response body'}`);
 
             if (fileInput.value) {
-fileInput.value.value = '';
-}
+                fileInput.value.value = '';
+            }
 
             return;
         }
@@ -131,8 +129,8 @@ fileInput.value.value = '';
         }
 
         if (fileInput.value) {
-fileInput.value.value = '';
-}
+            fileInput.value.value = '';
+        }
     };
 
     xhr.onerror = () => {
@@ -145,8 +143,8 @@ fileInput.value.value = '';
 
 function fmtDate(s?: string) {
     if (!s) {
-return '-';
-}
+        return '-';
+    }
 
     return new Date(s).toLocaleString('id-ID', {
         day: '2-digit',

@@ -109,11 +109,15 @@
     --popover-foreground: hsl(24 10% 10%);
     --primary: hsl(29 100% 64%); /* #FF9F45 aksen oranye SE2026 */
     --primary-foreground: hsl(24 10% 10%);
-    --accent-ink: hsl(21 90% 40%); /* #C2410C — teks/badge oranye, lolos AA di atas terang */
+    --accent-ink: hsl(
+        21 90% 40%
+    ); /* #C2410C — teks/badge oranye, lolos AA di atas terang */
     --secondary: hsl(40 9% 96%); /* #F5F4F2 */
     --secondary-foreground: hsl(24 10% 10%);
     --muted: hsl(40 9% 96%);
-    --muted-foreground: hsl(30 6% 40%); /* #6B645E — digelapkan utk WCAG AA teks sekunder */
+    --muted-foreground: hsl(
+        30 6% 40%
+    ); /* #6B645E — digelapkan utk WCAG AA teks sekunder */
     --accent: hsl(40 9% 96%);
     --accent-foreground: hsl(24 10% 10%);
     --destructive: hsl(0 72% 51%); /* #DC2626 */

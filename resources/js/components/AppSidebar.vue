@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Activity, BarChart3, ClipboardList, FlaskConical, Table2, UserCheck, Users, X } from '@lucide/vue';
+import {
+    Activity,
+    BarChart3,
+    ClipboardList,
+    FlaskConical,
+    Table2,
+    UserCheck,
+    Users,
+    X,
+} from '@lucide/vue';
 import Drawer from 'primevue/drawer';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -24,8 +33,8 @@ const latestSnapshotLabel = computed(() => {
     const raw = page.props.latest_snapshot;
 
     if (!raw) {
-return null;
-}
+        return null;
+    }
 
     const d = new Date(raw);
 
@@ -57,7 +66,7 @@ const footerNavItems: NavItem[] = [];
 <template>
     <!-- Desktop sidebar -->
     <aside
-        class="hidden md:flex md:w-64 md:shrink-0 flex-col h-svh sticky top-0 border-r border-sidebar-border bg-sidebar overflow-y-auto"
+        class="sticky top-0 hidden h-svh flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar md:flex md:w-64 md:shrink-0"
     >
         <div
             class="flex h-14 shrink-0 items-center border-b border-sidebar-border px-3"
@@ -73,7 +82,7 @@ const footerNavItems: NavItem[] = [];
             <NavFooter :items="footerNavItems" />
         </div>
 
-        <div class="shrink-0 border-t border-sidebar-border p-2 space-y-0.5">
+        <div class="shrink-0 space-y-0.5 border-t border-sidebar-border p-2">
             <div
                 v-if="latestSnapshotLabel"
                 class="px-3 py-1 text-[10px] text-muted-foreground/60"
@@ -83,7 +92,9 @@ const footerNavItems: NavItem[] = [];
             <ImportDbButton />
             <RegionNamesButton />
             <NavUser />
-            <p class="px-3 pt-1 text-[9px] text-muted-foreground/40 text-center leading-tight">
+            <p
+                class="px-3 pt-1 text-center text-[9px] leading-tight text-muted-foreground/40"
+            >
                 Made with ♥ @ IPDS BPS Enrekang
             </p>
         </div>
@@ -124,7 +135,7 @@ const footerNavItems: NavItem[] = [];
             <NavFooter :items="footerNavItems" />
         </div>
 
-        <div class="shrink-0 border-t border-sidebar-border p-2 space-y-0.5">
+        <div class="shrink-0 space-y-0.5 border-t border-sidebar-border p-2">
             <div
                 v-if="latestSnapshotLabel"
                 class="px-3 py-1 text-[10px] text-muted-foreground/60"
@@ -134,7 +145,9 @@ const footerNavItems: NavItem[] = [];
             <ImportDbButton />
             <RegionNamesButton />
             <NavUser />
-            <p class="px-3 pt-1 text-[9px] text-muted-foreground/40 text-center leading-tight">
+            <p
+                class="px-3 pt-1 text-center text-[9px] leading-tight text-muted-foreground/40"
+            >
                 Made with ♥ @ IPDS BPS Enrekang
             </p>
         </div>

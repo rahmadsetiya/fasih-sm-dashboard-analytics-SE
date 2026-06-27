@@ -71,8 +71,8 @@ async function importCsv() {
 
 async function clearAll() {
     if (!confirm('Hapus semua nama wilayah yang tersimpan?')) {
-return;
-}
+        return;
+    }
 
     const res = await fetch('/api/region-names/all', {
         method: 'DELETE',
@@ -118,11 +118,11 @@ return;
 
         <div class="mb-3 space-y-1.5">
             <p class="text-xs text-muted-foreground">Contoh:</p>
-            <pre
-                class="rounded-md bg-muted px-3 py-2 text-xs text-foreground"
-            >7316010,Maiwa
+            <pre class="rounded-md bg-muted px-3 py-2 text-xs text-foreground">
+7316010,Maiwa
 7316020,Enrekang
-7316030,Curio</pre>
+7316030,Curio</pre
+            >
         </div>
 
         <textarea

@@ -45,8 +45,8 @@ createInertiaApp({
     },
     setup({ el, App, props, plugin }) {
         if (!el) {
-return;
-}
+            return;
+        }
 
         createApp({ render: () => h(App, props) })
             .use(plugin)
