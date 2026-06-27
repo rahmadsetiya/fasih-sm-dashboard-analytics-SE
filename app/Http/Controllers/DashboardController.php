@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PetugasName;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,8 @@ class DashboardController extends Controller
         'REVOKED BY Pengawas',
         'SUBMITTED RESPONDENT',
     ];
+
+    private const STATUS_SUM_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT"';
 
     public function index(): Response
     {
@@ -129,14 +132,14 @@ class DashboardController extends Controller
         $rejected = (int) ($m->total_rejected ?: 0);
 
         // Status totals
-        $statusRow = (clone $baseP)->selectRaw($this->statusSumSql())->first();
+        $statusRow = (clone $baseP)->selectRaw(self::STATUS_SUM_SQL)->first();
         $statusTotals = [];
         foreach (self::STATUS_COLS as $col) {
             $statusTotals[$col] = (int) ($statusRow->$col ?? 0);
         }
 
         // Kecamatan breakdown
-        $sums = $this->statusSumSql();
+        $sums = self::STATUS_SUM_SQL;
         $kecRows = (clone $baseP)->selectRaw("
             kdkec, nmkec,
             COUNT(DISTINCT kdkec || kddes) as total_desa,
@@ -165,8 +168,8 @@ class DashboardController extends Controller
         })->sortByDesc('total')->values()->all();
 
         return response()->json([
-            'kab_name' => $geoRow?->nmkab ?? '—',
-            'prov_name' => $geoRow?->nmprov ?? '—',
+            'kab_name' => $geoRow->nmkab ?? '—',
+            'prov_name' => $geoRow->nmprov ?? '—',
             'metrics' => [
                 'total_kec' => (int) $m->total_kec,
                 'total_desa' => (int) $m->total_desa,
@@ -203,7 +206,12 @@ class DashboardController extends Controller
 
     // ── helpers ───────────────────────────────────────────────────────────
 
-    private function applyGeoFilter($query, array $kec, array $desa, array $sls): void
+    /**
+     * @param  list<string>  $kec
+     * @param  list<string>  $desa
+     * @param  list<string>  $sls
+     */
+    private function applyGeoFilter(Builder $query, array $kec, array $desa, array $sls): void
     {
         if ($kec) {
             $query->whereIn('kdkec', $kec);
@@ -216,16 +224,12 @@ class DashboardController extends Controller
         }
     }
 
-    private function statusSumSql(): string
-    {
-        return collect(self::STATUS_COLS)
-            ->map(fn ($c) => "SUM(\"$c\") as \"$c\"")
-            ->implode(', ');
-    }
-
     // ── calculators ───────────────────────────────────────────────────────
 
-    private function calcMetrics($query): array
+    /**
+     * @return array<string, int|float>
+     */
+    private function calcMetrics(Builder $query): array
     {
         $row = $query->selectRaw('
             COUNT(DISTINCT username)          as total_petugas,
@@ -258,9 +262,12 @@ class DashboardController extends Controller
         ];
     }
 
-    private function calcStatusTotals($query): array
+    /**
+     * @return array<string, int>
+     */
+    private function calcStatusTotals(Builder $query): array
     {
-        $row = $query->selectRaw($this->statusSumSql())->first();
+        $row = $query->selectRaw(self::STATUS_SUM_SQL)->first();
         $result = [];
         foreach (self::STATUS_COLS as $col) {
             $result[$col] = (int) ($row->$col ?? 0);
@@ -269,9 +276,13 @@ class DashboardController extends Controller
         return $result;
     }
 
-    private function calcBreakdown($query, string $level, array $nameOverrides = []): array
+    /**
+     * @param  array<string, string>  $nameOverrides
+     * @return array<int, array<string, mixed>>
+     */
+    private function calcBreakdown(Builder $query, string $level, array $nameOverrides = []): array
     {
-        $sums = $this->statusSumSql();
+        $sums = self::STATUS_SUM_SQL;
 
         $rows = match ($level) {
             'desa' => $query->selectRaw("
@@ -311,6 +322,13 @@ class DashboardController extends Controller
             $open = (int) ($r->OPEN ?? 0);
             $draft = (int) ($r->DRAFT ?? 0);
             $approved = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
+            $lapanganTotal =
+                (int) ($r->DRAFT ?? 0) +
+                (int) ($r->{'SUBMITTED BY Pencacah'} ?? 0) +
+                (int) ($r->{'APPROVED BY Pengawas'} ?? 0) +
+                (int) ($r->{'REJECTED BY Pengawas'} ?? 0) +
+                (int) ($r->{'EDITED BY Pengawas'} ?? 0) +
+                (int) ($r->{'REVOKED BY Pengawas'} ?? 0);
 
             $statuses = [];
             foreach (self::STATUS_COLS as $c) {
@@ -322,6 +340,8 @@ class DashboardController extends Controller
                 'label' => $nameOverrides[$r->grp_key] ?? $r->label,
                 'total' => $total,
                 'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
+                'lapangan_total' => $lapanganTotal,
+                'lapangan_pct' => round($lapanganTotal / $total * 100, 1),
                 'approved_pct' => round($approved / $total * 100, 1),
                 'statuses' => $statuses,
             ];
@@ -346,19 +366,49 @@ class DashboardController extends Controller
         })->sortByDesc('total')->values()->all();
     }
 
+    /**
+     * @param  list<string>  $filterKec
+     * @param  list<string>  $filterDesa
+     * @param  list<string>  $filterSls
+     * @return array<int, array<string, int|float|string>>
+     */
     private function calcTrend(string $table, array $filterKec, array $filterDesa, array $filterSls): array
     {
         $query = DB::connection('fasih')->table($table);
         $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
-        return $query->selectRaw('
+        $latestSnapshots = (clone $query)
+            ->selectRaw('MAX(snapshot_at) as snapshot_at')
+            ->groupByRaw('substr(snapshot_at, 1, 10)')
+            ->pluck('snapshot_at')
+            ->all();
+
+        if ($latestSnapshots === []) {
+            return [];
+        }
+
+        $latestSnapshot = max($latestSnapshots);
+        $cutoffDate = (new \DateTimeImmutable($latestSnapshot))
+            ->modify('-4 days')
+            ->format('Y-m-d');
+        $latestSnapshots = array_values(array_filter(
+            $latestSnapshots,
+            fn ($snapshot) => substr((string) $snapshot, 0, 10) >= $cutoffDate,
+        ));
+
+        return $query
+            ->whereIn('snapshot_at', $latestSnapshots)
+            ->selectRaw('
             snapshot_at,
             SUM(region_total)             as total,
             SUM("OPEN")                   as total_open,
             SUM("DRAFT")                  as total_draft,
             SUM("SUBMITTED BY Pencacah")  as total_submitted,
             SUM("APPROVED BY Pengawas")   as total_approved
-        ')->groupBy('snapshot_at')->orderBy('snapshot_at')->get()
+        ')
+            ->groupBy('snapshot_at')
+            ->orderBy('snapshot_at')
+            ->get()
             ->map(function ($r) {
                 $total = (int) ($r->total ?: 1);
                 $open = (int) ($r->total_open ?: 0);
@@ -376,6 +426,12 @@ class DashboardController extends Controller
             })->all();
     }
 
+    /**
+     * @param  list<string>  $filterKec
+     * @param  list<string>  $filterDesa
+     * @param  list<string>  $filterSls
+     * @return array<string, mixed>
+     */
     private function calcFilterOptions(
         string $table, string $snapshot, string $level,
         array $filterKec, array $filterDesa, array $filterSls

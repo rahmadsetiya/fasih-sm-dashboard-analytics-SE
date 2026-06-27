@@ -153,7 +153,9 @@ function fmtDate(s: string) {
                 <div>
                     <p class="text-sm font-semibold">Database Fasih</p>
                     <p class="mt-0.5 text-xs text-muted-foreground">
-                        Download salinan <code class="rounded bg-muted px-1">fasih.db</code> yang sedang aktif di server
+                        Download salinan
+                        <code class="rounded bg-muted px-1">fasih.db</code> yang
+                        sedang aktif di server
                     </p>
                 </div>
                 <a

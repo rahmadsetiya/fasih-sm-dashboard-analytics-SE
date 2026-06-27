@@ -44,7 +44,7 @@ class HandleInertiaRequests extends Middleware
                     ->table('progress_pengawas')
                     ->selectRaw('MAX(snapshot_at) as latest')
                     ->first();
-                $latestSnapshot = $row?->latest ?? null;
+                $latestSnapshot = $row->latest ?? null;
             } catch (\Exception) {
                 // fasih.db exists but table missing — ignore
             }

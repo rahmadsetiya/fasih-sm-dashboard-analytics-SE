@@ -5,18 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DatabaseImportController extends Controller
 {
     private const SQLITE_MAGIC = "SQLite format 3\000";
-
-    private const REQUIRED_TABLES = [
-        'progress_pengawas',
-        'progress_pencacah',
-        'assignments',
-        'scrape_runs',
-        'wilayah',
-    ];
 
     public function status(): JsonResponse
     {
@@ -44,15 +37,17 @@ class DatabaseImportController extends Controller
             // older DB without new tables — ignore
         }
 
+        $modifiedAt = filemtime($path);
+
         return response()->json(array_merge([
             'exists' => true,
             'size_mb' => round(filesize($path) / 1048576, 2),
-            'modified_at' => date('Y-m-d H:i:s', filemtime($path)),
+            'modified_at' => $modifiedAt === false ? null : date('Y-m-d H:i:s', $modifiedAt),
             'path' => basename($path),
         ], $extra));
     }
 
-    public function download(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function download(): BinaryFileResponse
     {
         $path = storage_path('app/fasih.db');
 
@@ -83,6 +78,10 @@ class DatabaseImportController extends Controller
         $file = $request->file('db');
 
         $handle = fopen($file->getRealPath(), 'rb');
+        if ($handle === false) {
+            return response()->json(['message' => 'File upload tidak dapat dibaca.'], 422);
+        }
+
         $magic = fread($handle, 16);
         fclose($handle);
 
@@ -109,10 +108,12 @@ class DatabaseImportController extends Controller
             return response()->json(['message' => 'Gagal menyimpan file: '.$e->getMessage()], 500);
         }
 
+        $modifiedAt = filemtime($dest);
+
         return response()->json([
             'message' => 'Database berhasil diimport.',
             'size_mb' => round(filesize($dest) / 1048576, 2),
-            'modified_at' => date('Y-m-d H:i:s', filemtime($dest)),
+            'modified_at' => $modifiedAt === false ? null : date('Y-m-d H:i:s', $modifiedAt),
         ]);
     }
 }

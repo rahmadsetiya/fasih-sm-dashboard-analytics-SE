@@ -2,16 +2,19 @@
 import { computed } from 'vue';
 import type { AppVariant } from '@/types';
 
-const props = withDefaults(defineProps<{ variant?: AppVariant; class?: string }>(), {
-    variant: 'sidebar',
-});
+const props = withDefaults(
+    defineProps<{ variant?: AppVariant; class?: string }>(),
+    {
+        variant: 'sidebar',
+    },
+);
 const className = computed(() => props.class);
 </script>
 
 <template>
     <div
         v-if="props.variant === 'sidebar'"
-        :class="['flex min-h-svh flex-1 flex-col min-w-0', className]"
+        :class="['flex min-h-svh min-w-0 flex-1 flex-col', className]"
     >
         <slot />
     </div>

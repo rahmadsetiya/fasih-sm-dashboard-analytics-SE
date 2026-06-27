@@ -30,9 +30,24 @@ interface HeatmapSeries {
 type Dimension = 'pencacah' | 'pengawas';
 
 const STATUS_OPTIONS = [
-    { id: 1 as const, label: 'Submitted By Pencacah', shortLabel: 'Submitted', color: '#f97316' },
-    { id: 2 as const, label: 'Approved By Pengawas', shortLabel: 'Approved', color: '#22c55e' },
-    { id: 3 as const, label: 'Rejected By Pengawas', shortLabel: 'Rejected', color: '#ef4444' },
+    {
+        id: 1 as const,
+        label: 'Submitted By Pencacah',
+        shortLabel: 'Submitted',
+        color: '#f97316',
+    },
+    {
+        id: 2 as const,
+        label: 'Approved By Pengawas',
+        shortLabel: 'Approved',
+        color: '#22c55e',
+    },
+    {
+        id: 3 as const,
+        label: 'Rejected By Pengawas',
+        shortLabel: 'Rejected',
+        color: '#ef4444',
+    },
 ];
 
 function colorWithOpacity(hex: string, opacity: number): string {
@@ -56,17 +71,19 @@ function addDays(dateStr: string, days: number): string {
 }
 
 const dateFrom = ref('2026-06-15');
-const dateTo = ref((() => {
-    const raw = props.date_range?.max ?? '';
+const dateTo = ref(
+    (() => {
+        const raw = props.date_range?.max ?? '';
 
-    if (!raw) {
-      return '';
-    }
+        if (!raw) {
+            return '';
+        }
 
-    const cap = addDays('2026-06-15', MAX_RANGE_DAYS);
+        const cap = addDays('2026-06-15', MAX_RANGE_DAYS);
 
-    return raw > cap ? cap : raw;
-})());
+        return raw > cap ? cap : raw;
+    })(),
+);
 
 // Wilayah cascade selection (store UUIDs)
 const selectedKecUuid = ref('');
@@ -75,63 +92,85 @@ const selectedSlsUuid = ref('');
 const selectedSubslsUuid = ref('');
 
 // Chart data per status id
-const seriesData = reactive<Record<number, HeatmapSeries[]>>({ 1: [], 2: [], 3: [] });
-const panelLoading = reactive<Record<number, boolean>>({ 1: false, 2: false, 3: false });
+const seriesData = reactive<Record<number, HeatmapSeries[]>>({
+    1: [],
+    2: [],
+    3: [],
+});
+const panelLoading = reactive<Record<number, boolean>>({
+    1: false,
+    2: false,
+    3: false,
+});
 
 // ── wilayah cascade computed ──────────────────────────────────────────────
 const kecList = computed<WilayahItem[]>(() => props.wilayah['3'] ?? []);
 
-const selectedKec = computed(() => kecList.value.find((k) => k.uuid === selectedKecUuid.value) ?? null);
+const selectedKec = computed(
+    () => kecList.value.find((k) => k.uuid === selectedKecUuid.value) ?? null,
+);
 
 const desaList = computed<WilayahItem[]>(() => {
     if (!selectedKec.value) {
-return [];
-}
+        return [];
+    }
 
-    return (props.wilayah['4'] ?? []).filter((d) => d.parent_uuid === selectedKec.value!.uuid);
+    return (props.wilayah['4'] ?? []).filter(
+        (d) => d.parent_uuid === selectedKec.value!.uuid,
+    );
 });
 
-const selectedDesa = computed(() => desaList.value.find((d) => d.uuid === selectedDesaUuid.value) ?? null);
+const selectedDesa = computed(
+    () => desaList.value.find((d) => d.uuid === selectedDesaUuid.value) ?? null,
+);
 
 const slsList = computed<WilayahItem[]>(() => {
     if (!selectedDesa.value) {
-return [];
-}
+        return [];
+    }
 
-    return (props.wilayah['5'] ?? []).filter((s) => s.parent_uuid === selectedDesa.value!.uuid);
+    return (props.wilayah['5'] ?? []).filter(
+        (s) => s.parent_uuid === selectedDesa.value!.uuid,
+    );
 });
 
-const selectedSls = computed(() => slsList.value.find((s) => s.uuid === selectedSlsUuid.value) ?? null);
+const selectedSls = computed(
+    () => slsList.value.find((s) => s.uuid === selectedSlsUuid.value) ?? null,
+);
 
 const subslsList = computed<WilayahItem[]>(() => {
     if (!selectedSls.value) {
-return [];
-}
+        return [];
+    }
 
-    return (props.wilayah['6'] ?? []).filter((ss) => ss.parent_uuid === selectedSls.value!.uuid);
+    return (props.wilayah['6'] ?? []).filter(
+        (ss) => ss.parent_uuid === selectedSls.value!.uuid,
+    );
 });
 
-const selectedSubsls = computed(() =>
-    subslsList.value.find((ss) => ss.uuid === selectedSubslsUuid.value) ?? null,
+const selectedSubsls = computed(
+    () =>
+        subslsList.value.find((ss) => ss.uuid === selectedSubslsUuid.value) ??
+        null,
 );
 
 // Active filter for the API (most specific selected level wins)
 const activeFilter = computed<{ level: string; code: string } | null>(() => {
     if (selectedSubsls.value) {
-return { level: 'subsls', code: selectedSubsls.value.code };
-}
+        return { level: 'subsls', code: selectedSubsls.value.code };
+    }
 
     if (selectedSls.value) {
-return { level: 'sls', code: selectedSls.value.code };
-}
+        return { level: 'sls', code: selectedSls.value.code };
+    }
 
     if (selectedDesa.value) {
-return { level: 'desa', code: selectedDesa.value.code };
-}
+        return { level: 'desa', code: selectedDesa.value.code };
+    }
 
     if (selectedKec.value) {
-return { level: 'kec', code: selectedKec.value.code };
-}
+        return { level: 'kec', code: selectedKec.value.code };
+    }
 
     return null;
 });
@@ -141,20 +180,20 @@ const geoBreadcrumb = computed(() => {
     const parts: string[] = [];
 
     if (selectedKec.value) {
-parts.push(selectedKec.value.name);
-}
+        parts.push(selectedKec.value.name);
+    }
 
     if (selectedDesa.value) {
-parts.push(selectedDesa.value.name);
-}
+        parts.push(selectedDesa.value.name);
+    }
 
     if (selectedSls.value) {
-parts.push(selectedSls.value.name);
-}
+        parts.push(selectedSls.value.name);
+    }
 
     if (selectedSubsls.value) {
-parts.push(selectedSubsls.value.name);
-}
+        parts.push(selectedSubsls.value.name);
+    }
 
     return parts.join(' › ');
 });
@@ -175,32 +214,32 @@ watch(selectedSlsUuid, () => {
 
 watch(dateFrom, (val) => {
     if (!val || !dateTo.value) {
-return;
-}
+        return;
+    }
 
     if (dateTo.value > addDays(val, MAX_RANGE_DAYS)) {
-dateTo.value = addDays(val, MAX_RANGE_DAYS);
-}
+        dateTo.value = addDays(val, MAX_RANGE_DAYS);
+    }
 
     if (dateTo.value < val) {
-dateTo.value = val;
-}
+        dateTo.value = val;
+    }
 });
 
 watch(dateTo, (val) => {
     if (!val || !dateFrom.value) {
-return;
-}
+        return;
+    }
 
     const minFrom = addDays(val, -MAX_RANGE_DAYS);
 
     if (dateFrom.value < minFrom) {
-dateFrom.value = minFrom;
-}
+        dateFrom.value = minFrom;
+    }
 
     if (dateFrom.value > val) {
-dateFrom.value = val;
-}
+        dateFrom.value = val;
+    }
 });
 
 // ── chart options factory ─────────────────────────────────────────────────
@@ -224,8 +263,18 @@ function makeChartOptions(color: string) {
                 colorScale: {
                     ranges: [
                         { from: 0, to: 0, color: zeroColor, name: '0' },
-                        { from: 1, to: 3, color: colorWithOpacity(color, 0.3), name: '1–3' },
-                        { from: 4, to: 10, color: colorWithOpacity(color, 0.65), name: '4–10' },
+                        {
+                            from: 1,
+                            to: 3,
+                            color: colorWithOpacity(color, 0.3),
+                            name: '1–3',
+                        },
+                        {
+                            from: 4,
+                            to: 10,
+                            color: colorWithOpacity(color, 0.65),
+                            name: '4–10',
+                        },
                         { from: 11, to: 99999, color: color, name: '11+' },
                     ],
                 },
@@ -241,7 +290,10 @@ function makeChartOptions(color: string) {
             axisTicks: { show: false },
         },
         yaxis: {
-            labels: { style: { fontSize: '11px', colors: textColor }, maxWidth: 120 },
+            labels: {
+                style: { fontSize: '11px', colors: textColor },
+                maxWidth: 120,
+            },
         },
         grid: {
             borderColor: isDark.value ? '#3f3f46' : '#e4e4e7',
@@ -284,12 +336,12 @@ async function fetchStatus(statusId: 1 | 2 | 3) {
         });
 
         if (dateFrom.value) {
-params.set('date_from', dateFrom.value);
-}
+            params.set('date_from', dateFrom.value);
+        }
 
         if (dateTo.value) {
-params.set('date_to', dateTo.value);
-}
+            params.set('date_to', dateTo.value);
+        }
 
         const af = activeFilter.value;
 
@@ -299,7 +351,10 @@ params.set('date_to', dateTo.value);
         }
 
         const res = await fetch(`/api/heatmap?${params}`, {
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         });
         const data = await res.json();
         seriesData[statusId] = data.series ?? [];
@@ -310,8 +365,8 @@ params.set('date_to', dateTo.value);
 
 function fetchAll() {
     if (!props.db_ready) {
-return;
-}
+        return;
+    }
 
     fetchStatus(1);
     fetchStatus(2);
@@ -319,7 +374,10 @@ return;
 }
 
 watch([dimension, dateFrom, dateTo, activeFilter], fetchAll);
-onMounted(() => { fetchAll(); fetchHourly(); });
+onMounted(() => {
+    fetchAll();
+    fetchHourly();
+});
 
 // ── reset geo ─────────────────────────────────────────────────────────────
 function resetGeo() {
@@ -327,37 +385,61 @@ function resetGeo() {
 }
 
 // ── hourly activity ───────────────────────────────────────────────────────
-interface HourlyPoint { hour: number; cnt: number; }
+interface HourlyPoint {
+    hour: number;
+    cnt: number;
+}
 const hourlyData = ref<HourlyPoint[]>([]);
 const hourlyLoading = ref(false);
 const hourlyStatusId = ref(0);
 const hourlyDimension = ref<'pencacah' | 'pengawas'>('pencacah');
 
 async function fetchHourly() {
-    if (!props.db_ready) return;
+    if (!props.db_ready) {
+        return;
+    }
+
     hourlyLoading.value = true;
+
     try {
         const p = new URLSearchParams({ dimension: hourlyDimension.value });
-        if (hourlyStatusId.value > 0) p.set('status_id', String(hourlyStatusId.value));
+
+        if (hourlyStatusId.value > 0) {
+            p.set('status_id', String(hourlyStatusId.value));
+        }
+
         const res = await fetch(`/api/heatmap/hourly?${p}`, {
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         });
         const d = await res.json();
         hourlyData.value = d.data ?? [];
-    } finally { hourlyLoading.value = false; }
+    } finally {
+        hourlyLoading.value = false;
+    }
 }
 
 watch([hourlyStatusId, hourlyDimension], fetchHourly);
 
 const hourlyChartOptions = computed(() => {
     const tc = isDark.value ? '#a1a1aa' : '#71717a';
+
     return {
-        chart: { type: 'bar' as const, background: 'transparent', toolbar: { show: false }, animations: { enabled: false } },
+        chart: {
+            type: 'bar' as const,
+            background: 'transparent',
+            toolbar: { show: false },
+            animations: { enabled: false },
+        },
         theme: { mode: (isDark.value ? 'dark' : 'light') as 'dark' | 'light' },
         plotOptions: { bar: { borderRadius: 3, columnWidth: '70%' } },
         dataLabels: { enabled: false },
         xaxis: {
-            categories: hourlyData.value.map(d => `${String(d.hour).padStart(2, '0')}:00`),
+            categories: hourlyData.value.map(
+                (d) => `${String(d.hour).padStart(2, '0')}:00`,
+            ),
             labels: { rotate: -45, style: { fontSize: '10px', colors: tc } },
         },
         yaxis: { labels: { style: { colors: tc } } },
@@ -366,7 +448,9 @@ const hourlyChartOptions = computed(() => {
         grid: { borderColor: isDark.value ? '#3f3f46' : '#e4e4e7' },
     };
 });
-const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.value.map(d => d.cnt) }]);
+const hourlyChartSeries = computed(() => [
+    { name: 'Aktivitas', data: hourlyData.value.map((d) => d.cnt) },
+]);
 </script>
 
 <template>
@@ -377,13 +461,21 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-foreground dark:text-foreground">Heatmap Aktivitas</h1>
-                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                    <h1
+                        class="text-xl font-bold text-foreground dark:text-foreground"
+                    >
+                        Heatmap Aktivitas
+                    </h1>
+                    <p
+                        class="text-sm text-muted-foreground dark:text-muted-foreground"
+                    >
                         Perubahan status per petugas per hari
                         <span v-if="db_ready && date_range">
                             — {{ date_range.min }} s.d. {{ date_range.max }}
                         </span>
-                        <span v-else-if="!db_ready" class="text-amber-500">— Database belum diupload</span>
+                        <span v-else-if="!db_ready" class="text-amber-500"
+                            >— Database belum diupload</span
+                        >
                     </p>
                 </div>
                 <button
@@ -401,7 +493,8 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                 v-if="!db_ready"
                 class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
             >
-                Upload file <code>fasih.db</code> terlebih dahulu via tombol di sidebar.
+                Upload file <code>fasih.db</code> terlebih dahulu via tombol di
+                sidebar.
             </div>
 
             <template v-else>
@@ -412,7 +505,10 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                     <!-- Row 1: date + dimension -->
                     <div class="flex flex-wrap items-end gap-3">
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">Dari</label>
+                            <label
+                                class="text-xs font-medium text-muted-foreground dark:text-muted-foreground"
+                                >Dari</label
+                            >
                             <input
                                 v-model="dateFrom"
                                 type="date"
@@ -420,7 +516,10 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                             />
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">Sampai</label>
+                            <label
+                                class="text-xs font-medium text-muted-foreground dark:text-muted-foreground"
+                                >Sampai</label
+                            >
                             <input
                                 v-model="dateTo"
                                 type="date"
@@ -430,7 +529,10 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                         <!-- Dimension toggle -->
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">Tampilkan</label>
+                            <label
+                                class="text-xs font-medium text-muted-foreground dark:text-muted-foreground"
+                                >Tampilkan</label
+                            >
                             <div
                                 class="flex rounded-md border border-input bg-card text-sm dark:border-input dark:bg-secondary"
                             >
@@ -462,19 +564,28 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                     <!-- Row 2: Geo cascade -->
                     <div class="flex flex-wrap items-end gap-2">
-                        <span class="self-center text-xs font-medium text-muted-foreground dark:text-muted-foreground">
+                        <span
+                            class="self-center text-xs font-medium text-muted-foreground dark:text-muted-foreground"
+                        >
                             Filter Wilayah:
                         </span>
 
                         <!-- Kecamatan -->
                         <div class="flex flex-col gap-1">
-                            <label class="text-xs text-muted-foreground dark:text-muted-foreground">Kecamatan</label>
+                            <label
+                                class="text-xs text-muted-foreground dark:text-muted-foreground"
+                                >Kecamatan</label
+                            >
                             <select
                                 v-model="selectedKecUuid"
                                 class="h-8 min-w-[140px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                             >
                                 <option value="">— Semua —</option>
-                                <option v-for="k in kecList" :key="k.uuid" :value="k.uuid">
+                                <option
+                                    v-for="k in kecList"
+                                    :key="k.uuid"
+                                    :value="k.uuid"
+                                >
                                     {{ k.name }}
                                 </option>
                             </select>
@@ -482,15 +593,24 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                         <!-- Desa — only when kec selected -->
                         <template v-if="selectedKec">
-                            <span class="self-center text-muted-foreground">›</span>
+                            <span class="self-center text-muted-foreground"
+                                >›</span
+                            >
                             <div class="flex flex-col gap-1">
-                                <label class="text-xs text-muted-foreground dark:text-muted-foreground">Desa/Kel</label>
+                                <label
+                                    class="text-xs text-muted-foreground dark:text-muted-foreground"
+                                    >Desa/Kel</label
+                                >
                                 <select
                                     v-model="selectedDesaUuid"
                                     class="h-8 min-w-[160px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                                 >
                                     <option value="">— Semua —</option>
-                                    <option v-for="d in desaList" :key="d.uuid" :value="d.uuid">
+                                    <option
+                                        v-for="d in desaList"
+                                        :key="d.uuid"
+                                        :value="d.uuid"
+                                    >
                                         {{ d.name }}
                                     </option>
                                 </select>
@@ -499,15 +619,24 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                         <!-- SLS — only when desa selected -->
                         <template v-if="selectedDesa">
-                            <span class="self-center text-muted-foreground">›</span>
+                            <span class="self-center text-muted-foreground"
+                                >›</span
+                            >
                             <div class="flex flex-col gap-1">
-                                <label class="text-xs text-muted-foreground dark:text-muted-foreground">SLS</label>
+                                <label
+                                    class="text-xs text-muted-foreground dark:text-muted-foreground"
+                                    >SLS</label
+                                >
                                 <select
                                     v-model="selectedSlsUuid"
                                     class="h-8 min-w-[160px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                                 >
                                     <option value="">— Semua —</option>
-                                    <option v-for="s in slsList" :key="s.uuid" :value="s.uuid">
+                                    <option
+                                        v-for="s in slsList"
+                                        :key="s.uuid"
+                                        :value="s.uuid"
+                                    >
                                         {{ s.name }}
                                     </option>
                                 </select>
@@ -516,15 +645,24 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
 
                         <!-- Sub-SLS — only when sls selected -->
                         <template v-if="selectedSls">
-                            <span class="self-center text-muted-foreground">›</span>
+                            <span class="self-center text-muted-foreground"
+                                >›</span
+                            >
                             <div class="flex flex-col gap-1">
-                                <label class="text-xs text-muted-foreground dark:text-muted-foreground">Sub-SLS</label>
+                                <label
+                                    class="text-xs text-muted-foreground dark:text-muted-foreground"
+                                    >Sub-SLS</label
+                                >
                                 <select
                                     v-model="selectedSubslsUuid"
                                     class="h-8 min-w-[160px] rounded-md border border-input bg-card px-2 text-sm text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
                                 >
                                     <option value="">— Semua —</option>
-                                    <option v-for="ss in subslsList" :key="ss.uuid" :value="ss.uuid">
+                                    <option
+                                        v-for="ss in subslsList"
+                                        :key="ss.uuid"
+                                        :value="ss.uuid"
+                                    >
                                         {{ ss.name }}
                                     </option>
                                 </select>
@@ -543,122 +681,218 @@ const hourlyChartSeries = computed(() => [{ name: 'Aktivitas', data: hourlyData.
                     </div>
 
                     <!-- Active filter breadcrumb -->
-                    <div
-                        v-if="geoBreadcrumb"
-                        class="text-xs text-accent-ink"
-                    >
+                    <div v-if="geoBreadcrumb" class="text-xs text-accent-ink">
                         Filter aktif: {{ geoBreadcrumb }}
-                        <span class="ml-1 text-muted-foreground">({{ activeFilter?.level }})</span>
+                        <span class="ml-1 text-muted-foreground"
+                            >({{ activeFilter?.level }})</span
+                        >
                     </div>
                 </div>
 
                 <!-- ── 3 panels — stacked on mobile, side-by-side on lg+ ──── -->
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <div
-                    v-for="s in STATUS_OPTIONS"
-                    :key="s.id"
-                    class="rounded-lg border border-border bg-card shadow-sm dark:border-border dark:bg-card"
-                >
-                    <!-- Panel header -->
                     <div
-                        class="flex items-center gap-2 border-b border-border px-4 py-2.5 dark:border-border"
+                        v-for="s in STATUS_OPTIONS"
+                        :key="s.id"
+                        class="rounded-lg border border-border bg-card shadow-sm dark:border-border dark:bg-card"
                     >
-                        <span
-                            class="inline-block size-2.5 rounded-full"
-                            :style="{ backgroundColor: s.color }"
-                        />
-                        <span class="text-sm font-semibold text-foreground dark:text-foreground">
-                            {{ s.label }}
-                        </span>
-                        <span
-                            v-if="!panelLoading[s.id] && seriesData[s.id].length"
-                            class="ml-auto text-xs text-muted-foreground dark:text-muted-foreground"
+                        <!-- Panel header -->
+                        <div
+                            class="flex items-center gap-2 border-b border-border px-4 py-2.5 dark:border-border"
                         >
-                            {{ seriesData[s.id].reduce((sum, r) => sum + r.total, 0).toLocaleString('id-ID') }}
-                            perubahan
-                            <template v-if="seriesData[s.id].length === 30">
-                                &middot; top 30
-                            </template>
-                        </span>
-                    </div>
-
-                    <!-- Legend -->
-                    <div class="flex items-center gap-3 border-b border-border px-4 py-1.5 dark:border-border">
-                        <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">Jumlah:</span>
-                        <div class="flex items-center gap-2">
-                            <span class="flex items-center gap-1">
-                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: isDark ? '#27272a' : '#f4f4f5' }" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">0</span>
+                            <span
+                                class="inline-block size-2.5 rounded-full"
+                                :style="{ backgroundColor: s.color }"
+                            />
+                            <span
+                                class="text-sm font-semibold text-foreground dark:text-foreground"
+                            >
+                                {{ s.label }}
                             </span>
-                            <span class="flex items-center gap-1">
-                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: colorWithOpacity(s.color, 0.3) }" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">1–3</span>
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: colorWithOpacity(s.color, 0.65) }" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">4–10</span>
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <span class="inline-block size-3 rounded-sm" :style="{ backgroundColor: s.color }" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">11+</span>
+                            <span
+                                v-if="
+                                    !panelLoading[s.id] &&
+                                    seriesData[s.id].length
+                                "
+                                class="ml-auto text-xs text-muted-foreground dark:text-muted-foreground"
+                            >
+                                {{
+                                    seriesData[s.id]
+                                        .reduce((sum, r) => sum + r.total, 0)
+                                        .toLocaleString('id-ID')
+                                }}
+                                perubahan
+                                <template v-if="seriesData[s.id].length === 30">
+                                    &middot; top 30
+                                </template>
                             </span>
                         </div>
-                    </div>
 
-                    <!-- Loading -->
-                    <div
-                        v-if="panelLoading[s.id]"
-                        class="flex items-center justify-center py-12 text-sm text-muted-foreground"
-                    >
-                        Memuat…
-                    </div>
+                        <!-- Legend -->
+                        <div
+                            class="flex items-center gap-3 border-b border-border px-4 py-1.5 dark:border-border"
+                        >
+                            <span
+                                class="text-[10px] text-muted-foreground dark:text-muted-foreground"
+                                >Jumlah:</span
+                            >
+                            <div class="flex items-center gap-2">
+                                <span class="flex items-center gap-1">
+                                    <span
+                                        class="inline-block size-3 rounded-sm"
+                                        :style="{
+                                            backgroundColor: isDark
+                                                ? '#27272a'
+                                                : '#f4f4f5',
+                                        }"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground dark:text-muted-foreground"
+                                        >0</span
+                                    >
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <span
+                                        class="inline-block size-3 rounded-sm"
+                                        :style="{
+                                            backgroundColor: colorWithOpacity(
+                                                s.color,
+                                                0.3,
+                                            ),
+                                        }"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground dark:text-muted-foreground"
+                                        >1–3</span
+                                    >
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <span
+                                        class="inline-block size-3 rounded-sm"
+                                        :style="{
+                                            backgroundColor: colorWithOpacity(
+                                                s.color,
+                                                0.65,
+                                            ),
+                                        }"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground dark:text-muted-foreground"
+                                        >4–10</span
+                                    >
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <span
+                                        class="inline-block size-3 rounded-sm"
+                                        :style="{ backgroundColor: s.color }"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground dark:text-muted-foreground"
+                                        >11+</span
+                                    >
+                                </span>
+                            </div>
+                        </div>
 
-                    <!-- Empty -->
-                    <div
-                        v-else-if="!seriesData[s.id].length"
-                        class="flex items-center justify-center py-12 text-sm text-muted-foreground"
-                    >
-                        Tidak ada data.
-                    </div>
+                        <!-- Loading -->
+                        <div
+                            v-if="panelLoading[s.id]"
+                            class="flex items-center justify-center py-12 text-sm text-muted-foreground"
+                        >
+                            Memuat…
+                        </div>
 
-                    <!-- Chart -->
-                    <div v-else class="p-2">
-                        <VueApexCharts
-                            type="heatmap"
-                            :options="chartOptionsMap[s.id]"
-                            :series="seriesData[s.id]"
-                            :height="chartHeight(s.id)"
-                            width="100%"
-                        />
+                        <!-- Empty -->
+                        <div
+                            v-else-if="!seriesData[s.id].length"
+                            class="flex items-center justify-center py-12 text-sm text-muted-foreground"
+                        >
+                            Tidak ada data.
+                        </div>
+
+                        <!-- Chart -->
+                        <div v-else class="p-2">
+                            <VueApexCharts
+                                type="heatmap"
+                                :options="chartOptionsMap[s.id]"
+                                :series="seriesData[s.id]"
+                                :height="chartHeight(s.id)"
+                                width="100%"
+                            />
+                        </div>
                     </div>
                 </div>
-                </div><!-- end grid -->
+                <!-- end grid -->
 
                 <!-- ── Jam Aktif ──────────────────────────────────────── -->
-                <div class="rounded-lg border border-border bg-card shadow-sm dark:border-border dark:bg-card">
-                    <div class="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2.5 dark:border-border">
-                        <span class="text-sm font-semibold text-foreground dark:text-foreground">Jam Aktif</span>
-                        <span class="text-xs text-muted-foreground dark:text-muted-foreground">Distribusi aktivitas per jam (0–23)</span>
+                <div
+                    class="rounded-lg border border-border bg-card shadow-sm dark:border-border dark:bg-card"
+                >
+                    <div
+                        class="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2.5 dark:border-border"
+                    >
+                        <span
+                            class="text-sm font-semibold text-foreground dark:text-foreground"
+                            >Jam Aktif</span
+                        >
+                        <span
+                            class="text-xs text-muted-foreground dark:text-muted-foreground"
+                            >Distribusi aktivitas per jam (0–23)</span
+                        >
                         <div class="ml-auto flex gap-2">
-                            <select v-model="hourlyStatusId"
-                                class="h-7 rounded border border-input bg-card px-2 text-xs text-foreground dark:border-input dark:bg-secondary dark:text-foreground">
+                            <select
+                                v-model="hourlyStatusId"
+                                class="h-7 rounded border border-input bg-card px-2 text-xs text-foreground dark:border-input dark:bg-secondary dark:text-foreground"
+                            >
                                 <option :value="0">Semua Status</option>
                                 <option :value="1">Submitted</option>
                                 <option :value="2">Approved</option>
                                 <option :value="3">Rejected</option>
                             </select>
-                            <div class="flex rounded border border-input text-xs dark:border-input">
-                                <button v-for="d in ['pencacah', 'pengawas']" :key="d"
-                                    :class="['px-2 py-1 transition-colors', hourlyDimension === d ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted dark:bg-secondary dark:text-muted-foreground', d === 'pencacah' ? 'rounded-l' : 'rounded-r']"
-                                    @click="hourlyDimension = d as 'pencacah' | 'pengawas'">
-                                    {{ d === 'pencacah' ? 'Pencacah' : 'Pengawas' }}
+                            <div
+                                class="flex rounded border border-input text-xs dark:border-input"
+                            >
+                                <button
+                                    v-for="d in ['pencacah', 'pengawas']"
+                                    :key="d"
+                                    :class="[
+                                        'px-2 py-1 transition-colors',
+                                        hourlyDimension === d
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-card text-muted-foreground hover:bg-muted dark:bg-secondary dark:text-muted-foreground',
+                                        d === 'pencacah'
+                                            ? 'rounded-l'
+                                            : 'rounded-r',
+                                    ]"
+                                    @click="
+                                        hourlyDimension = d as
+                                            | 'pencacah'
+                                            | 'pengawas'
+                                    "
+                                >
+                                    {{
+                                        d === 'pencacah'
+                                            ? 'Pencacah'
+                                            : 'Pengawas'
+                                    }}
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <div v-if="hourlyLoading" class="flex items-center justify-center py-12 text-sm text-muted-foreground">Memuat…</div>
+                    <div
+                        v-if="hourlyLoading"
+                        class="flex items-center justify-center py-12 text-sm text-muted-foreground"
+                    >
+                        Memuat…
+                    </div>
                     <div v-else class="p-3">
-                        <VueApexCharts type="bar" :height="200" :options="hourlyChartOptions" :series="hourlyChartSeries" width="100%" />
+                        <VueApexCharts
+                            type="bar"
+                            :height="200"
+                            :options="hourlyChartOptions"
+                            :series="hourlyChartSeries"
+                            width="100%"
+                        />
                     </div>
                 </div>
             </template>

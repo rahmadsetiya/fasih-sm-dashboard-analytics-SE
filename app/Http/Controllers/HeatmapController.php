@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use DateTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use stdClass;
 
 class HeatmapController extends Controller
 {
@@ -155,7 +157,11 @@ class HeatmapController extends Controller
         return response()->json(['data' => $data]);
     }
 
-    private function buildSeries($rows, ?string $dateFrom, ?string $dateTo): array
+    /**
+     * @param  Collection<int, stdClass>  $rows
+     * @return array<string, mixed>
+     */
+    private function buildSeries(Collection $rows, ?string $dateFrom, ?string $dateTo): array
     {
         if ($rows->isEmpty()) {
             return ['series' => [], 'days' => []];
@@ -165,21 +171,28 @@ class HeatmapController extends Controller
         $byDim = [];
 
         foreach ($rows as $row) {
-            if (! $row->day) {
+            $values = (array) $row;
+            $day = $values['day'] ?? null;
+            if (! is_string($day) || $day === '') {
                 continue;
             }
-            $daySet[$row->day] = true;
-            $key = $row->dim_key ?? 'unknown';
+            $daySet[$day] = true;
+
+            $rawKey = $values['dim_key'] ?? null;
+            $key = is_string($rawKey) && $rawKey !== '' ? $rawKey : 'unknown';
+            $rawLabel = $values['dim_label'] ?? null;
+            $label = is_string($rawLabel) && $rawLabel !== '' ? $rawLabel : $key;
+            $count = (int) ($values['cnt'] ?? 0);
 
             if (! isset($byDim[$key])) {
                 $byDim[$key] = [
-                    'name' => $row->dim_label ?: $key,
+                    'name' => $label,
                     'counts' => [],
                     'total' => 0,
                 ];
             }
-            $byDim[$key]['counts'][$row->day] = (int) $row->cnt;
-            $byDim[$key]['total'] += (int) $row->cnt;
+            $byDim[$key]['counts'][$day] = $count;
+            $byDim[$key]['total'] += $count;
         }
 
         if (empty($daySet)) {
@@ -205,6 +218,9 @@ class HeatmapController extends Controller
         return ['series' => $series, 'days' => $days];
     }
 
+    /**
+     * @return list<string>
+     */
     private function generateDateRange(string $from, string $to): array
     {
         $days = [];

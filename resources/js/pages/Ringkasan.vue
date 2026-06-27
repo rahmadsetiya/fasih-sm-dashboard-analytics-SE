@@ -276,7 +276,7 @@ function pct(v: number) {
     <div v-else class="flex flex-col gap-3 p-4">
         <!-- header kabupaten -->
         <div
-            class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm px-4 py-2.5 dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card px-4 py-2.5 shadow-sm dark:border-sidebar-border"
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -379,15 +379,10 @@ function pct(v: number) {
                     },
                 ]"
                 :key="card.label"
-                class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm px-3 py-2 dark:border-sidebar-border"
+                class="rounded-xl border border-sidebar-border/70 bg-card px-3 py-2 shadow-sm dark:border-sidebar-border"
             >
                 <p class="text-xs text-muted-foreground">{{ card.label }}</p>
-                <p
-                    :class="[
-                        'mt-1 text-xl font-bold tabular-nums',
-                        card.color,
-                    ]"
-                >
+                <p :class="['mt-1 text-xl font-bold tabular-nums', card.color]">
                     {{ card.value.toLocaleString('id-ID') }}
                 </p>
             </div>
@@ -403,7 +398,8 @@ function pct(v: number) {
                         hex: '#FFA95A',
                         bar: 'bg-[#FFA95A]',
                         ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
-                        tooltip: 'Progress = (Total − OPEN − DRAFT) ÷ Total × 100%',
+                        tooltip:
+                            'Progress = (Total − OPEN − DRAFT) ÷ Total × 100%',
                     },
                     {
                         label: 'Submitted',
@@ -464,16 +460,24 @@ function pct(v: number) {
         </div>
 
         <!-- Formula explanation -->
-        <div class="rounded-lg border border-sidebar-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground dark:border-sidebar-border">
-            <span class="font-semibold text-foreground/70">Cara penghitungan:</span>
+        <div
+            class="rounded-lg border border-sidebar-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground dark:border-sidebar-border"
+        >
+            <span class="font-semibold text-foreground/70"
+                >Cara penghitungan:</span
+            >
             <span class="ml-1.5">
-                <span class="font-medium text-[#FFA95A]">Progress</span> = (Total − OPEN − DRAFT) ÷ Total.
+                <span class="font-medium text-[#FFA95A]">Progress</span> =
+                (Total − OPEN − DRAFT) ÷ Total.
                 <span class="mx-1 opacity-40">·</span>
-                <span class="font-medium text-blue-500">Submitted</span> = Diserahkan Pencacah ÷ Total.
+                <span class="font-medium text-blue-500">Submitted</span> =
+                Diserahkan Pencacah ÷ Total.
                 <span class="mx-1 opacity-40">·</span>
-                <span class="font-medium text-green-500">Approved</span> = Disetujui Pengawas ÷ Total.
+                <span class="font-medium text-green-500">Approved</span> =
+                Disetujui Pengawas ÷ Total.
                 <span class="mx-1 opacity-40">·</span>
-                <span class="font-medium text-red-400">Rejected</span> = Ditolak Pengawas ÷ Total.
+                <span class="font-medium text-red-400">Rejected</span> = Ditolak
+                Pengawas ÷ Total.
             </span>
         </div>
 
@@ -481,7 +485,7 @@ function pct(v: number) {
         <div class="grid gap-3 md:grid-cols-3">
             <!-- Status Table -->
             <div
-                class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
+                class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
             >
                 <h3 class="mb-2 shrink-0 text-sm font-semibold">
                     Komposisi Status
@@ -560,7 +564,7 @@ function pct(v: number) {
 
             <!-- Trend -->
             <div
-                class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
+                class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
             >
                 <h3 class="mb-1 shrink-0 text-sm font-semibold">
                     Tren Progress Over Time

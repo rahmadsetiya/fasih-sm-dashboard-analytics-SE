@@ -9,6 +9,8 @@ import { ref, reactive, watch, computed, onMounted } from 'vue';
 
 import VueApexCharts from 'vue3-apexcharts';
 
+import MobileRankingBars from '../components/dashboard/MobileRankingBars.vue';
+
 const props = defineProps<{
     snapshots: string[];
     db_ready: boolean;
@@ -40,6 +42,8 @@ interface BreakdownRow {
     label: string;
     total: number;
     progress_pct: number;
+    lapangan_total: number;
+    lapangan_pct: number;
     approved_pct: number;
     statuses: Record<string, number>;
     nmkec?: string;
@@ -84,7 +88,10 @@ watch(
     (val) => {
         snapshots.value = val;
 
-        if (val.length && (!filters.snapshot || val[0] !== snapshots.value[0])) {
+        if (
+            val.length &&
+            (!filters.snapshot || val[0] !== snapshots.value[0])
+        ) {
             filters.snapshot = val[0];
         }
     },
@@ -277,8 +284,8 @@ const desaGroups = computed(() => {
         const key = opt.kec ?? '—';
 
         if (!groups[key]) {
-groups[key] = [];
-}
+            groups[key] = [];
+        }
 
         groups[key].push(opt);
     }
@@ -294,8 +301,8 @@ const slsGroups = computed(() => {
         const key = opt.desa ?? '—';
 
         if (!groups[key]) {
-groups[key] = [];
-}
+            groups[key] = [];
+        }
 
         groups[key].push(opt);
     }
@@ -540,7 +547,9 @@ const donutOptions = computed(() => ({
                         label: 'Total',
                         fontSize: donutLabelFont.value,
                         formatter: () =>
-                            metrics.value.total_assignment.toLocaleString('id-ID'),
+                            metrics.value.total_assignment.toLocaleString(
+                                'id-ID',
+                            ),
                     },
                 },
             },
@@ -616,12 +625,20 @@ const barOptions = computed(() => ({
 }));
 
 // ── projection ────────────────────────────────────────────────────────────
-interface ProjPoint { label: string; y: number; }
+interface ProjPoint {
+    label: string;
+    y: number;
+}
 const DEADLINE = new Date('2026-08-31T23:59:59+08:00');
+const PROJECTION_WINDOW_DAYS = 3;
 
 const projectionPoints = computed<ProjPoint[]>(() => {
     const pts = trend.value;
-    if (pts.length < 2) return [];
+
+    if (pts.length < 2) {
+        return [];
+    }
+
     const n = pts.length;
     const xs = pts.map((_, i) => i);
     const ys = pts.map((p) => p.progress_pct);
@@ -629,10 +646,18 @@ const projectionPoints = computed<ProjPoint[]>(() => {
     const yMean = ys.reduce((a, b) => a + b, 0) / n;
     const num = xs.reduce((s, x, i) => s + (x - xMean) * (ys[i] - yMean), 0);
     const den = xs.reduce((s, x) => s + (x - xMean) ** 2, 0);
-    if (den === 0) return [];
+
+    if (den === 0) {
+        return [];
+    }
+
     const slope = num / den;
     const intercept = yMean - slope * xMean;
-    if (slope <= 0) return [];
+
+    if (slope <= 0) {
+        return [];
+    }
+
     const stepsToHundred = Math.ceil((100 - intercept) / slope) - (n - 1);
     const maxSteps = Math.min(stepsToHundred + 1, 10);
     const snapInterval =
@@ -643,20 +668,37 @@ const projectionPoints = computed<ProjPoint[]>(() => {
             : 24 * 60 * 60 * 1000;
     const result: ProjPoint[] = [];
     const lastDate = new Date(pts[n - 1].snapshot_at);
+    const projectionWindowEnd = new Date(lastDate);
+    projectionWindowEnd.setDate(
+        projectionWindowEnd.getDate() + PROJECTION_WINDOW_DAYS,
+    );
+
     for (let s = 1; s <= maxSteps; s++) {
         const projY = Math.min(100, slope * (n - 1 + s) + intercept);
         const projDate = new Date(lastDate.getTime() + snapInterval * s);
-        if (projDate > DEADLINE) break;
+
+        if (projDate > DEADLINE || projDate > projectionWindowEnd) {
+            break;
+        }
+
         const label = `${projDate.getDate().toString().padStart(2, '0')}/${(projDate.getMonth() + 1).toString().padStart(2, '0')} ${projDate.getHours().toString().padStart(2, '0')}:${projDate.getMinutes().toString().padStart(2, '0')}`;
         result.push({ label, y: Math.round(projY * 10) / 10 });
-        if (projY >= 100) break;
+
+        if (projY >= 100) {
+            break;
+        }
     }
+
     return result;
 });
 
 const projectionEstDate = computed<string | null>(() => {
     const pts = trend.value;
-    if (pts.length < 2) return null;
+
+    if (pts.length < 2) {
+        return null;
+    }
+
     const n = pts.length;
     const xs = pts.map((_, i) => i);
     const ys = pts.map((p) => p.progress_pct);
@@ -664,12 +706,24 @@ const projectionEstDate = computed<string | null>(() => {
     const yMean = ys.reduce((a, b) => a + b, 0) / n;
     const num = xs.reduce((s, x, i) => s + (x - xMean) * (ys[i] - yMean), 0);
     const den = xs.reduce((s, x) => s + (x - xMean) ** 2, 0);
-    if (den === 0) return null;
+
+    if (den === 0) {
+        return null;
+    }
+
     const slope = num / den;
     const intercept = yMean - slope * xMean;
-    if (slope <= 0) return null;
+
+    if (slope <= 0) {
+        return null;
+    }
+
     const stepsToHundred = (100 - intercept) / slope - (n - 1);
-    if (stepsToHundred <= 0) return 'sudah selesai';
+
+    if (stepsToHundred <= 0) {
+        return 'sudah selesai';
+    }
+
     const snapInterval =
         n >= 2
             ? (new Date(pts[n - 1].snapshot_at).getTime() -
@@ -677,9 +731,14 @@ const projectionEstDate = computed<string | null>(() => {
               (n - 1)
             : 24 * 60 * 60 * 1000;
     const est = new Date(
-        new Date(pts[n - 1].snapshot_at).getTime() + snapInterval * stepsToHundred,
+        new Date(pts[n - 1].snapshot_at).getTime() +
+            snapInterval * stepsToHundred,
     );
-    if (est > DEADLINE) return '⚠️ Diprediksi melewati batas 31 Agustus';
+
+    if (est > DEADLINE) {
+        return '⚠️ Diprediksi melewati batas 31 Agustus';
+    }
+
     return est.toLocaleDateString('id-ID', {
         day: '2-digit',
         month: 'short',
@@ -700,7 +759,9 @@ const FUNNEL_ORDER = [
 ] as const;
 
 const funnelRows = computed(() => {
-    const total = Object.values(statusTotals.value).reduce((a, b) => a + b, 0) || 1;
+    const total =
+        Object.values(statusTotals.value).reduce((a, b) => a + b, 0) || 1;
+
     return FUNNEL_ORDER.map((key) => ({
         key,
         label: STATUS_META[key]?.short ?? key,
@@ -722,22 +783,30 @@ const trendSeries = computed(() => {
         { name: 'Submitted %', data: trend.value.map((t) => t.submitted_pct) },
         { name: 'Approved %', data: trend.value.map((t) => t.approved_pct) },
     ];
+
     if (projectionPoints.value.length >= 1) {
         const nullPad: (number | null)[] = trend.value.map(() => null);
         const last = trend.value[trend.value.length - 1]?.progress_pct ?? null;
         series.push({
             name: 'Proyeksi',
-            data: [...nullPad.slice(0, -1), last, ...projectionPoints.value.map((p) => p.y)],
+            data: [
+                ...nullPad.slice(0, -1),
+                last,
+                ...projectionPoints.value.map((p) => p.y),
+            ],
         });
     }
+
     return series;
 });
 const trendCategories = computed(() => {
     const real = trend.value.map((t) => {
         const d = new Date(t.snapshot_at);
+
         return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     });
     const proj = projectionPoints.value.map((p) => p.label);
+
     return [...real, ...proj];
 });
 const trendMax = computed(() => {
@@ -759,7 +828,11 @@ const trendOptions = computed(() => ({
         zoom: { enabled: false },
     },
     theme: { mode: chartMode.value },
-    stroke: { curve: 'smooth' as const, width: [2.5, 2.5, 2.5, 2], dashArray: [0, 0, 0, 6] },
+    stroke: {
+        curve: 'smooth' as const,
+        width: [2.5, 2.5, 2.5, 2],
+        dashArray: [0, 0, 0, 6],
+    },
     colors: ['#FFA95A', '#FF8B5A', '#22c55e', '#a78bfa'],
     xaxis: {
         categories: trendCategories.value,
@@ -777,7 +850,9 @@ const trendOptions = computed(() => ({
     legend: { position: 'top' as const, fontSize: cFontMd.value },
     grid: {
         padding: { right: 24 },
-        borderColor: isDark.value ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+        borderColor: isDark.value
+            ? 'rgba(255,255,255,0.07)'
+            : 'rgba(0,0,0,0.07)',
     },
 }));
 
@@ -1052,112 +1127,242 @@ function rowContext(row: BreakdownRow): string {
     <!-- ── dashboard ──────────────────────────────────────────────────── -->
     <div v-else class="flex h-full flex-1 flex-col gap-3 overflow-x-auto p-4">
         <!-- Filter bar -->
-        <div
-            class="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2"
-        >
-            <!-- Snapshot -->
-            <div class="flex items-center gap-1.5">
-                <span class="text-xs font-medium text-muted-foreground">Snapshot</span>
+        <div class="rounded-xl border border-border bg-card px-3 py-2">
+            <div class="flex flex-col gap-3 md:hidden">
+                <div class="flex items-start gap-2">
+                    <div class="min-w-0 flex-1">
+                        <span
+                            class="mb-1 block text-xs font-medium text-muted-foreground"
+                            >Snapshot</span
+                        >
+                        <Select
+                            v-model="filters.snapshot"
+                            :options="snapshots"
+                            :optionLabel="fmtSnap"
+                            class="h-8 w-full min-w-0 text-xs"
+                            size="small"
+                        />
+                    </div>
+
+                    <button
+                        :class="[
+                            'mt-[21px] shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                            compareMode
+                                ? 'border-amber-400 bg-amber-400/10 text-amber-600 dark:text-amber-400'
+                                : 'border-input bg-background text-muted-foreground hover:bg-muted',
+                        ]"
+                        @click="toggleCompare"
+                        :title="
+                            compareMode
+                                ? 'Matikan mode bandingkan'
+                                : 'Bandingkan 2 snapshot'
+                        "
+                    >
+                        Bandingkan
+                    </button>
+                </div>
+
                 <Select
-                    v-model="filters.snapshot"
-                    :options="snapshots"
+                    v-if="compareMode && otherSnapshots.length"
+                    v-model="compareSnapshot"
+                    :options="otherSnapshots"
                     :optionLabel="fmtSnap"
-                    class="h-7 text-xs"
+                    size="small"
+                    class="h-8 w-full border-amber-400/60 text-xs"
+                />
+                <span
+                    v-else-if="compareMode && !otherSnapshots.length"
+                    class="text-xs text-muted-foreground"
+                    >Hanya 1 snapshot tersedia</span
+                >
+
+                <div class="space-y-1.5">
+                    <span
+                        class="block text-xs font-medium text-muted-foreground"
+                        >Peran Petugas</span
+                    >
+                    <SelectButton
+                        v-model="filters.role"
+                        :options="roleOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        size="small"
+                        class="w-full"
+                    />
+                </div>
+
+                <div class="space-y-1.5">
+                    <span
+                        class="block text-xs font-medium text-muted-foreground"
+                        >Mode Ringkasan</span
+                    >
+                    <div class="grid grid-cols-2 gap-2">
+                        <button
+                            v-for="tab in levelOptions"
+                            :key="tab.value"
+                            type="button"
+                            :class="[
+                                'flex min-h-12 items-center justify-center rounded-xl border px-3 py-2 text-center text-xs leading-tight font-medium transition-colors',
+                                filters.level === tab.value
+                                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                    : 'border-input bg-background text-foreground hover:bg-muted',
+                            ]"
+                            @click="setLevel(tab.value)"
+                        >
+                            <span class="break-words whitespace-normal">
+                                {{ tab.label }}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <div
+                        v-if="totalActiveFilters"
+                        class="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-accent-ink"
+                    >
+                        {{ totalActiveFilters }} filter aktif
+                        <button
+                            class="ml-1 rounded-full hover:text-destructive focus:outline-none"
+                            @click="clearAllFilters"
+                            aria-label="Hapus semua filter"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <button
+                        class="ml-auto flex items-center justify-center rounded-md border border-input bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:ring-2 focus:ring-ring focus:outline-none"
+                        :title="
+                            isDark
+                                ? 'Beralih ke mode terang'
+                                : 'Beralih ke mode gelap'
+                        "
+                        :aria-pressed="isDark"
+                        aria-label="Toggle tema"
+                        @click="isDark = !isDark"
+                    >
+                        <Sun v-if="isDark" class="size-4" />
+                        <Moon v-else class="size-4" />
+                    </button>
+
+                    <span
+                        v-if="loading"
+                        class="w-full animate-pulse text-xs text-muted-foreground"
+                        >Memuat...</span
+                    >
+                </div>
+            </div>
+
+            <div class="hidden flex-wrap items-center gap-2 md:flex">
+                <!-- Snapshot -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >Snapshot</span
+                    >
+                    <Select
+                        v-model="filters.snapshot"
+                        :options="snapshots"
+                        :optionLabel="fmtSnap"
+                        class="h-7 text-xs"
+                        size="small"
+                    />
+                </div>
+
+                <!-- Compare toggle -->
+                <button
+                    :class="[
+                        'flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                        compareMode
+                            ? 'border-amber-400 bg-amber-400/10 text-amber-600 dark:text-amber-400'
+                            : 'border-input bg-background text-muted-foreground hover:bg-muted',
+                    ]"
+                    @click="toggleCompare"
+                    :title="
+                        compareMode
+                            ? 'Matikan mode bandingkan'
+                            : 'Bandingkan 2 snapshot'
+                    "
+                >
+                    Bandingkan
+                </button>
+                <Select
+                    v-if="compareMode && otherSnapshots.length"
+                    v-model="compareSnapshot"
+                    :options="otherSnapshots"
+                    :optionLabel="fmtSnap"
+                    size="small"
+                    class="h-7 border-amber-400/60 text-xs"
+                />
+                <span
+                    v-if="compareMode && !otherSnapshots.length"
+                    class="text-xs text-muted-foreground"
+                    >Hanya 1 snapshot tersedia</span
+                >
+
+                <div class="h-4 w-px bg-border" />
+
+                <!-- Role toggle -->
+                <SelectButton
+                    v-model="filters.role"
+                    :options="roleOptions"
+                    optionLabel="label"
+                    optionValue="value"
                     size="small"
                 />
-            </div>
 
-            <!-- Compare toggle -->
-            <button
-                :class="[
-                    'flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
-                    compareMode
-                        ? 'border-amber-400 bg-amber-400/10 text-amber-600 dark:text-amber-400'
-                        : 'border-input bg-background text-muted-foreground hover:bg-muted',
-                ]"
-                @click="toggleCompare"
-                :title="
-                    compareMode
-                        ? 'Matikan mode bandingkan'
-                        : 'Bandingkan 2 snapshot'
-                "
-            >
-                Bandingkan
-            </button>
-            <Select
-                v-if="compareMode && otherSnapshots.length"
-                v-model="compareSnapshot"
-                :options="otherSnapshots"
-                :optionLabel="fmtSnap"
-                size="small"
-                class="h-7 text-xs border-amber-400/60"
-            />
-            <span
-                v-if="compareMode && !otherSnapshots.length"
-                class="text-xs text-muted-foreground"
-                >Hanya 1 snapshot tersedia</span
-            >
+                <div class="h-4 w-px bg-border" />
 
-            <div class="h-4 w-px bg-border" />
+                <!-- Level tabs -->
+                <SelectButton
+                    v-model="filters.level"
+                    :options="levelOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    size="small"
+                    @change="setLevel(filters.level)"
+                />
 
-            <!-- Role toggle -->
-            <SelectButton
-                v-model="filters.role"
-                :options="roleOptions"
-                optionLabel="label"
-                optionValue="value"
-                size="small"
-            />
-
-            <div class="h-4 w-px bg-border" />
-
-            <!-- Level tabs -->
-            <SelectButton
-                v-model="filters.level"
-                :options="levelOptions"
-                optionLabel="label"
-                optionValue="value"
-                size="small"
-                @change="setLevel(filters.level)"
-            />
-
-            <!-- Active filter badge -->
-            <div
-                v-if="totalActiveFilters"
-                class="ml-auto flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-accent-ink"
-            >
-                {{ totalActiveFilters }} filter aktif
-                <button
-                    class="ml-1 rounded-full hover:text-destructive focus:outline-none"
-                    @click="clearAllFilters"
-                    aria-label="Hapus semua filter"
+                <!-- Active filter badge -->
+                <div
+                    v-if="totalActiveFilters"
+                    class="ml-auto flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-accent-ink"
                 >
-                    ✕
+                    {{ totalActiveFilters }} filter aktif
+                    <button
+                        class="ml-1 rounded-full hover:text-destructive focus:outline-none"
+                        @click="clearAllFilters"
+                        aria-label="Hapus semua filter"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Theme toggle -->
+                <button
+                    :class="[
+                        'flex items-center justify-center rounded-md border border-input bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:ring-2 focus:ring-ring focus:outline-none',
+                        totalActiveFilters ? '' : 'ml-auto',
+                    ]"
+                    :title="
+                        isDark
+                            ? 'Beralih ke mode terang'
+                            : 'Beralih ke mode gelap'
+                    "
+                    :aria-pressed="isDark"
+                    aria-label="Toggle tema"
+                    @click="isDark = !isDark"
+                >
+                    <Sun v-if="isDark" class="size-4" />
+                    <Moon v-else class="size-4" />
                 </button>
+
+                <span
+                    v-if="loading"
+                    class="animate-pulse text-xs text-muted-foreground"
+                    >Memuat…</span
+                >
             </div>
-
-            <!-- Theme toggle -->
-            <button
-                :class="[
-                    'flex items-center justify-center rounded-md border border-input bg-background p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:ring-2 focus:ring-ring focus:outline-none',
-                    totalActiveFilters ? '' : 'ml-auto',
-                ]"
-                :title="
-                    isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'
-                "
-                :aria-pressed="isDark"
-                aria-label="Toggle tema"
-                @click="isDark = !isDark"
-            >
-                <Sun v-if="isDark" class="size-4" />
-                <Moon v-else class="size-4" />
-            </button>
-
-            <span
-                v-if="loading"
-                class="animate-pulse text-xs text-muted-foreground"
-                >Memuat…</span
-            >
         </div>
 
         <!-- Filter Wilayah — stacked cascading panel -->
@@ -1169,9 +1374,7 @@ function rowContext(row: BreakdownRow): string {
             <button
                 :class="[
                     'flex w-full items-center justify-between rounded-t-xl px-4 py-2.5 text-sm font-semibold transition-colors',
-                    filterPanelOpen
-                        ? 'bg-secondary'
-                        : 'hover:bg-secondary/60',
+                    filterPanelOpen ? 'bg-secondary' : 'hover:bg-secondary/60',
                 ]"
                 @click="filterPanelOpen = !filterPanelOpen"
             >
@@ -1237,7 +1440,9 @@ function rowContext(row: BreakdownRow): string {
 
                 <!-- KECAMATAN -->
                 <div v-if="showKecFilter">
-                    <p class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                    >
                         Kecamatan
                     </p>
                     <MultiSelect
@@ -1257,7 +1462,9 @@ function rowContext(row: BreakdownRow): string {
 
                 <!-- DESA -->
                 <div v-if="showDesaFilter">
-                    <p class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                    >
                         Desa
                     </p>
                     <MultiSelect
@@ -1279,7 +1486,9 @@ function rowContext(row: BreakdownRow): string {
 
                 <!-- SLS -->
                 <div v-if="showSlsFilter">
-                    <p class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                    <p
+                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                    >
                         SLS
                     </p>
                     <MultiSelect
@@ -1425,7 +1634,7 @@ function rowContext(row: BreakdownRow): string {
         <div class="grid gap-3 md:grid-cols-3">
             <!-- Donut -->
             <div
-                class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
+                class="rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
             >
                 <h3 class="mb-1 text-sm font-semibold">Komposisi Status</h3>
                 <VueApexCharts
@@ -1444,26 +1653,61 @@ function rowContext(row: BreakdownRow): string {
 
                 <!-- Funnel -->
                 <div v-if="funnelRows.length" class="mt-3 space-y-1.5 px-1">
-                    <p class="text-[10px] font-medium text-muted-foreground">Distribusi Status</p>
-                    <div v-for="row in funnelRows" :key="row.key" class="flex items-center gap-2">
-                        <span class="w-14 shrink-0 text-right text-[10px] text-muted-foreground">{{ row.label }}</span>
-                        <div class="h-3 flex-1 overflow-hidden rounded-full bg-muted">
-                            <div class="h-full rounded-full transition-all" :style="{ width: `${row.pct}%`, backgroundColor: row.color }" />
+                    <p class="text-[10px] font-medium text-muted-foreground">
+                        Distribusi Status
+                    </p>
+                    <div
+                        v-for="row in funnelRows"
+                        :key="row.key"
+                        class="flex items-center gap-2"
+                    >
+                        <span
+                            class="w-14 shrink-0 text-right text-[10px] text-muted-foreground"
+                            >{{ row.label }}</span
+                        >
+                        <div
+                            class="h-3 flex-1 overflow-hidden rounded-full bg-muted"
+                        >
+                            <div
+                                class="h-full rounded-full transition-all"
+                                :style="{
+                                    width: `${row.pct}%`,
+                                    backgroundColor: row.color,
+                                }"
+                            />
                         </div>
-                        <span class="w-12 shrink-0 text-[10px] text-muted-foreground">{{ row.count.toLocaleString('id') }}</span>
+                        <span
+                            class="w-12 shrink-0 text-[10px] text-muted-foreground"
+                            >{{ row.count.toLocaleString('id') }}</span
+                        >
                     </div>
                 </div>
             </div>
 
             <!-- Bar -->
             <div
-                class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
+                class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm md:col-span-2 dark:border-sidebar-border"
             >
-                <h3 class="mb-1 shrink-0 text-sm font-semibold">
+                <h3 class="mb-3 shrink-0 text-sm font-semibold md:hidden">
+                    Peringkat {{ LEVEL_LABELS[filters.level] }} — Progress &
+                    Approved %
+                </h3>
+                <h3 class="mb-1 hidden shrink-0 text-sm font-semibold md:block">
                     Top {{ TOP_N }} {{ LEVEL_LABELS[filters.level] }} — Progress
                     & Approved %
                 </h3>
-                <div class="min-h-0 flex-1">
+                <MobileRankingBars
+                    v-if="barTopData.length"
+                    class="md:hidden"
+                    :rows="barTopData"
+                />
+                <div
+                    v-else
+                    class="flex min-h-32 items-center justify-center text-sm text-muted-foreground md:hidden"
+                >
+                    Tidak ada data
+                </div>
+                <div class="hidden min-h-0 flex-1 md:block">
                     <VueApexCharts
                         v-if="barSeries[0]?.data.length"
                         type="bar"
@@ -1484,7 +1728,7 @@ function rowContext(row: BreakdownRow): string {
         <!-- Trend -->
         <div
             v-if="trend.length >= 1"
-            class="rounded-xl border border-sidebar-border/70 bg-card shadow-sm p-4 dark:border-sidebar-border"
+            class="rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
         >
             <h3 class="mb-1 text-sm font-semibold">Tren Progress Over Time</h3>
             <VueApexCharts
@@ -1499,10 +1743,26 @@ function rowContext(row: BreakdownRow): string {
             >
                 Hanya 1 snapshot — tambah snapshot lebih untuk melihat tren
             </p>
-            <p v-if="projectionEstDate" class="mt-1 text-xs text-muted-foreground">
-                <span class="font-medium text-violet-500 dark:text-violet-400">Proyeksi selesai:</span>
-                <span :class="projectionEstDate.startsWith('⚠️') ? 'font-semibold text-red-500 dark:text-red-400' : ''">{{ projectionEstDate }}</span>
-                <span v-if="!projectionEstDate.startsWith('⚠️')" class="text-[10px] text-muted-foreground/60">(berdasarkan tren linear)</span>
+            <p
+                v-if="projectionEstDate"
+                class="mt-1 text-xs text-muted-foreground"
+            >
+                <span class="font-medium text-violet-500 dark:text-violet-400"
+                    >Proyeksi selesai:</span
+                >
+                <span
+                    :class="
+                        projectionEstDate.startsWith('⚠️')
+                            ? 'font-semibold text-red-500 dark:text-red-400'
+                            : ''
+                    "
+                    >{{ projectionEstDate }}</span
+                >
+                <span
+                    v-if="!projectionEstDate.startsWith('⚠️')"
+                    class="text-[10px] text-muted-foreground/60"
+                    >(berdasarkan tren linear)</span
+                >
             </p>
         </div>
 
@@ -1724,6 +1984,13 @@ function rowContext(row: BreakdownRow): string {
                                 Progress{{ sortIcon('progress_pct') }}
                             </th>
                             <th
+                                class="cursor-pointer px-3 py-2 text-right font-semibold"
+                                @click="toggleSort('lapangan_total')"
+                                scope="col"
+                            >
+                                Progres Lapangan{{ sortIcon('lapangan_total') }}
+                            </th>
+                            <th
                                 v-if="compareMode && compareData.length"
                                 class="px-2 py-2 text-right font-semibold text-amber-600 dark:text-amber-400"
                                 :title="
@@ -1861,6 +2128,24 @@ function rowContext(row: BreakdownRow): string {
                                     >
                                 </div>
                             </td>
+                            <td
+                                class="px-3 py-2.5 text-right font-medium tabular-nums"
+                            >
+                                <div class="leading-tight">
+                                    <p>
+                                        {{
+                                            row.lapangan_total.toLocaleString(
+                                                'id-ID',
+                                            )
+                                        }}
+                                    </p>
+                                    <p
+                                        class="text-[11px] text-muted-foreground"
+                                    >
+                                        {{ row.lapangan_pct }}%
+                                    </p>
+                                </div>
+                            </td>
                             <!-- Delta % (compare mode) -->
                             <td
                                 v-if="compareMode && compareData.length"
@@ -1946,7 +2231,7 @@ function rowContext(row: BreakdownRow): string {
                         <tr v-if="!paginatedRows.length">
                             <td
                                 :colspan="
-                                    4 +
+                                    5 +
                                     (compareMode && compareData.length
                                         ? 1
                                         : 0) +

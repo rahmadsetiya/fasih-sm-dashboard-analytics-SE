@@ -23,7 +23,7 @@ Dashboard monitoring berbasis web untuk memantau progres kerja lapangan **Sensus
 
 ## Fitur
 
-- **Dashboard utama** — filter per snapshot, role (Pengawas/Pencacah), level wilayah, dan region; metric cards, donut chart, bar chart, line trend
+- **Dashboard utama** — filter per snapshot, role (Pengawas/Pencacah), level wilayah, dan region; metric cards, donut chart, ranking wilayah responsif, line trend, tabel rincian
 - **Ringkasan Kabupaten** — tabel rekap per kecamatan dengan persentase progres dan approval
 - **Heatmap Aktivitas** — aktivitas petugas per hari dan per jam; filter tanggal dan wilayah
 - **Analitik Petugas** — 6 tab analitik: Daftar, Funnel Status, Matrix, Leaderboard, Mangkrak, Proyeksi Selesai
@@ -393,7 +393,7 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 
 | URL | Nama | Keterangan |
 |---|---|---|
-| `/` | Dashboard | Filter snapshot, role, level wilayah; metric cards, chart status, bar top wilayah, trend |
+| `/` | Dashboard | Filter snapshot, role, level wilayah; metric cards, chart status, ranking top wilayah, trend, dan tabel rincian |
 | `/ringkasan` | Ringkasan Kabupaten | Tabel rekap per kecamatan: total, selesai, approved, % |
 | `/heatmap` | Heatmap Aktivitas | Aktivitas per petugas per hari; drill-down per jam |
 | `/petugas` | Analitik Petugas | 6 tab analitik (lihat di bawah) |
@@ -411,6 +411,19 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 | Leaderboard | Ranking petugas berdasarkan approval rate, dengan pagination |
 | Mangkrak | Assignment yang sudah lama tidak ada pergerakan status |
 | Proyeksi | Estimasi tanggal selesai berdasarkan laju saat ini (deadline: 31 Agustus 2026) |
+
+---
+
+### Catatan Perilaku Dashboard (`/`)
+
+- Grafik **Top wilayah** memakai tampilan bar chart penuh di desktop dan tampilan ranking card yang lebih ringkas di mobile agar label wilayah tetap terbaca.
+- Grafik **Tren Progress Over Time** hanya memakai **snapshot terakhir pada tiap tanggal** agar satu hari tidak muncul berkali-kali.
+- Rentang tren dibatasi menjadi **8 hari**: **5 hari data aktual terakhir** (berdasarkan tanggal snapshot terbaru) dan maksimal **3 hari proyeksi** ke depan.
+- Tabel rincian per wilayah/petugas memiliki kolom **Progres Lapangan** dengan rumus:
+
+  `DRAFT + SUBMITTED BY Pencacah + APPROVED BY Pengawas + REJECTED BY Pengawas + EDITED BY Pengawas + REVOKED BY Pengawas`
+
+- Nilai **Progres Lapangan** ditampilkan sebagai total kasus dan persentasenya terhadap `Total Assignment`.
 
 ---
 
@@ -442,7 +455,7 @@ Diupload via UI. **Tidak ada saat fresh install.**
 | `wilayah` | Hierarki wilayah (kab/kec/desa/SLS) |
 | `users` | User FASIH (bukan user login dashboard) |
 
-Kolom `snapshot_at` di `progress_pengawas` dan `progress_pencacah` membedakan data antar titik waktu scraping dalam satu file.
+Kolom `snapshot_at` di `progress_pengawas` dan `progress_pencacah` membedakan data antar titik waktu scraping dalam satu file. Pada halaman dashboard, data tren harian diringkas memakai `snapshot_at` paling akhir untuk setiap tanggal.
 
 ---
 
