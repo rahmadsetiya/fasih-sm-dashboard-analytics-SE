@@ -105,7 +105,13 @@ class DashboardController extends Controller
         $baseC = DB::connection('fasih')->table('progress_pencacah')->where('snapshot_at', $snapshot);
 
         // Geo info
-        $geoRow = (clone $baseP)->selectRaw('kdprov, nmprov, kdkab, nmkab')->first();
+        $geoRow = (clone $baseP)
+            ->whereNotNull('kdprov')
+            ->whereNotNull('nmprov')
+            ->whereNotNull('kdkab')
+            ->whereNotNull('nmkab')
+            ->selectRaw('kdprov, nmprov, kdkab, nmkab')
+            ->first();
 
         // Metrics
         $m = (clone $baseP)->selectRaw('
@@ -335,9 +341,15 @@ class DashboardController extends Controller
                 $statuses[$c] = (int) ($r->$c ?? 0);
             }
 
+            $label = $nameOverrides[$r->grp_key] ?? $r->label ?? null;
+            if (! is_string($label) || trim($label) === '') {
+                $grpKey = is_scalar($r->grp_key) ? trim((string) $r->grp_key) : '';
+                $label = $grpKey !== '' ? "Tanpa label ($grpKey)" : 'Tanpa label wilayah';
+            }
+
             $row = [
                 'key' => $r->grp_key,
-                'label' => $nameOverrides[$r->grp_key] ?? $r->label,
+                'label' => $label,
                 'total' => $total,
                 'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
                 'lapangan_total' => $lapanganTotal,
@@ -439,10 +451,14 @@ class DashboardController extends Controller
         $base = fn () => DB::connection('fasih')->table($table)->where('snapshot_at', $snapshot);
 
         // Provinsi & kabupaten (informational — usually single values)
-        $provRow = $base()->selectRaw('kdprov as code, nmprov as label')->groupBy('kdprov', 'nmprov')->first();
-        $kabRow = $base()->selectRaw('kdkab as code, nmkab as label')->groupBy('kdkab', 'nmkab')->first();
+        $provRow = $base()->whereNotNull('kdprov')->whereNotNull('nmprov')
+            ->selectRaw('kdprov as code, nmprov as label')->groupBy('kdprov', 'nmprov')->first();
+        $kabRow = $base()->whereNotNull('kdkab')->whereNotNull('nmkab')
+            ->selectRaw('kdkab as code, nmkab as label')->groupBy('kdkab', 'nmkab')->first();
 
         $kecOpts = $base()
+            ->whereNotNull('kdkec')
+            ->whereNotNull('nmkec')
             ->selectRaw('kdkec as code, nmkec as label, SUM(region_total) as total')
             ->groupBy('kdkec', 'nmkec')
             ->orderBy('nmkec')
@@ -464,6 +480,10 @@ class DashboardController extends Controller
 
         if (in_array($level, ['desa', 'sls', 'subsls', 'by_pengawas', 'by_pencacah'])) {
             $desaQ = $base()
+                ->whereNotNull('kdkec')
+                ->whereNotNull('nmkec')
+                ->whereNotNull('kddes')
+                ->whereNotNull('nmdesa')
                 ->selectRaw('kdkec as kec_code, nmkec as kec, kddes as code, nmdesa as label, SUM(region_total) as total')
                 ->groupBy('kdkec', 'nmkec', 'kddes', 'nmdesa')
                 ->orderBy('nmkec')
@@ -485,6 +505,12 @@ class DashboardController extends Controller
 
         if ($level === 'subsls') {
             $slsQ = $base()
+                ->whereNotNull('kdkec')
+                ->whereNotNull('nmkec')
+                ->whereNotNull('kddes')
+                ->whereNotNull('nmdesa')
+                ->whereNotNull('kdsls')
+                ->whereNotNull('nmsls')
                 ->selectRaw('kdkec as kec_code, nmkec as kec, kddes as desa_code, nmdesa as desa, kdsls as code, nmsls as label, SUM(region_total) as total')
                 ->groupBy('kdkec', 'nmkec', 'kddes', 'nmdesa', 'kdsls', 'nmsls')
                 ->orderBy('nmkec')
@@ -513,3 +539,4 @@ class DashboardController extends Controller
         return $result;
     }
 }
+
