@@ -2,7 +2,8 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { definePreset } from '@primevue/themes';
 import Aura from '@primevue/themes/aura';
 import PrimeVue from 'primevue/config';
-import { createApp, h } from 'vue';
+import { createApp, createSSRApp, h } from 'vue';
+import type { DefineComponent } from 'vue';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
@@ -29,8 +30,22 @@ const FasihPreset = definePreset(Aura, {
     },
 });
 
+const pages = import.meta.glob('./pages/**/*.vue') as Record<
+    string,
+    () => Promise<{ default: DefineComponent }>
+>;
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
+    resolve: async (name) => {
+        const page = pages[`./pages/${name}.vue`];
+
+        if (!page) {
+            throw new Error(`Unknown Inertia page: ${name}`);
+        }
+
+        return (await page()).default;
+    },
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
@@ -44,21 +59,24 @@ createInertiaApp({
         }
     },
     setup({ el, App, props, plugin }) {
-        if (!el) {
-            return;
+        const app = (import.meta.env.SSR ? createSSRApp : createApp)({
+            render: () => h(App, props),
+        });
+
+        app.use(plugin).use(PrimeVue, {
+            theme: {
+                preset: FasihPreset,
+                options: {
+                    darkModeSelector: '.dark',
+                },
+            },
+        });
+
+        if (el) {
+            app.mount(el);
         }
 
-        createApp({ render: () => h(App, props) })
-            .use(plugin)
-            .use(PrimeVue, {
-                theme: {
-                    preset: FasihPreset,
-                    options: {
-                        darkModeSelector: '.dark',
-                    },
-                },
-            })
-            .mount(el);
+        return app;
     },
     progress: {
         color: '#4B5563',

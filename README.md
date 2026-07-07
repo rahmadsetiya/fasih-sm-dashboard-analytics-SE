@@ -15,9 +15,10 @@ Dashboard monitoring berbasis web untuk memantau progres kerja lapangan **Sensus
 7. [Setup Pertama Kali di Server](#setup-pertama-kali-di-server)
 8. [Manajemen Data](#manajemen-data)
 9. [Halaman & Fitur](#halaman--fitur)
-10. [Struktur Database](#struktur-database)
-11. [File Penting](#file-penting)
-12. [Troubleshooting](#troubleshooting)
+10. [Versioning & Changelog](#versioning--changelog)
+11. [Struktur Database](#struktur-database)
+12. [File Penting](#file-penting)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -424,6 +425,16 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
   `DRAFT + SUBMITTED BY Pencacah + APPROVED BY Pengawas + REJECTED BY Pengawas + EDITED BY Pengawas + REVOKED BY Pengawas`
 
 - Nilai **Progres Lapangan** ditampilkan sebagai total kasus dan persentasenya terhadap `Total Assignment`.
+
+---
+
+## Versioning & Changelog
+
+- Versi aktif aplikasi diatur melalui `APP_VERSION` atau nilai default pada `config/app.php`.
+- Riwayat rilis dikelola terpusat di `config/releases.php` dan ditampilkan melalui modal Changelog di sidebar.
+- Ringkasan perubahan untuk developer tetap dicatat di `CHANGELOG.md`.
+
+Saat merilis versi baru, naikkan `APP_VERSION`, tambahkan entri terbaru di urutan pertama `config/releases.php`, lalu perbarui `CHANGELOG.md`.
 
 ---
 

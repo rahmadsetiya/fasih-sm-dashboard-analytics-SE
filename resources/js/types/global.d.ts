@@ -1,5 +1,13 @@
 import type { Auth } from '@/types/auth';
 
+type ReleaseEntry = {
+    version: string;
+    released_at: string;
+    title: string;
+    summary: string;
+    highlights: string[];
+};
+
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
     interface ImportMetaEnv {
@@ -17,8 +25,11 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            appVersion: string;
             auth: Auth;
             sidebarOpen: boolean;
+            latest_release?: ReleaseEntry | null;
+            release_history?: ReleaseEntry[];
             [key: string]: unknown;
         };
     }
