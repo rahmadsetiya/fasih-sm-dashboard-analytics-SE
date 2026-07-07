@@ -10,8 +10,18 @@ use App\Http\Controllers\PetugasNameController;
 use App\Http\Controllers\RegionNameController;
 use App\Http\Controllers\StatistikController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    $redirectDisabledAnalyticsPage = function () {
+        Inertia::flash('toast', [
+            'type' => 'warning',
+            'message' => 'Halaman ini sementara dinonaktifkan karena data belum dapat diperbarui secara andal.',
+        ]);
+
+        return redirect()->route('dashboard');
+    };
+
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::redirect('/dashboard', '/'); // backward compat
     Route::get('/api/data', [DashboardController::class, 'data'])->name('dashboard.data');
@@ -19,24 +29,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/ringkasan', [DashboardController::class, 'ringkasan'])->name('ringkasan');
     Route::get('/api/ringkasan-data', [DashboardController::class, 'ringkasanData'])->name('ringkasan.data');
+    Route::get('/changelog', fn () => Inertia::render('Changelog', [
+        'currentVersion' => config('app.version'),
+        'releases' => config('releases.history', []),
+    ]))->name('changelog');
 
-    Route::get('/heatmap', [HeatmapController::class, 'index'])->name('heatmap');
+    Route::get('/heatmap', $redirectDisabledAnalyticsPage)->name('heatmap');
     Route::get('/api/heatmap', [HeatmapController::class, 'data'])->name('heatmap.data');
     Route::get('/api/heatmap/hourly', [HeatmapController::class, 'hourly'])->name('heatmap.hourly');
 
-    Route::get('/petugas', [PetugasController::class, 'index'])->name('petugas');
+    Route::get('/petugas', $redirectDisabledAnalyticsPage)->name('petugas');
     Route::get('/api/petugas/list', [PetugasController::class, 'list'])->name('petugas.list');
     Route::get('/api/petugas/turnaround', [PetugasController::class, 'turnaround'])->name('petugas.turnaround');
     Route::get('/api/petugas/quality', [PetugasController::class, 'quality'])->name('petugas.quality');
     Route::get('/api/petugas/gelombang', [PetugasController::class, 'gelombang'])->name('petugas.gelombang');
     Route::get('/api/petugas/matrix', [PetugasController::class, 'matrix'])->name('petugas.matrix');
 
-    Route::get('/penugasan', [PenugasanController::class, 'index'])->name('penugasan');
+    Route::get('/penugasan', $redirectDisabledAnalyticsPage)->name('penugasan');
     Route::get('/api/penugasan', [PenugasanController::class, 'data'])->name('penugasan.data');
     Route::get('/api/penugasan/history', [PenugasanController::class, 'history'])->name('penugasan.history');
     Route::get('/api/penugasan/mangkrak', [PenugasanController::class, 'mangkrak'])->name('penugasan.mangkrak');
 
-    Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik');
+    Route::get('/statistik', $redirectDisabledAnalyticsPage)->name('statistik');
     Route::get('/api/statistik/proporsi', [StatistikController::class, 'proporsi'])->name('statistik.proporsi');
     Route::get('/api/statistik/komparasi', [StatistikController::class, 'komparasi'])->name('statistik.komparasi');
     Route::get('/api/statistik/chi2', [StatistikController::class, 'chi2'])->name('statistik.chi2');

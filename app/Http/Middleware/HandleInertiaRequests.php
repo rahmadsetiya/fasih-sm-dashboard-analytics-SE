@@ -38,6 +38,9 @@ class HandleInertiaRequests extends Middleware
     {
         $latestSnapshot = null;
         $dbPath = config('database.connections.fasih.database');
+        $releaseHistory = config('releases.history', []);
+        $latestRelease = $releaseHistory[0] ?? null;
+
         if (file_exists($dbPath)) {
             try {
                 $row = DB::connection('fasih')
@@ -46,13 +49,14 @@ class HandleInertiaRequests extends Middleware
                     ->first();
                 $latestSnapshot = $row->latest ?? null;
             } catch (\Exception) {
-                // fasih.db exists but table missing — ignore
+                // fasih.db exists but table missing â€” ignore
             }
         }
 
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'appVersion' => config('app.version'),
             'auth' => [
                 'user' => $request->user() ? array_merge(
                     $request->user()->toArray(),
@@ -61,6 +65,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'latest_snapshot' => $latestSnapshot,
+            'latest_release' => $latestRelease,
+            'release_history' => $releaseHistory,
         ];
     }
 }
