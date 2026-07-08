@@ -1,9 +1,61 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '0.3.0'),
+    'version' => env('APP_VERSION', '0.4.2'),
 
     'history' => [
+        [
+            'version' => '0.4.2',
+            'released_at' => '2026-07-08',
+            'title' => 'Konteks Peta dan Batas Wilayah',
+            'summary' => 'Memperjelas orientasi spasial melalui peta dasar dan hierarki garis batas administratif.',
+            'highlights' => [
+                'Menambahkan peta dasar OpenStreetMap di bawah layer progress wilayah.',
+                'Membedakan batas Kecamatan, Desa, SLS, dan Sub-SLS melalui warna serta ketebalan garis.',
+                'Mempertahankan fallback background agar polygon tetap dapat digunakan saat tile tidak tersedia.',
+                'Memperbarui atribusi footer aplikasi untuk IPDS BPS Enrekang.',
+            ],
+        ],
+        [
+            'version' => '0.4.1',
+            'released_at' => '2026-07-08',
+            'title' => 'Filter Petugas dan Detail Wilayah',
+            'summary' => 'Menambahkan eksplorasi wilayah tugas PPL/PML serta rincian progress operasional pada setiap polygon.',
+            'highlights' => [
+                'Menambahkan filter PPL dan PML yang menyorot seluruh wilayah tugas pada peta.',
+                'Menambahkan modal detail wilayah untuk Kecamatan, Desa, SLS, dan Sub-SLS.',
+                'Menampilkan Open, Draft, Submitted, Rejected, dan Approved secara agregat dan per PPL.',
+                'Menampilkan relasi PPL dengan PML tanpa mengekspos email atau username.',
+                'Memindahkan aksi drill-down ke modal detail agar klik polygon konsisten.',
+            ],
+        ],
+        [
+            'version' => '0.4.0',
+            'released_at' => '2026-07-08',
+            'title' => 'Peta Wilayah Interaktif',
+            'summary' => 'Menambahkan eksplorasi progres berbasis polygon hingga Sub-SLS dengan drill-down, perbandingan snapshot, dan laporan kualitas geometri.',
+            'highlights' => [
+                'Menambahkan halaman Peta Wilayah offline berbasis MapLibre dengan 669 polygon wilayah.',
+                'Mendukung drill-down Kecamatan, Desa, SLS, dan Sub-SLS serta detail status dan petugas.',
+                'Menambahkan choropleth progress, approved, submitted, rejected, open, assignment, prioritas, dan coverage.',
+                'Menambahkan perbandingan snapshot, pencarian wilayah, ekspor CSV/PNG, dan deep-link.',
+                'Menambahkan validasi GeoJSON dan laporan coverage join antara geometri dan fasih.db.',
+            ],
+        ],
+        [
+            'version' => '0.3.1',
+            'released_at' => '2026-07-08',
+            'title' => 'Penyempurnaan pengalaman dashboard',
+            'summary' => 'Meningkatkan hierarki visual, pengalaman filter wilayah, keterbacaan data petugas, dan konsistensi grafik tren progres.',
+            'highlights' => [
+                'Mengubah akses changelog menjadi badge yang lebih jelas dan menyederhanakan metadata pada header.',
+                'Memperbarui Filter Wilayah menjadi card interaktif dengan status, chip pilihan, dan animasi.',
+                'Mengoptimalkan layout filter dan kartu metrik untuk desktop serta perangkat mobile.',
+                'Menampilkan nama pengawas dan pencacah dalam format Title Case.',
+                'Menetapkan grafik tren menjadi tujuh titik aktual dan tiga titik proyeksi.',
+                'Menyembunyikan sementara akses Nama Wilayah dari sidebar.',
+            ],
+        ],
         [
             'version' => '0.3.0',
             'released_at' => '2026-07-07',

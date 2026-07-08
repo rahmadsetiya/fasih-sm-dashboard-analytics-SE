@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseImportController;
+use App\Http\Controllers\GeoController;
 use App\Http\Controllers\HeatmapController;
 use App\Http\Controllers\PenugasanController;
 use App\Http\Controllers\PetugasController;
@@ -33,6 +34,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         'currentVersion' => config('app.version'),
         'releases' => config('releases.history', []),
     ]))->name('changelog');
+
+    Route::get('/peta', [GeoController::class, 'index'])->name('peta');
+    Route::get('/api/geo/boundaries', [GeoController::class, 'boundaries'])->name('geo.boundaries');
+    Route::get('/api/geo/metrics', [GeoController::class, 'metrics'])->name('geo.metrics');
+    Route::get('/api/geo/officers', [GeoController::class, 'officers'])->name('geo.officers');
+    Route::get('/api/geo/officers/{userId}/regions', [GeoController::class, 'officerRegions'])->name('geo.officers.regions');
+    Route::get('/api/geo/regions/{level}/{regionId}', [GeoController::class, 'regionDetail'])->name('geo.regions.detail');
+    Route::get('/api/geo/regions/{idsubsls}', [GeoController::class, 'region'])->name('geo.regions.show');
 
     Route::get('/heatmap', $redirectDisabledAnalyticsPage)->name('heatmap');
     Route::get('/api/heatmap', [HeatmapController::class, 'data'])->name('heatmap.data');
