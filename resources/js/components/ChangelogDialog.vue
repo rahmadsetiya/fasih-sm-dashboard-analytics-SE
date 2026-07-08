@@ -54,7 +54,9 @@ function formatDate(value: string): string {
             </button>
         </DialogTrigger>
 
-        <DialogScrollContent class="max-h-[85vh] max-w-2xl overflow-hidden p-0">
+        <DialogScrollContent
+            class="flex max-h-[85dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+        >
             <div
                 class="border-b bg-gradient-to-br from-orange-50 via-background to-amber-50 px-6 py-6 dark:from-orange-950/30 dark:to-background"
             >
@@ -75,7 +77,9 @@ function formatDate(value: string): string {
                 </DialogHeader>
             </div>
 
-            <div class="space-y-7 px-6 py-6">
+            <div
+                class="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain px-6 py-6"
+            >
                 <article
                     v-for="(release, index) in releases"
                     :key="release.version"
