@@ -41,10 +41,16 @@ function formatDate(value: string): string {
                     $props.class,
                 ]"
             >
-                <FileText v-if="!compact" class="size-4 shrink-0" />
+                <FileText class="size-4 shrink-0" />
                 <span>{{
                     compact ? 'Lihat changelog lengkap' : 'Changelog'
                 }}</span>
+                <span
+                    v-if="compact"
+                    class="rounded-full bg-orange-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm dark:bg-orange-400 dark:text-orange-950"
+                >
+                    v{{ page.props.appVersion }}
+                </span>
             </button>
         </DialogTrigger>
 

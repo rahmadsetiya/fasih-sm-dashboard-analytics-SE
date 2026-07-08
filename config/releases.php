@@ -1,9 +1,23 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '0.3.0'),
+    'version' => env('APP_VERSION', '0.3.1'),
 
     'history' => [
+        [
+            'version' => '0.3.1',
+            'released_at' => '2026-07-08',
+            'title' => 'Penyempurnaan pengalaman dashboard',
+            'summary' => 'Meningkatkan hierarki visual, pengalaman filter wilayah, keterbacaan data petugas, dan konsistensi grafik tren progres.',
+            'highlights' => [
+                'Mengubah akses changelog menjadi badge yang lebih jelas dan menyederhanakan metadata pada header.',
+                'Memperbarui Filter Wilayah menjadi card interaktif dengan status, chip pilihan, dan animasi.',
+                'Mengoptimalkan layout filter dan kartu metrik untuk desktop serta perangkat mobile.',
+                'Menampilkan nama pengawas dan pencacah dalam format Title Case.',
+                'Menetapkan grafik tren menjadi tujuh titik aktual dan tiga titik proyeksi.',
+                'Menyembunyikan sementara akses Nama Wilayah dari sidebar.',
+            ],
+        ],
         [
             'version' => '0.3.0',
             'released_at' => '2026-07-07',

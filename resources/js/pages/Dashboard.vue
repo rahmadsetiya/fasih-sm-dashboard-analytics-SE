@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { Sun, Moon, Pencil, X, ChevronDown, ChevronUp } from '@lucide/vue';
+import { Sun, Moon, Pencil, X, ChevronDown, MapPin } from '@lucide/vue';
 import { useDark, useWindowSize } from '@vueuse/core';
 import MultiSelect from 'primevue/multiselect';
 import Select from 'primevue/select';
@@ -10,6 +10,8 @@ import { ref, reactive, watch, computed, onMounted } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
 
 import MobileRankingBars from '../components/dashboard/MobileRankingBars.vue';
+
+defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
     snapshots: string[];
@@ -275,6 +277,27 @@ const totalActiveFilters = computed(
         filters.filter_sls.length,
 );
 
+const selectedFilterChips = computed(() => {
+    const options = [
+        ...(filterOptions.value?.kec ?? []),
+        ...(filterOptions.value?.desa ?? []),
+        ...(filterOptions.value?.sls ?? []),
+    ];
+    const selected = new Set([
+        ...filters.filter_kec,
+        ...filters.filter_desa,
+        ...filters.filter_sls,
+    ]);
+
+    return options.filter((option) => selected.has(option.code));
+});
+
+const filterRegionDescription = computed(() =>
+    totalActiveFilters.value
+        ? `${totalActiveFilters.value} wilayah membatasi data dashboard`
+        : 'Batasi data berdasarkan kecamatan, desa, atau SLS',
+);
+
 // ── filter option groups for PrimeVue MultiSelect ────────────────────────
 const desaGroups = computed(() => {
     const opts = filterOptions.value?.desa ?? [];
@@ -522,7 +545,7 @@ const donutOptions = computed(() => ({
     theme: { mode: chartMode.value },
     labels: donutLabels,
     colors: donutColors.value,
-    legend: { position: 'bottom' as const, fontSize: cFontSm.value },
+    legend: { show: false },
     dataLabels: { enabled: false },
     plotOptions: {
         pie: {
@@ -630,10 +653,14 @@ interface ProjPoint {
     y: number;
 }
 const DEADLINE = new Date('2026-08-31T23:59:59+08:00');
-const PROJECTION_WINDOW_DAYS = 3;
+const REAL_TREND_POINT_COUNT = 7;
+const PROJECTION_POINT_COUNT = 3;
+const realTrendPoints = computed(() =>
+    trend.value.slice(-REAL_TREND_POINT_COUNT),
+);
 
 const projectionPoints = computed<ProjPoint[]>(() => {
-    const pts = trend.value;
+    const pts = realTrendPoints.value;
 
     if (pts.length < 2) {
         return [];
@@ -654,12 +681,6 @@ const projectionPoints = computed<ProjPoint[]>(() => {
     const slope = num / den;
     const intercept = yMean - slope * xMean;
 
-    if (slope <= 0) {
-        return [];
-    }
-
-    const stepsToHundred = Math.ceil((100 - intercept) / slope) - (n - 1);
-    const maxSteps = Math.min(stepsToHundred + 1, 10);
     const snapInterval =
         n >= 2
             ? (new Date(pts[n - 1].snapshot_at).getTime() -
@@ -668,32 +689,23 @@ const projectionPoints = computed<ProjPoint[]>(() => {
             : 24 * 60 * 60 * 1000;
     const result: ProjPoint[] = [];
     const lastDate = new Date(pts[n - 1].snapshot_at);
-    const projectionWindowEnd = new Date(lastDate);
-    projectionWindowEnd.setDate(
-        projectionWindowEnd.getDate() + PROJECTION_WINDOW_DAYS,
-    );
 
-    for (let s = 1; s <= maxSteps; s++) {
-        const projY = Math.min(100, slope * (n - 1 + s) + intercept);
+    for (let s = 1; s <= PROJECTION_POINT_COUNT; s++) {
+        const projY = Math.max(
+            0,
+            Math.min(100, slope * (n - 1 + s) + intercept),
+        );
         const projDate = new Date(lastDate.getTime() + snapInterval * s);
-
-        if (projDate > DEADLINE || projDate > projectionWindowEnd) {
-            break;
-        }
 
         const label = `${projDate.getDate().toString().padStart(2, '0')}/${(projDate.getMonth() + 1).toString().padStart(2, '0')} ${projDate.getHours().toString().padStart(2, '0')}:${projDate.getMinutes().toString().padStart(2, '0')}`;
         result.push({ label, y: Math.round(projY * 10) / 10 });
-
-        if (projY >= 100) {
-            break;
-        }
     }
 
     return result;
 });
 
 const projectionEstDate = computed<string | null>(() => {
-    const pts = trend.value;
+    const pts = realTrendPoints.value;
 
     if (pts.length < 2) {
         return null;
@@ -778,15 +790,16 @@ const funnelRows = computed(() => {
 });
 
 const trendSeries = computed(() => {
+    const actual = realTrendPoints.value;
     const series: { name: string; data: (number | null)[] }[] = [
-        { name: 'Progress %', data: trend.value.map((t) => t.progress_pct) },
-        { name: 'Submitted %', data: trend.value.map((t) => t.submitted_pct) },
-        { name: 'Approved %', data: trend.value.map((t) => t.approved_pct) },
+        { name: 'Progress %', data: actual.map((t) => t.progress_pct) },
+        { name: 'Submitted %', data: actual.map((t) => t.submitted_pct) },
+        { name: 'Approved %', data: actual.map((t) => t.approved_pct) },
     ];
 
     if (projectionPoints.value.length >= 1) {
-        const nullPad: (number | null)[] = trend.value.map(() => null);
-        const last = trend.value[trend.value.length - 1]?.progress_pct ?? null;
+        const nullPad: (number | null)[] = actual.map(() => null);
+        const last = actual[actual.length - 1]?.progress_pct ?? null;
         series.push({
             name: 'Proyeksi',
             data: [
@@ -800,7 +813,7 @@ const trendSeries = computed(() => {
     return series;
 });
 const trendCategories = computed(() => {
-    const real = trend.value.map((t) => {
+    const real = realTrendPoints.value.map((t) => {
         const d = new Date(t.snapshot_at);
 
         return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -812,9 +825,10 @@ const trendCategories = computed(() => {
 const trendMax = computed(() => {
     const maxVal = Math.max(
         0,
-        ...trend.value.map((t) =>
+        ...realTrendPoints.value.map((t) =>
             Math.max(t.progress_pct, t.submitted_pct, t.approved_pct),
         ),
+        ...projectionPoints.value.map((point) => point.y),
     );
 
     return Math.ceil((maxVal + 5) / 5) * 5 || 20;
@@ -1127,8 +1141,10 @@ function rowContext(row: BreakdownRow): string {
     <!-- ── dashboard ──────────────────────────────────────────────────── -->
     <div v-else class="flex h-full flex-1 flex-col gap-3 overflow-x-auto p-4">
         <!-- Filter bar -->
-        <div class="rounded-xl border border-border bg-card px-3 py-2">
-            <div class="flex flex-col gap-3 md:hidden">
+        <div
+            class="sticky top-0 z-30 rounded-xl border border-border bg-card/95 px-3 py-2 shadow-sm backdrop-blur"
+        >
+            <div class="flex flex-col gap-2.5 md:hidden">
                 <div class="flex items-start gap-2">
                     <div class="min-w-0 flex-1">
                         <span
@@ -1196,13 +1212,13 @@ function rowContext(row: BreakdownRow): string {
                         class="block text-xs font-medium text-muted-foreground"
                         >Mode Ringkasan</span
                     >
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-3 gap-1.5">
                         <button
                             v-for="tab in levelOptions"
                             :key="tab.value"
                             type="button"
                             :class="[
-                                'flex min-h-12 items-center justify-center rounded-xl border px-3 py-2 text-center text-xs leading-tight font-medium transition-colors',
+                                'flex min-h-10 items-center justify-center rounded-lg border px-2 py-2 text-center text-[11px] leading-tight font-medium transition-colors',
                                 filters.level === tab.value
                                     ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                                     : 'border-input bg-background text-foreground hover:bg-muted',
@@ -1368,155 +1384,205 @@ function rowContext(row: BreakdownRow): string {
         <!-- Filter Wilayah — stacked cascading panel -->
         <div
             v-if="filterOptions !== null"
-            class="rounded-xl border border-border bg-card"
+            :class="[
+                'overflow-hidden rounded-2xl border bg-card shadow-sm transition-all duration-200',
+                totalActiveFilters
+                    ? 'border-orange-400/60 bg-gradient-to-r from-orange-500/10 via-card to-card shadow-orange-500/10'
+                    : 'border-orange-300/35 bg-gradient-to-r from-orange-500/5 via-card to-card hover:border-orange-400/50 hover:shadow-md',
+            ]"
         >
             <!-- Toggle header -->
             <button
-                :class="[
-                    'flex w-full items-center justify-between rounded-t-xl px-4 py-2.5 text-sm font-semibold transition-colors',
-                    filterPanelOpen ? 'bg-secondary' : 'hover:bg-secondary/60',
-                ]"
+                class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-orange-500/5"
                 @click="filterPanelOpen = !filterPanelOpen"
+                :aria-expanded="filterPanelOpen"
             >
-                <div class="flex items-center gap-2">
+                <div class="flex min-w-0 items-center gap-3">
                     <span
-                        class="text-xs font-bold tracking-wide text-accent-ink uppercase"
-                        >Filter Wilayah</span
+                        class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/12 text-orange-600 ring-1 ring-orange-500/20 dark:text-orange-300"
                     >
+                        <MapPin class="size-5" />
+                    </span>
+                    <span class="min-w-0">
+                        <span
+                            class="block text-sm font-bold tracking-wide text-foreground"
+                        >
+                            Filter Wilayah
+                        </span>
+                        <span
+                            class="mt-0.5 block truncate text-xs font-normal text-muted-foreground"
+                        >
+                            {{ filterRegionDescription }}
+                        </span>
+                    </span>
+                </div>
+                <span class="flex shrink-0 items-center gap-2">
                     <span
                         v-if="totalActiveFilters"
-                        class="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground"
-                        >{{ totalActiveFilters }}</span
+                        class="rounded-full bg-orange-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm"
                     >
-                </div>
-                <ChevronDown
-                    v-if="!filterPanelOpen"
-                    class="size-4 text-muted-foreground"
-                />
-                <ChevronUp v-else class="size-4 text-muted-foreground" />
+                        {{ totalActiveFilters }} aktif
+                    </span>
+                    <span
+                        class="flex size-8 items-center justify-center rounded-full border border-border bg-background/80 text-muted-foreground shadow-sm"
+                    >
+                        <ChevronDown
+                            class="size-4 transition-transform duration-200"
+                            :class="filterPanelOpen ? 'rotate-180' : ''"
+                        />
+                    </span>
+                </span>
             </button>
 
             <div
-                v-if="filterPanelOpen"
-                class="grid grid-cols-1 gap-3 border-t border-border px-4 py-3 sm:grid-cols-2 lg:grid-cols-3"
+                v-if="selectedFilterChips.length && !filterPanelOpen"
+                class="flex flex-wrap items-center gap-1.5 px-4 pb-3 pl-[4.25rem]"
             >
-                <!-- PROVINSI (readonly) -->
-                <div v-if="filterOptions.prov.length">
-                    <p
-                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
-                    >
-                        Provinsi
-                    </p>
-                    <div
-                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-dashed border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground/70 opacity-80 select-none"
-                    >
-                        <span class="italic">{{
-                            filterOptions.prov[0]?.label ?? '—'
-                        }}</span>
-                        <span class="text-[10px] text-muted-foreground/40"
-                            >hanya baca</span
-                        >
-                    </div>
-                </div>
-
-                <!-- KABUPATEN/KOTA (readonly) -->
-                <div v-if="filterOptions.kab.length">
-                    <p
-                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
-                    >
-                        Kabupaten/Kota
-                    </p>
-                    <div
-                        class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-dashed border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground/70 opacity-80 select-none"
-                    >
-                        <span class="italic">{{
-                            filterOptions.kab[0]?.label ?? '—'
-                        }}</span>
-                        <span class="text-[10px] text-muted-foreground/40"
-                            >hanya baca</span
-                        >
-                    </div>
-                </div>
-
-                <!-- KECAMATAN -->
-                <div v-if="showKecFilter">
-                    <p
-                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
-                    >
-                        Kecamatan
-                    </p>
-                    <MultiSelect
-                        v-model="filters.filter_kec"
-                        :options="filterOptions!.kec"
-                        optionLabel="label"
-                        optionValue="code"
-                        filter
-                        :showToggleAll="true"
-                        placeholder="Pilih kecamatan"
-                        :maxSelectedLabels="2"
-                        selectedItemsLabel="{0} dipilih"
-                        class="w-full text-sm"
-                        display="chip"
-                    />
-                </div>
-
-                <!-- DESA -->
-                <div v-if="showDesaFilter">
-                    <p
-                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
-                    >
-                        Desa
-                    </p>
-                    <MultiSelect
-                        v-model="filters.filter_desa"
-                        :options="desaGroups"
-                        optionGroupLabel="label"
-                        optionGroupChildren="items"
-                        optionLabel="label"
-                        optionValue="code"
-                        filter
-                        :showToggleAll="true"
-                        placeholder="Pilih desa"
-                        :maxSelectedLabels="2"
-                        selectedItemsLabel="{0} dipilih"
-                        class="w-full text-sm"
-                        display="chip"
-                    />
-                </div>
-
-                <!-- SLS -->
-                <div v-if="showSlsFilter">
-                    <p
-                        class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
-                    >
-                        SLS
-                    </p>
-                    <MultiSelect
-                        v-model="filters.filter_sls"
-                        :options="slsGroups"
-                        optionGroupLabel="label"
-                        optionGroupChildren="items"
-                        optionLabel="label"
-                        optionValue="code"
-                        filter
-                        :showToggleAll="true"
-                        placeholder="Pilih SLS"
-                        :maxSelectedLabels="2"
-                        selectedItemsLabel="{0} dipilih"
-                        class="w-full text-sm"
-                        display="chip"
-                    />
-                </div>
-
-                <!-- Reset button -->
-                <button
-                    v-if="totalActiveFilters"
-                    class="col-span-full rounded-md border border-input py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted focus:outline-none"
-                    @click="clearAllFilters"
+                <span
+                    v-for="chip in selectedFilterChips.slice(0, 3)"
+                    :key="chip.code"
+                    class="max-w-44 truncate rounded-full border border-orange-300/50 bg-orange-100/70 px-2.5 py-1 text-[10px] font-semibold text-orange-800 dark:bg-orange-500/10 dark:text-orange-200"
                 >
-                    Reset
-                </button>
+                    {{ chip.label }}
+                </span>
+                <span
+                    v-if="selectedFilterChips.length > 3"
+                    class="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground"
+                >
+                    +{{ selectedFilterChips.length - 3 }} lainnya
+                </span>
             </div>
+
+            <Transition
+                enter-active-class="transition duration-200 ease-out"
+                enter-from-class="-translate-y-2 opacity-0"
+                enter-to-class="translate-y-0 opacity-100"
+                leave-active-class="transition duration-150 ease-in"
+                leave-from-class="translate-y-0 opacity-100"
+                leave-to-class="-translate-y-2 opacity-0"
+            >
+                <div
+                    v-if="filterPanelOpen"
+                    class="grid grid-cols-1 gap-3 border-t border-orange-300/25 bg-background/35 px-4 py-4 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                    <!-- PROVINSI (readonly) -->
+                    <div v-if="filterOptions.prov.length">
+                        <p
+                            class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            Provinsi
+                        </p>
+                        <div
+                            class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-dashed border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground/70 opacity-80 select-none"
+                        >
+                            <span class="italic">{{
+                                filterOptions.prov[0]?.label ?? '—'
+                            }}</span>
+                            <span class="text-[10px] text-muted-foreground/40"
+                                >hanya baca</span
+                            >
+                        </div>
+                    </div>
+
+                    <!-- KABUPATEN/KOTA (readonly) -->
+                    <div v-if="filterOptions.kab.length">
+                        <p
+                            class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            Kabupaten/Kota
+                        </p>
+                        <div
+                            class="flex w-full cursor-not-allowed items-center justify-between rounded-md border border-dashed border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground/70 opacity-80 select-none"
+                        >
+                            <span class="italic">{{
+                                filterOptions.kab[0]?.label ?? '—'
+                            }}</span>
+                            <span class="text-[10px] text-muted-foreground/40"
+                                >hanya baca</span
+                            >
+                        </div>
+                    </div>
+
+                    <!-- KECAMATAN -->
+                    <div v-if="showKecFilter">
+                        <p
+                            class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            Kecamatan
+                        </p>
+                        <MultiSelect
+                            v-model="filters.filter_kec"
+                            :options="filterOptions!.kec"
+                            optionLabel="label"
+                            optionValue="code"
+                            filter
+                            :showToggleAll="true"
+                            placeholder="Pilih kecamatan"
+                            :maxSelectedLabels="2"
+                            selectedItemsLabel="{0} dipilih"
+                            class="w-full text-sm"
+                            display="chip"
+                        />
+                    </div>
+
+                    <!-- DESA -->
+                    <div v-if="showDesaFilter">
+                        <p
+                            class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            Desa
+                        </p>
+                        <MultiSelect
+                            v-model="filters.filter_desa"
+                            :options="desaGroups"
+                            optionGroupLabel="label"
+                            optionGroupChildren="items"
+                            optionLabel="label"
+                            optionValue="code"
+                            filter
+                            :showToggleAll="true"
+                            placeholder="Pilih desa"
+                            :maxSelectedLabels="2"
+                            selectedItemsLabel="{0} dipilih"
+                            class="w-full text-sm"
+                            display="chip"
+                        />
+                    </div>
+
+                    <!-- SLS -->
+                    <div v-if="showSlsFilter">
+                        <p
+                            class="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            SLS
+                        </p>
+                        <MultiSelect
+                            v-model="filters.filter_sls"
+                            :options="slsGroups"
+                            optionGroupLabel="label"
+                            optionGroupChildren="items"
+                            optionLabel="label"
+                            optionValue="code"
+                            filter
+                            :showToggleAll="true"
+                            placeholder="Pilih SLS"
+                            :maxSelectedLabels="2"
+                            selectedItemsLabel="{0} dipilih"
+                            class="w-full text-sm"
+                            display="chip"
+                        />
+                    </div>
+
+                    <!-- Reset button -->
+                    <button
+                        v-if="totalActiveFilters"
+                        class="col-span-full rounded-lg border border-orange-300/40 bg-orange-50/60 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100 focus:outline-none dark:bg-orange-500/10 dark:text-orange-200"
+                        @click="clearAllFilters"
+                    >
+                        Hapus semua filter wilayah
+                    </button>
+                </div>
+            </Transition>
         </div>
 
         <!-- Metric cards -->
@@ -1527,7 +1593,7 @@ function rowContext(row: BreakdownRow): string {
                         label: 'Petugas',
                         value: metrics.total_petugas,
                         fmt: 'n',
-                        color: 'text-violet-600 dark:text-violet-400',
+                        color: 'text-foreground',
                         ring: '',
                         tooltip: '',
                     },
@@ -1535,7 +1601,7 @@ function rowContext(row: BreakdownRow): string {
                         label: 'Kecamatan',
                         value: metrics.total_kec,
                         fmt: 'n',
-                        color: 'text-blue-600 dark:text-blue-400',
+                        color: 'text-foreground',
                         ring: '',
                         tooltip: '',
                     },
@@ -1543,7 +1609,7 @@ function rowContext(row: BreakdownRow): string {
                         label: 'Desa',
                         value: metrics.total_desa,
                         fmt: 'n',
-                        color: 'text-cyan-600 dark:text-cyan-400',
+                        color: 'text-foreground',
                         ring: '',
                         tooltip: '',
                     },
@@ -1561,7 +1627,7 @@ function rowContext(row: BreakdownRow): string {
                         fmt: 'p',
                         color: '',
                         hex: '#FFA95A',
-                        ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
+                        ring: 'border-[#FFA95A]/60 bg-[#FFA95A]/10 shadow-md shadow-orange-500/10 dark:bg-[#FFA95A]/12',
                         tooltip:
                             'Progress = (Total − OPEN − DRAFT) ÷ Total × 100%. Status OPEN dan DRAFT belum diproses, tidak dihitung sebagai progress.',
                     },
@@ -1662,8 +1728,9 @@ function rowContext(row: BreakdownRow): string {
                         class="flex items-center gap-2"
                     >
                         <span
-                            class="w-14 shrink-0 text-right text-[10px] text-muted-foreground"
-                            >{{ row.label }}</span
+                            class="w-28 shrink-0 text-right text-[10px] leading-tight text-muted-foreground"
+                            :title="row.title"
+                            >{{ row.title }}</span
                         >
                         <div
                             class="h-3 flex-1 overflow-hidden rounded-full bg-muted"
@@ -1730,7 +1797,15 @@ function rowContext(row: BreakdownRow): string {
             v-if="trend.length >= 1"
             class="rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
         >
-            <h3 class="mb-1 text-sm font-semibold">Tren Progress Over Time</h3>
+            <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold">Tren Progress Over Time</h3>
+                <span
+                    v-if="realTrendPoints.length >= REAL_TREND_POINT_COUNT"
+                    class="rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-600 dark:text-violet-300"
+                >
+                    7 aktual + 3 proyeksi
+                </span>
+            </div>
             <VueApexCharts
                 type="line"
                 :height="trend.length === 1 ? 120 : 200"

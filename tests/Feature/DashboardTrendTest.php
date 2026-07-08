@@ -44,7 +44,7 @@ class DashboardTrendTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_trend_keeps_only_the_latest_snapshot_for_each_date(): void
+    public function test_trend_keeps_multiple_snapshots_from_the_same_date(): void
     {
         DB::connection('fasih')->table('progress_pengawas')->insert([
             [
@@ -83,6 +83,13 @@ class DashboardTrendTest extends TestCase
         $this->assertSame(
             [
                 [
+                    'snapshot_at' => '2026-06-26T09:00:00+08:00',
+                    'progress_pct' => 10.0,
+                    'submitted_pct' => 5.0,
+                    'approved_pct' => 2.0,
+                    'total' => 100,
+                ],
+                [
                     'snapshot_at' => '2026-06-26T18:00:00+08:00',
                     'progress_pct' => 30.0,
                     'submitted_pct' => 20.0,
@@ -101,9 +108,17 @@ class DashboardTrendTest extends TestCase
         );
     }
 
-    public function test_trend_only_keeps_the_last_five_calendar_days_relative_to_latest_snapshot(): void
+    public function test_trend_keeps_the_latest_seven_snapshots(): void
     {
         DB::connection('fasih')->table('progress_pengawas')->insert([
+            [
+                'snapshot_at' => '2026-06-19T08:00:00+08:00',
+                'region_total' => 100,
+                'OPEN' => 95,
+                'DRAFT' => 3,
+                'SUBMITTED BY Pencacah' => 1,
+                'APPROVED BY Pengawas' => 0,
+            ],
             [
                 'snapshot_at' => '2026-06-20T08:00:00+08:00',
                 'region_total' => 100,
@@ -171,10 +186,12 @@ class DashboardTrendTest extends TestCase
 
         $this->assertSame(
             [
+                '2026-06-20T08:00:00+08:00',
                 '2026-06-21T08:00:00+08:00',
                 '2026-06-22T18:00:00+08:00',
                 '2026-06-23T18:00:00+08:00',
                 '2026-06-24T18:00:00+08:00',
+                '2026-06-25T09:00:00+08:00',
                 '2026-06-25T17:09:00+08:00',
             ],
             array_column($trend, 'snapshot_at'),

@@ -7,6 +7,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -323,7 +324,7 @@ class DashboardController extends Controller
                 ")->groupBy('kdkec', 'nmkec')->get(),
         };
 
-        return $rows->map(function ($r) use ($nameOverrides) {
+        return $rows->map(function ($r) use ($level, $nameOverrides) {
             $total = (int) ($r->total ?: 1);
             $open = (int) ($r->OPEN ?? 0);
             $draft = (int) ($r->DRAFT ?? 0);
@@ -345,6 +346,10 @@ class DashboardController extends Controller
             if (! is_string($label) || trim($label) === '') {
                 $grpKey = is_scalar($r->grp_key) ? trim((string) $r->grp_key) : '';
                 $label = $grpKey !== '' ? "Tanpa label ($grpKey)" : 'Tanpa label wilayah';
+            }
+
+            if (in_array($level, ['by_pengawas', 'by_pencacah'], true)) {
+                $label = Str::title(Str::lower(trim($label)));
             }
 
             $row = [
@@ -390,23 +395,19 @@ class DashboardController extends Controller
         $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
         $latestSnapshots = (clone $query)
-            ->selectRaw('MAX(snapshot_at) as snapshot_at')
-            ->groupByRaw('substr(snapshot_at, 1, 10)')
+            ->whereNotNull('snapshot_at')
+            ->select('snapshot_at')
+            ->distinct()
+            ->orderByDesc('snapshot_at')
+            ->limit(7)
             ->pluck('snapshot_at')
+            ->sort()
+            ->values()
             ->all();
 
         if ($latestSnapshots === []) {
             return [];
         }
-
-        $latestSnapshot = max($latestSnapshots);
-        $cutoffDate = (new \DateTimeImmutable($latestSnapshot))
-            ->modify('-4 days')
-            ->format('Y-m-d');
-        $latestSnapshots = array_values(array_filter(
-            $latestSnapshots,
-            fn ($snapshot) => substr((string) $snapshot, 0, 10) >= $cutoffDate,
-        ));
 
         return $query
             ->whereIn('snapshot_at', $latestSnapshots)

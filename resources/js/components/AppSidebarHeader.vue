@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Clock3, Menu, Sparkles } from '@lucide/vue';
+import { Clock3, Menu } from '@lucide/vue';
 import { computed } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { useSidebar } from '@/composables/useSidebar';
@@ -84,14 +84,8 @@ const latestSnapshotLabel = computed(() => {
                     class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
                 >
                     <div class="min-w-0">
-                        <div
-                            class="inline-flex items-center gap-2 rounded-full bg-orange-100/80 px-3 py-1 text-[11px] font-semibold tracking-[0.2em] text-orange-700 uppercase dark:bg-orange-500/15 dark:text-orange-200"
-                        >
-                            <Sparkles class="size-3.5" />
-                            Analytics Workspace
-                        </div>
                         <h1
-                            class="mt-3 text-xl font-semibold tracking-tight text-foreground md:text-2xl"
+                            class="text-xl font-semibold tracking-tight text-foreground md:text-2xl"
                         >
                             {{ pageTitle }}
                         </h1>
@@ -102,33 +96,31 @@ const latestSnapshotLabel = computed(() => {
                         </p>
                     </div>
 
-                    <div class="grid gap-2 sm:grid-cols-2 md:min-w-[21rem]">
+                    <div
+                        class="flex flex-wrap items-center gap-2 md:max-w-md md:justify-end"
+                    >
                         <div
-                            class="rounded-2xl border border-sidebar-border/70 bg-card px-4 py-3 shadow-sm"
+                            class="inline-flex items-center gap-2 rounded-full border border-sidebar-border/70 bg-card px-3 py-2 shadow-sm"
                         >
                             <p
-                                class="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase"
+                                class="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
                             >
-                                Versi aktif
+                                Versi
                             </p>
-                            <p
-                                class="mt-1 text-sm font-semibold text-foreground"
-                            >
+                            <p class="text-xs font-semibold text-foreground">
                                 v{{ page.props.appVersion }}
                             </p>
                         </div>
                         <div
-                            class="rounded-2xl border border-sidebar-border/70 bg-card px-4 py-3 shadow-sm"
+                            class="inline-flex items-center gap-2 rounded-full border border-sidebar-border/70 bg-card px-3 py-2 shadow-sm"
                         >
                             <div
-                                class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase"
+                                class="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
                             >
                                 <Clock3 class="size-3.5" />
-                                Snapshot data
+                                Snapshot
                             </div>
-                            <p
-                                class="mt-1 text-sm font-semibold text-foreground"
-                            >
+                            <p class="text-xs font-semibold text-foreground">
                                 {{ latestSnapshotLabel }}
                             </p>
                         </div>

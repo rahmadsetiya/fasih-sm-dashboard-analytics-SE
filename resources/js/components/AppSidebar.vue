@@ -9,7 +9,6 @@ import ImportDbButton from '@/components/ImportDbButton.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import RegionNamesButton from '@/components/RegionNamesButton.vue';
 import { useSidebar } from '@/composables/useSidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
@@ -72,11 +71,10 @@ const footerNavItems: NavItem[] = [];
 
         <div class="shrink-0 space-y-2 border-t border-sidebar-border/80 p-3">
             <ChangelogDialog
-                class="inline-flex rounded-md px-3 py-1.5 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-50 hover:text-orange-800 dark:text-orange-200 dark:hover:bg-orange-500/10"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-800 shadow-sm transition-all hover:border-orange-300 hover:bg-orange-100 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-100 dark:hover:bg-orange-500/15"
                 compact
             />
             <ImportDbButton />
-            <RegionNamesButton />
             <NavUser />
             <p
                 class="px-3 pt-1 text-center text-[10px] leading-tight text-muted-foreground/45"
@@ -135,11 +133,10 @@ const footerNavItems: NavItem[] = [];
 
         <div class="shrink-0 space-y-2 border-t border-sidebar-border/80 p-3">
             <ChangelogDialog
-                class="inline-flex rounded-md px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-50 dark:text-orange-200 dark:hover:bg-orange-500/10"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-800 shadow-sm transition-all hover:border-orange-300 hover:bg-orange-100 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-100 dark:hover:bg-orange-500/15"
                 compact
             />
             <ImportDbButton />
-            <RegionNamesButton />
             <NavUser />
         </div>
     </Drawer>
