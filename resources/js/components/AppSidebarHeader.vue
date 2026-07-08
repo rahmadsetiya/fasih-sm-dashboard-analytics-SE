@@ -34,6 +34,10 @@ const pageTitle = computed(() => {
         return 'Changelog Produk';
     }
 
+    if (page.url.startsWith('/peta')) {
+        return 'Peta Wilayah';
+    }
+
     return 'Dashboard FASIH';
 });
 
@@ -44,6 +48,10 @@ const pageSubtitle = computed(() => {
 
     if (page.url.startsWith('/changelog')) {
         return 'Riwayat update produk, perbaikan, dan status modul terbaru.';
+    }
+
+    if (page.url.startsWith('/peta')) {
+        return 'Eksplorasi progres lapangan secara spasial hingga level Sub-SLS.';
     }
 
     return 'Pusat analitik internal untuk memantau progres, snapshot, dan kualitas data lapangan.';

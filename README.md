@@ -436,6 +436,12 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 
 Saat merilis versi baru, naikkan `APP_VERSION`, tambahkan entri terbaru di urutan pertama `config/releases.php`, lalu perbarui `CHANGELOG.md`.
 
+### Format GeoJSON Wilayah
+
+Peta wilayah membaca `storage/app/final_sls_202517316.geojson`. File harus berupa `FeatureCollection` dengan geometri `Polygon` atau `MultiPolygon` dalam CRS84. Properti join wajib adalah `idsubsls`; properti hierarki yang digunakan adalah `idkec`, `iddesa`, dan `idsls`.
+
+Saat endpoint boundaries pertama kali dipanggil, aplikasi membuat artifact tersanitasi di `storage/app/private/geo/boundaries.json`. Hanya kode, nama wilayah, luas, periode, dan geometri yang diteruskan ke browser. Path sumber dan atribut internal lainnya dibuang.
+
 ---
 
 ## Struktur Database

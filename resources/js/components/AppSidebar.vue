@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart3, ClipboardList, Users, X } from '@lucide/vue';
+import { BarChart3, ClipboardList, Map, Users, X } from '@lucide/vue';
 import Drawer from 'primevue/drawer';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -23,6 +23,7 @@ const isAdmin = computed(() => page.props.auth?.user?.is_admin ?? false);
 const mainNavItems: NavItem[] = [
     { title: 'Ringkasan Kabupaten', href: '/ringkasan', icon: ClipboardList },
     { title: 'Dashboard FASIH', href: '/', icon: BarChart3 },
+    { title: 'Peta Wilayah', href: '/peta', icon: Map },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -79,7 +80,7 @@ const footerNavItems: NavItem[] = [];
             <p
                 class="px-3 pt-1 text-center text-[10px] leading-tight text-muted-foreground/45"
             >
-                Dashboard internal IPDS BPS Enrekang
+                Build with ♥️ IPDS BPS Enrekang
             </p>
         </div>
     </aside>

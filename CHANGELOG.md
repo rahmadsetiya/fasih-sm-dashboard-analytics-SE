@@ -4,6 +4,50 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 
 Format changelog ini mengikuti pendekatan ringkas berbasis versi aplikasi yang ditampilkan ke user di dalam dashboard.
 
+## [0.4.2] - 2026-07-08
+
+### Ditambahkan
+- Peta dasar OpenStreetMap untuk memberi konteks jalan dan lokasi di balik polygon progress.
+- Layer batas bertingkat dengan garis berbeda untuk Kecamatan, Desa, SLS, dan Sub-SLS.
+- Fallback background lokal agar peta operasional tetap dapat digunakan saat tile eksternal tidak tersedia.
+
+### Diubah
+- Warna dan ketebalan batas menyesuaikan mode terang/gelap dan tingkat zoom.
+- Footer sidebar menjadi `Build with ♥️ IPDS BPS Enrekang`.
+
+## [0.4.1] - 2026-07-08
+
+### Ditambahkan
+- Filter PPL/PML untuk menyorot dan menyesuaikan viewport ke seluruh wilayah tugas petugas.
+- Modal detail pada setiap level wilayah dengan ringkasan Open, Draft, Submitted, Rejected, dan Approved.
+- Rincian progress per pencacah beserta PML penanggung jawab dan pencarian nama petugas.
+- Deep-link untuk mempertahankan filter petugas aktif.
+
+### Diubah
+- Klik polygon membuka modal detail; drill-down dilakukan melalui tombol di dalam modal.
+- Polygon di luar wilayah tugas petugas diredupkan tanpa menghilangkan konteks geografis.
+
+### Keamanan
+- API petugas hanya mengirim ID internal, nama, peran, dan cakupan tugas tanpa email atau username.
+
+## [0.4.0] - 2026-07-08
+
+### Ditambahkan
+- Halaman Peta Wilayah berbasis MapLibre yang berfungsi tanpa tile atau basemap eksternal.
+- Choropleth hingga Sub-SLS untuk Progress, Submitted, Approved, Rejected, Open, assignment, prioritas, dan coverage.
+- Drill-down wilayah, pencarian, tooltip, detail status/petugas/tren, dan breadcrumb.
+- Perbandingan dua snapshot dalam bentuk delta spasial.
+- Daftar wilayah prioritas, laporan kualitas geometri, ekspor CSV/PNG, dan deep-link.
+- Pipeline sanitasi GeoJSON dengan ETag serta cache privat.
+- API geospasial terautentikasi untuk boundaries, metrics, dan detail wilayah.
+
+### Keamanan
+- Properti internal GeoJSON seperti path sumber, email, dan metadata proses tidak dikirim ke browser.
+
+### Kualitas Data
+- Seluruh 669 polygon riil cocok dengan kode wilayah di `fasih.db`.
+- Kode sentinel `7316000000000000` dilaporkan terpisah sebagai data tanpa geometri.
+
 ## [0.3.1] - 2026-07-08
 
 ### Ditambahkan
