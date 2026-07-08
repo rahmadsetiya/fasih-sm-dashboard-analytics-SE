@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use JsonException;
 use RuntimeException;
+use stdClass;
 
 class GeoSpatialService
 {
@@ -24,6 +26,8 @@ class GeoSpatialService
         'REVOKED BY Pengawas',
         'SUBMITTED RESPONDENT',
     ];
+
+    private const STATUS_AGGREGATE_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT"';
 
     private const SAFE_PROPERTIES = [
         'kdprov', 'kdkab', 'kdkec', 'kddesa', 'kdsls', 'kdsubsls',
@@ -130,7 +134,23 @@ class GeoSpatialService
     {
         $prepared = $this->prepare();
         $geojson = json_decode(File::get($prepared['path']), true, 512, JSON_THROW_ON_ERROR);
-        $geoIds = collect($geojson['features'])->pluck('properties.idsubsls')->filter()->map(fn ($id) => (string) $id)->unique();
+        $geoIdValues = [];
+        $features = is_array($geojson) && is_array($geojson['features'] ?? null)
+            ? $geojson['features']
+            : [];
+
+        foreach ($features as $feature) {
+            if (! is_array($feature) || ! is_array($feature['properties'] ?? null)) {
+                continue;
+            }
+
+            $id = $feature['properties']['idsubsls'] ?? null;
+            if (is_string($id) && $id !== '') {
+                $geoIdValues[] = $id;
+            }
+        }
+
+        $geoIds = array_values(array_unique($geoIdValues));
         $table = $this->tableForRole($role);
         $dbIds = DB::connection('fasih')->table($table)
             ->whereNotNull('idsubsls')
@@ -139,17 +159,18 @@ class GeoSpatialService
             ->pluck('idsubsls')
             ->map(fn ($id) => (string) $id)
             ->unique();
-        $sentinels = $dbIds->filter(fn (string $id) => str_ends_with($id, '000000000000'))->values();
-        $realDbIds = $dbIds->diff($sentinels);
-        $matched = $geoIds->intersect($realDbIds);
+        $dbIdValues = $dbIds->values()->all();
+        $sentinels = array_values(array_filter($dbIdValues, fn (string $id) => str_ends_with($id, '000000000000')));
+        $realDbIds = array_values(array_diff($dbIdValues, $sentinels));
+        $matched = array_intersect($geoIds, $realDbIds);
 
         return [
             ...$prepared['report'],
-            'matched' => $matched->count(),
-            'geojson_only' => $geoIds->diff($realDbIds)->values()->all(),
-            'database_only' => $realDbIds->diff($geoIds)->values()->all(),
-            'database_sentinels' => $sentinels->all(),
-            'coverage_pct' => $realDbIds->isEmpty() ? 100 : round($matched->count() / $realDbIds->count() * 100, 2),
+            'matched' => count($matched),
+            'geojson_only' => array_values(array_diff($geoIds, $realDbIds)),
+            'database_only' => array_values(array_diff($realDbIds, $geoIds)),
+            'database_sentinels' => $sentinels,
+            'coverage_pct' => $realDbIds === [] ? 100 : round(count($matched) / count($realDbIds) * 100, 2),
         ];
     }
 
@@ -378,6 +399,10 @@ class GeoSpatialService
         $query->where($column, 'like', $id.'%');
     }
 
+    /**
+     * @param  literal-string  $column
+     * @return literal-string
+     */
     private function normalizedIdSql(string $column): string
     {
         return "CASE WHEN typeof({$column}) = 'blob' THEN lower(substr(hex({$column}), 1, 8) || '-' || substr(hex({$column}), 9, 4) || '-' || substr(hex({$column}), 13, 4) || '-' || substr(hex({$column}), 17, 4) || '-' || substr(hex({$column}), 21, 12)) ELSE CAST({$column} AS TEXT) END";
@@ -404,7 +429,8 @@ class GeoSpatialService
         return $role === 'pencacah' ? 'progress_pencacah' : 'progress_pengawas';
     }
 
-    private function aggregate(string $table, string $snapshot, string $level, ?string $parentId)
+    /** @return Collection<int, stdClass> */
+    private function aggregate(string $table, string $snapshot, string $level, ?string $parentId): Collection
     {
         [$keySql, $labelSql, $groupColumns] = match ($level) {
             'desa' => ['kdprov || kdkab || kdkec || kddes', 'nmdesa', ['kdprov', 'kdkab', 'kdkec', 'kddes', 'nmdesa']],
@@ -438,18 +464,20 @@ class GeoSpatialService
         }
     }
 
+    /**
+     * @param  literal-string  $prefix
+     * @return literal-string
+     */
     private function aggregateSql(string $prefix): string
     {
-        $statuses = collect(self::STATUS_COLUMNS)
-            ->map(fn (string $column) => "SUM(\"{$column}\") as \"{$column}\"")
-            ->implode(', ');
-
-        return "{$prefix}, SUM(region_total) as total, COUNT(DISTINCT username) as petugas, {$statuses}";
+        return $prefix.', SUM(region_total) as total, COUNT(DISTINCT username) as petugas, '.self::STATUS_AGGREGATE_SQL;
     }
 
     /** @return array<string, mixed> */
     private function metricRow(object $row): array
     {
+        $key = property_exists($row, 'key') ? (string) $row->key : '';
+        $label = property_exists($row, 'label') ? (string) $row->label : '';
         $total = max(1, (int) ($row->total ?? 0));
         $open = (int) ($row->OPEN ?? 0);
         $draft = (int) ($row->DRAFT ?? 0);
@@ -461,8 +489,8 @@ class GeoSpatialService
         $openPct = round($open / $total * 100, 1);
 
         return [
-            'key' => (string) $row->key,
-            'label' => (string) ($row->label ?: $row->key),
+            'key' => $key,
+            'label' => $label ?: $key,
             'total' => (int) ($row->total ?? 0),
             'petugas' => (int) ($row->petugas ?? 0),
             'progress' => $progress,
@@ -475,6 +503,7 @@ class GeoSpatialService
         ];
     }
 
+    /** @param array<string, mixed> $item */
     private function metricValue(array $item, string $metric): float
     {
         return (float) match ($metric) {

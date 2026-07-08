@@ -540,4 +540,3 @@ class DashboardController extends Controller
         return $result;
     }
 }
-
