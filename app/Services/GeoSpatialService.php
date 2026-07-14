@@ -25,9 +25,13 @@ class GeoSpatialService
         'EDITED BY Pengawas',
         'REVOKED BY Pengawas',
         'SUBMITTED RESPONDENT',
+        'COMPLETED BY Admin Kabupaten',
+        'EDITED BY Admin Kabupaten',
+        'REJECTED BY Admin Kabupaten',
+        'REVOKED BY Admin Kabupaten',
     ];
 
-    private const STATUS_AGGREGATE_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT"';
+    private const STATUS_AGGREGATE_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT", SUM("COMPLETED BY Admin Kabupaten") as "COMPLETED BY Admin Kabupaten", SUM("EDITED BY Admin Kabupaten") as "EDITED BY Admin Kabupaten", SUM("REJECTED BY Admin Kabupaten") as "REJECTED BY Admin Kabupaten", SUM("REVOKED BY Admin Kabupaten") as "REVOKED BY Admin Kabupaten"';
 
     private const SAFE_PROPERTIES = [
         'kdprov', 'kdkab', 'kdkec', 'kddesa', 'kdsls', 'kdsubsls',

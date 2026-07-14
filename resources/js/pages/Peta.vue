@@ -162,7 +162,7 @@ const LEVELS: Array<{ value: Level; label: string }> = [
     { value: 'subsls', label: 'Sub-SLS' },
 ];
 const METRICS: Array<{ value: Metric; label: string; suffix: string }> = [
-    { value: 'progress', label: 'Progress', suffix: '%' },
+    { value: 'progress', label: '% Submit', suffix: '%' },
     { value: 'approved', label: 'Approved', suffix: '%' },
     { value: 'submitted', label: 'Submitted', suffix: '%' },
     { value: 'rejected', label: 'Rejected', suffix: '%' },
@@ -188,6 +188,41 @@ const MODAL_STATUSES = [
         key: 'APPROVED BY Pengawas',
         label: 'Approved',
         color: 'bg-emerald-500',
+    },
+    {
+        key: 'EDITED BY Pengawas',
+        label: 'Edited PML',
+        color: 'bg-orange-500',
+    },
+    {
+        key: 'REVOKED BY Pengawas',
+        label: 'Revoked PML',
+        color: 'bg-red-700',
+    },
+    {
+        key: 'SUBMITTED RESPONDENT',
+        label: 'Submitted Responden',
+        color: 'bg-violet-500',
+    },
+    {
+        key: 'COMPLETED BY Admin Kabupaten',
+        label: 'Completed Admin',
+        color: 'bg-teal-500',
+    },
+    {
+        key: 'EDITED BY Admin Kabupaten',
+        label: 'Edited Admin',
+        color: 'bg-orange-600',
+    },
+    {
+        key: 'REJECTED BY Admin Kabupaten',
+        label: 'Rejected Admin',
+        color: 'bg-rose-700',
+    },
+    {
+        key: 'REVOKED BY Admin Kabupaten',
+        label: 'Revoked Admin',
+        color: 'bg-red-900',
     },
 ];
 
@@ -1771,7 +1806,7 @@ onBeforeUnmount(() => {
                 >
                     <h2 class="text-sm font-bold">Wilayah prioritas</h2>
                     <p class="mt-1 text-xs text-muted-foreground">
-                        Progress rendah, open dan rejection tinggi.
+                        Submit rendah, open dan rejection tinggi.
                     </p>
                     <div class="mt-3 space-y-2">
                         <button
@@ -1789,7 +1824,7 @@ onBeforeUnmount(() => {
                                     >{{ item.label }}</span
                                 ><span
                                     class="block text-[10px] text-muted-foreground"
-                                    >Progress {{ item.progress }}% · Rej
+                                    >Submit {{ item.progress }}% · Rej
                                     {{ item.rejected }}%</span
                                 ></span
                             ><span class="text-xs font-bold text-orange-600">{{
@@ -1896,7 +1931,7 @@ onBeforeUnmount(() => {
                             <div class="grid grid-cols-2 gap-2 md:grid-cols-4">
                                 <div class="rounded-2xl bg-orange-500/10 p-3">
                                     <p class="text-xs text-muted-foreground">
-                                        Progress
+                                        % Submit
                                     </p>
                                     <p class="mt-1 text-2xl font-bold">
                                         {{ selectedRegion.progress }}%
@@ -1938,7 +1973,7 @@ onBeforeUnmount(() => {
 
                             <div>
                                 <h3 class="text-sm font-bold">
-                                    Komposisi progress
+                                    Komposisi submit
                                 </h3>
                                 <div
                                     class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
@@ -1994,7 +2029,7 @@ onBeforeUnmount(() => {
                                         <p
                                             class="text-xs text-muted-foreground"
                                         >
-                                            Progress per PPL beserta PML
+                                            Submit per PPL beserta PML
                                             penanggung jawab.
                                         </p>
                                     </div>

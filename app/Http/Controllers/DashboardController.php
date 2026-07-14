@@ -22,9 +22,13 @@ class DashboardController extends Controller
         'EDITED BY Pengawas',
         'REVOKED BY Pengawas',
         'SUBMITTED RESPONDENT',
+        'COMPLETED BY Admin Kabupaten',
+        'EDITED BY Admin Kabupaten',
+        'REJECTED BY Admin Kabupaten',
+        'REVOKED BY Admin Kabupaten',
     ];
 
-    private const STATUS_SUM_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT"';
+    private const STATUS_SUM_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT", SUM("COMPLETED BY Admin Kabupaten") as "COMPLETED BY Admin Kabupaten", SUM("EDITED BY Admin Kabupaten") as "EDITED BY Admin Kabupaten", SUM("REJECTED BY Admin Kabupaten") as "REJECTED BY Admin Kabupaten", SUM("REVOKED BY Admin Kabupaten") as "REVOKED BY Admin Kabupaten"';
 
     public function index(): Response
     {
@@ -224,10 +228,35 @@ class DashboardController extends Controller
             $query->whereIn('kdkec', $kec);
         }
         if ($desa) {
-            $query->whereIn('kddes', $desa);
+            $query->where(function (Builder $q) use ($desa) {
+                foreach ($desa as $code) {
+                    $parts = explode('-', $code);
+                    if (count($parts) === 2) {
+                        [$kdkec, $kddes] = $parts;
+                        $q->orWhere(fn (Builder $sub) => $sub
+                            ->where('kdkec', $kdkec)
+                            ->where('kddes', $kddes));
+                    } else {
+                        $q->orWhere('kddes', $code);
+                    }
+                }
+            });
         }
         if ($sls) {
-            $query->whereIn('kdsls', $sls);
+            $query->where(function (Builder $q) use ($sls) {
+                foreach ($sls as $code) {
+                    $parts = explode('-', $code);
+                    if (count($parts) === 3) {
+                        [$kdkec, $kddes, $kdsls] = $parts;
+                        $q->orWhere(fn (Builder $sub) => $sub
+                            ->where('kdkec', $kdkec)
+                            ->where('kddes', $kddes)
+                            ->where('kdsls', $kdsls));
+                    } else {
+                        $q->orWhere('kdsls', $code);
+                    }
+                }
+            });
         }
     }
 
@@ -335,7 +364,12 @@ class DashboardController extends Controller
                 (int) ($r->{'APPROVED BY Pengawas'} ?? 0) +
                 (int) ($r->{'REJECTED BY Pengawas'} ?? 0) +
                 (int) ($r->{'EDITED BY Pengawas'} ?? 0) +
-                (int) ($r->{'REVOKED BY Pengawas'} ?? 0);
+                (int) ($r->{'REVOKED BY Pengawas'} ?? 0) +
+                (int) ($r->{'SUBMITTED RESPONDENT'} ?? 0) +
+                (int) ($r->{'COMPLETED BY Admin Kabupaten'} ?? 0) +
+                (int) ($r->{'EDITED BY Admin Kabupaten'} ?? 0) +
+                (int) ($r->{'REJECTED BY Admin Kabupaten'} ?? 0) +
+                (int) ($r->{'REVOKED BY Admin Kabupaten'} ?? 0);
 
             $statuses = [];
             foreach (self::STATUS_COLS as $c) {
@@ -396,9 +430,9 @@ class DashboardController extends Controller
 
         $latestSnapshots = (clone $query)
             ->whereNotNull('snapshot_at')
-            ->select('snapshot_at')
-            ->distinct()
-            ->orderByDesc('snapshot_at')
+            ->selectRaw('DATE(snapshot_at) as snapshot_date, MAX(snapshot_at) as snapshot_at')
+            ->groupBy('snapshot_date')
+            ->orderByDesc('snapshot_date')
             ->limit(7)
             ->pluck('snapshot_at')
             ->sort()
@@ -495,7 +529,7 @@ class DashboardController extends Controller
 
             $result['desa'] = $desaQ->get()
                 ->map(fn ($r) => [
-                    'code' => $r->code,
+                    'code' => "{$r->kec_code}-{$r->code}",
                     'label' => $r->label,
                     'kec_code' => $r->kec_code,
                     'kec' => $r->kec,
@@ -521,12 +555,24 @@ class DashboardController extends Controller
                 $slsQ->whereIn('kdkec', $filterKec);
             }
             if ($filterDesa) {
-                $slsQ->whereIn('kddes', $filterDesa);
+                $slsQ->where(function (Builder $query) use ($filterDesa) {
+                    foreach ($filterDesa as $code) {
+                        $parts = explode('-', $code);
+                        if (count($parts) === 2) {
+                            [$kdkec, $kddes] = $parts;
+                            $query->orWhere(fn (Builder $sub) => $sub
+                                ->where('kdkec', $kdkec)
+                                ->where('kddes', $kddes));
+                        } else {
+                            $query->orWhere('kddes', $code);
+                        }
+                    }
+                });
             }
 
             $result['sls'] = $slsQ->get()
                 ->map(fn ($r) => [
-                    'code' => $r->code,
+                    'code' => "{$r->kec_code}-{$r->desa_code}-{$r->code}",
                     'label' => $r->label,
                     'desa_code' => $r->desa_code,
                     'desa' => $r->desa,

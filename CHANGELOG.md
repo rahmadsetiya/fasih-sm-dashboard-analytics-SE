@@ -4,6 +4,22 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 
 Format changelog ini mengikuti pendekatan ringkas berbasis versi aplikasi yang ditampilkan ke user di dalam dashboard.
 
+## [0.4.3] - 2026-07-14
+
+### Ditambahkan
+- Export Excel pada tabel dashboard yang mengikuti level, filter wilayah, pencarian, sorting, dan kolom status aktif.
+- Modal changelog otomatis saat user pertama membuka aplikasi, dengan opsi `Jangan tampilkan lagi untuk versi ini`.
+- Status `COMPLETED/EDITED/REJECTED/REVOKED BY Admin Kabupaten` pada agregasi dashboard, ringkasan, pie chart, dan detail peta.
+
+### Diubah
+- Label metrik `Progress` di dashboard dan ringkasan diubah menjadi `% Submit`.
+- Tren Submit Over Time memakai snapshot terakhir pada setiap tanggal, tetap tujuh titik aktual dan tiga titik proyeksi.
+- `Progres Lapangan` kini menghitung seluruh status selain `OPEN`, termasuk `SUBMITTED RESPONDENT` dan status Admin Kabupaten.
+- Label status pada pie/donut chart disamakan dengan nama kolom asli dari `fasih.db`.
+
+### Diperbaiki
+- Filter Desa/SLS bertingkat kini memakai kode komposit parent-child sehingga memilih desa pada beberapa kecamatan tidak ikut mencentang atau memfilter desa lain dengan kode lokal sama.
+
 ## [0.4.2] - 2026-07-08
 
 ### Ditambahkan
@@ -87,4 +103,3 @@ Format changelog ini mengikuti pendekatan ringkas berbasis versi aplikasi yang d
 
 ### Catatan
 - Dokumentasi perubahan formal dimulai dari versi `0.3.0`. Perubahan sebelum versi ini belum dibackfill secara detail.
-

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { CalendarDays, Check, FileText, Tag } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import {
     Dialog,
+    DialogClose,
     DialogDescription,
     DialogHeader,
     DialogScrollContent,
@@ -12,13 +13,55 @@ import {
 } from '@/components/ui/dialog';
 import type { ReleaseEntry } from '@/types';
 
-withDefaults(defineProps<{ class?: string; compact?: boolean }>(), {
-    class: '',
-    compact: false,
-});
+const props = withDefaults(
+    defineProps<{
+        class?: string;
+        compact?: boolean;
+        autoOpen?: boolean;
+        hideTrigger?: boolean;
+    }>(),
+    {
+        class: '',
+        compact: false,
+        autoOpen: false,
+        hideTrigger: false,
+    },
+);
 
 const page = usePage<{ appVersion: string; release_history: ReleaseEntry[] }>();
 const releases = computed(() => page.props.release_history ?? []);
+const open = ref(false);
+const dontShowAgain = ref(false);
+const storageKey = computed(
+    () => `fasih:changelog:dismissed:${page.props.appVersion}`,
+);
+const sessionKey = computed(
+    () => `fasih:changelog:shown:${page.props.appVersion}`,
+);
+
+onMounted(() => {
+    if (!props.autoOpen) {
+        return;
+    }
+
+    if (
+        localStorage.getItem(storageKey.value) === '1' ||
+        sessionStorage.getItem(sessionKey.value) === '1'
+    ) {
+        return;
+    }
+
+    open.value = true;
+    sessionStorage.setItem(sessionKey.value, '1');
+});
+
+watch(open, (isOpen, wasOpen) => {
+    if (!wasOpen || isOpen || !props.autoOpen || !dontShowAgain.value) {
+        return;
+    }
+
+    localStorage.setItem(storageKey.value, '1');
+});
 
 function formatDate(value: string): string {
     return new Date(value).toLocaleDateString('id-ID', {
@@ -30,8 +73,8 @@ function formatDate(value: string): string {
 </script>
 
 <template>
-    <Dialog>
-        <DialogTrigger as-child>
+    <Dialog v-model:open="open">
+        <DialogTrigger v-if="!hideTrigger" as-child>
             <button
                 type="button"
                 :class="[
@@ -129,6 +172,30 @@ function formatDate(value: string): string {
                 >
                     Belum ada catatan perubahan.
                 </p>
+            </div>
+
+            <div
+                v-if="autoOpen"
+                class="flex flex-col gap-3 border-t bg-background px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+                <label
+                    class="flex cursor-pointer items-start gap-2 text-sm text-muted-foreground"
+                >
+                    <input
+                        v-model="dontShowAgain"
+                        type="checkbox"
+                        class="mt-0.5 size-4 rounded border-input accent-orange-600"
+                    />
+                    <span>Jangan tampilkan lagi untuk versi ini</span>
+                </label>
+                <DialogClose as-child>
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-full bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700 dark:bg-orange-400 dark:text-orange-950 dark:hover:bg-orange-300"
+                    >
+                        Tutup
+                    </button>
+                </DialogClose>
             </div>
         </DialogScrollContent>
     </Dialog>

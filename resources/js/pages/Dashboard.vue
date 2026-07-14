@@ -440,43 +440,67 @@ const STATUS_COLS = [
     'EDITED BY Pengawas',
     'REVOKED BY Pengawas',
     'SUBMITTED RESPONDENT',
+    'COMPLETED BY Admin Kabupaten',
+    'EDITED BY Admin Kabupaten',
+    'REJECTED BY Admin Kabupaten',
+    'REVOKED BY Admin Kabupaten',
 ];
 
 const STATUS_META: Record<
     string,
     { short: string; color: string; title: string }
 > = {
-    OPEN: { short: 'Open', color: '', title: 'Belum diisi' },
-    DRAFT: { short: 'Draft', color: '#FFD45A', title: 'Sedang diisi' },
+    OPEN: { short: 'Open', color: '', title: 'OPEN' },
+    DRAFT: { short: 'Draft', color: '#FFD45A', title: 'DRAFT' },
     'SUBMITTED BY Pencacah': {
         short: 'Sub.P',
         color: '#3b82f6',
-        title: 'Diserahkan Pencacah',
+        title: 'SUBMITTED BY Pencacah',
     },
     'APPROVED BY Pengawas': {
         short: 'App.P',
         color: '#22c55e',
-        title: 'Disetujui Pengawas',
+        title: 'APPROVED BY Pengawas',
     },
     'REJECTED BY Pengawas': {
         short: 'Rej.P',
         color: '#FF5A5A',
-        title: 'Ditolak Pengawas',
+        title: 'REJECTED BY Pengawas',
     },
     'EDITED BY Pengawas': {
         short: 'Edit.P',
         color: '#FFA95A',
-        title: 'Diedit Pengawas',
+        title: 'EDITED BY Pengawas',
     },
     'REVOKED BY Pengawas': {
         short: 'Rev.P',
         color: '#dc2626',
-        title: 'Dicabut Pengawas',
+        title: 'REVOKED BY Pengawas',
     },
     'SUBMITTED RESPONDENT': {
         short: 'Sub.R',
         color: '#a78bfa',
-        title: 'Submit Responden',
+        title: 'SUBMITTED RESPONDENT',
+    },
+    'COMPLETED BY Admin Kabupaten': {
+        short: 'Com.A',
+        color: '#14b8a6',
+        title: 'COMPLETED BY Admin Kabupaten',
+    },
+    'EDITED BY Admin Kabupaten': {
+        short: 'Edit.A',
+        color: '#f97316',
+        title: 'EDITED BY Admin Kabupaten',
+    },
+    'REJECTED BY Admin Kabupaten': {
+        short: 'Rej.A',
+        color: '#be123c',
+        title: 'REJECTED BY Admin Kabupaten',
+    },
+    'REVOKED BY Admin Kabupaten': {
+        short: 'Rev.A',
+        color: '#7f1d1d',
+        title: 'REVOKED BY Admin Kabupaten',
     },
 };
 
@@ -598,7 +622,7 @@ const barCategories = computed(() =>
     barTopData.value.map((r) => r.label.slice(0, 18)),
 );
 const barSeries = computed(() => [
-    { name: 'Progress %', data: barTopData.value.map((r) => r.progress_pct) },
+    { name: 'Submit %', data: barTopData.value.map((r) => r.progress_pct) },
     { name: 'Approved %', data: barTopData.value.map((r) => r.approved_pct) },
 ]);
 
@@ -768,6 +792,10 @@ const FUNNEL_ORDER = [
     'EDITED BY Pengawas',
     'REVOKED BY Pengawas',
     'SUBMITTED RESPONDENT',
+    'COMPLETED BY Admin Kabupaten',
+    'EDITED BY Admin Kabupaten',
+    'REJECTED BY Admin Kabupaten',
+    'REVOKED BY Admin Kabupaten',
 ] as const;
 
 const funnelRows = computed(() => {
@@ -792,7 +820,7 @@ const funnelRows = computed(() => {
 const trendSeries = computed(() => {
     const actual = realTrendPoints.value;
     const series: { name: string; data: (number | null)[] }[] = [
-        { name: 'Progress %', data: actual.map((t) => t.progress_pct) },
+        { name: 'Submit %', data: actual.map((t) => t.progress_pct) },
         { name: 'Submitted %', data: actual.map((t) => t.submitted_pct) },
         { name: 'Approved %', data: actual.map((t) => t.approved_pct) },
     ];
@@ -979,6 +1007,107 @@ const isPetugasLevel = computed(
 );
 
 // ── edit nama petugas ─────────────────────────────────────────────────────
+function xmlEscape(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function excelCell(value: string | number): string {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return `<Cell><Data ss:Type="Number">${value}</Data></Cell>`;
+    }
+
+    return `<Cell><Data ss:Type="String">${xmlEscape(String(value))}</Data></Cell>`;
+}
+
+function safeFilenamePart(value: string): string {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function exportBreakdownExcel(): void {
+    const rows = sortedBreakdown.value;
+    const hasContext = rows.some((row) => rowContext(row));
+    const columns = [
+        {
+            label: LEVEL_LABELS[filters.level],
+            value: (row: BreakdownRow) => row.label,
+        },
+        ...(hasContext
+            ? [
+                  {
+                      label: 'Konteks',
+                      value: (row: BreakdownRow) => rowContext(row),
+                  },
+              ]
+            : []),
+        ...(isPetugasLevel.value
+            ? [
+                  {
+                      label: 'ID Petugas',
+                      value: (row: BreakdownRow) => row.key,
+                  },
+              ]
+            : []),
+        { label: 'Total Assignment', value: (row: BreakdownRow) => row.total },
+        { label: '% Submit', value: (row: BreakdownRow) => row.progress_pct },
+        {
+            label: 'Progres Lapangan',
+            value: (row: BreakdownRow) => row.lapangan_total,
+        },
+        {
+            label: '% Progres Lapangan',
+            value: (row: BreakdownRow) => row.lapangan_pct,
+        },
+        { label: 'Approved %', value: (row: BreakdownRow) => row.approved_pct },
+        ...activeStatusCols.value.map((status) => ({
+            label: STATUS_META[status]?.title ?? status,
+            value: (row: BreakdownRow) => row.statuses[status] ?? 0,
+        })),
+    ];
+
+    const header = `<Row>${columns
+        .map((column) => excelCell(column.label))
+        .join('')}</Row>`;
+    const body = rows
+        .map(
+            (row) =>
+                `<Row>${columns
+                    .map((column) => excelCell(column.value(row)))
+                    .join('')}</Row>`,
+        )
+        .join('');
+    const worksheetName = xmlEscape(LEVEL_LABELS[filters.level].slice(0, 31));
+    const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="${worksheetName}">
+  <Table>${header}${body}</Table>
+ </Worksheet>
+</Workbook>`;
+    const blob = new Blob([xml], {
+        type: 'application/vnd.ms-excel;charset=utf-8',
+    });
+    const anchor = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    anchor.href = url;
+    anchor.download = `dashboard-${safeFilenamePart(LEVEL_LABELS[filters.level])}-${safeFilenamePart(filters.role)}-${new Date().toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
+
 const editNameRow = ref<BreakdownRow | null>(null);
 const editNameValue = ref('');
 const editNameSaving = ref(false);
@@ -1622,14 +1751,14 @@ function rowContext(row: BreakdownRow): string {
                         tooltip: '',
                     },
                     {
-                        label: 'Progress',
+                        label: '% Submit',
                         value: metrics.progress_pct,
                         fmt: 'p',
                         color: '',
                         hex: '#FFA95A',
                         ring: 'border-[#FFA95A]/60 bg-[#FFA95A]/10 shadow-md shadow-orange-500/10 dark:bg-[#FFA95A]/12',
                         tooltip:
-                            'Progress = (Total − OPEN − DRAFT) ÷ Total × 100%. Status OPEN dan DRAFT belum diproses, tidak dihitung sebagai progress.',
+                            '% Submit = (Total − OPEN − DRAFT) ÷ Total × 100%. Status OPEN dan DRAFT belum diproses, tidak dihitung sebagai submit.',
                     },
                     {
                         label: 'Submitted',
@@ -1756,12 +1885,12 @@ function rowContext(row: BreakdownRow): string {
                 class="flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm md:col-span-2 dark:border-sidebar-border"
             >
                 <h3 class="mb-3 shrink-0 text-sm font-semibold md:hidden">
-                    Peringkat {{ LEVEL_LABELS[filters.level] }} — Progress &
+                    Peringkat {{ LEVEL_LABELS[filters.level] }} — Submit &
                     Approved %
                 </h3>
                 <h3 class="mb-1 hidden shrink-0 text-sm font-semibold md:block">
-                    Top {{ TOP_N }} {{ LEVEL_LABELS[filters.level] }} — Progress
-                    & Approved %
+                    Top {{ TOP_N }} {{ LEVEL_LABELS[filters.level] }} — Submit &
+                    Approved %
                 </h3>
                 <MobileRankingBars
                     v-if="barTopData.length"
@@ -1798,7 +1927,7 @@ function rowContext(row: BreakdownRow): string {
             class="rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
         >
             <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-sm font-semibold">Tren Progress Over Time</h3>
+                <h3 class="text-sm font-semibold">Tren Submit Over Time</h3>
                 <span
                     v-if="realTrendPoints.length >= REAL_TREND_POINT_COUNT"
                     class="rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-600 dark:text-violet-300"
@@ -1848,7 +1977,7 @@ function rowContext(row: BreakdownRow): string {
         >
             <div class="mb-2 flex flex-wrap items-center gap-2">
                 <h3 class="text-sm font-semibold">
-                    Perbandingan Progress —
+                    Perbandingan Submit —
                     {{ LEVEL_LABELS[filters.level] }}
                 </h3>
                 <!-- Top15 / Custom toggle -->
@@ -1969,6 +2098,30 @@ function rowContext(row: BreakdownRow): string {
                 </div>
                 <!-- Search + Page size -->
                 <div class="flex flex-wrap items-center gap-3">
+                    <button
+                        class="inline-flex h-7 items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-300"
+                        :disabled="!sortedBreakdown.length"
+                        type="button"
+                        title="Export semua baris sesuai filter, pencarian, sorting, dan kolom tabel saat ini"
+                        @click="exportBreakdownExcel"
+                    >
+                        <svg
+                            class="size-3.5"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="2"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+                            />
+                        </svg>
+                        Export Excel
+                    </button>
                     <div class="relative flex items-center">
                         <svg
                             class="pointer-events-none absolute left-2 size-3.5 text-muted-foreground"
@@ -2056,7 +2209,7 @@ function rowContext(row: BreakdownRow): string {
                                 @click="toggleSort('progress_pct')"
                                 scope="col"
                             >
-                                Progress{{ sortIcon('progress_pct') }}
+                                % Submit{{ sortIcon('progress_pct') }}
                             </th>
                             <th
                                 class="cursor-pointer px-3 py-2 text-right font-semibold"
@@ -2409,7 +2562,7 @@ function rowContext(row: BreakdownRow): string {
                             {{ petugasRow.key }} ·
                             {{ petugasRow.total.toLocaleString('id-ID') }}
                             assignment ·
-                            {{ petugasRow.progress_pct }}% progress
+                            {{ petugasRow.progress_pct }}% submit
                         </p>
                     </div>
                     <button
@@ -2474,7 +2627,7 @@ function rowContext(row: BreakdownRow): string {
                                     Assignment
                                 </th>
                                 <th class="px-3 py-2 font-semibold">
-                                    Progress
+                                    % Submit
                                 </th>
                                 <th class="px-3 py-2 font-semibold">
                                     Approved

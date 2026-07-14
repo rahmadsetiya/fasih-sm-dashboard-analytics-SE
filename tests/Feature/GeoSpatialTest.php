@@ -143,6 +143,7 @@ class GeoSpatialTest extends TestCase
             ->assertJsonPath('next_level', 'sls')
             ->assertJsonPath('total', 200)
             ->assertJsonPath('statuses.OPEN', 40)
+            ->assertJsonPath('statuses.COMPLETED BY Admin Kabupaten', 4)
             ->assertJsonPath('pencacah.0.name', 'Pencacah Satu')
             ->assertJsonPath('pencacah.0.pml.0.name', 'Pengawas Satu')
             ->assertJsonMissing(['email' => 'pml@example.test']);
@@ -184,7 +185,11 @@ class GeoSpatialTest extends TestCase
                 "REJECTED BY Pengawas" INTEGER NOT NULL,
                 "EDITED BY Pengawas" INTEGER NOT NULL,
                 "REVOKED BY Pengawas" INTEGER NOT NULL,
-                "SUBMITTED RESPONDENT" INTEGER NOT NULL
+                "SUBMITTED RESPONDENT" INTEGER NOT NULL,
+                "COMPLETED BY Admin Kabupaten" INTEGER NOT NULL,
+                "EDITED BY Admin Kabupaten" INTEGER NOT NULL,
+                "REJECTED BY Admin Kabupaten" INTEGER NOT NULL,
+                "REVOKED BY Admin Kabupaten" INTEGER NOT NULL
             )
             SQL;
     }
@@ -256,6 +261,10 @@ class GeoSpatialTest extends TestCase
             'EDITED BY Pengawas' => 0,
             'REVOKED BY Pengawas' => 0,
             'SUBMITTED RESPONDENT' => 0,
+            'COMPLETED BY Admin Kabupaten' => 2,
+            'EDITED BY Admin Kabupaten' => 0,
+            'REJECTED BY Admin Kabupaten' => 0,
+            'REVOKED BY Admin Kabupaten' => 0,
         ];
 
         DB::connection('fasih')->table('progress_pengawas')->insert([

@@ -24,7 +24,7 @@ Dashboard monitoring berbasis web untuk memantau progres kerja lapangan **Sensus
 
 ## Fitur
 
-- **Dashboard utama** — filter per snapshot, role (Pengawas/Pencacah), level wilayah, dan region; metric cards, donut chart, ranking wilayah responsif, line trend, tabel rincian
+- **Dashboard utama** — filter per snapshot, role (Pengawas/Pencacah), level wilayah, dan region; metric cards, donut chart, ranking wilayah responsif, tren submit, tabel rincian, dan export Excel sesuai tampilan tabel
 - **Ringkasan Kabupaten** — tabel rekap per kecamatan dengan persentase progres dan approval
 - **Heatmap Aktivitas** — aktivitas petugas per hari dan per jam; filter tanggal dan wilayah
 - **Analitik Petugas** — 6 tab analitik: Daftar, Funnel Status, Matrix, Leaderboard, Mangkrak, Proyeksi Selesai
@@ -418,11 +418,14 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 ### Catatan Perilaku Dashboard (`/`)
 
 - Grafik **Top wilayah** memakai tampilan bar chart penuh di desktop dan tampilan ranking card yang lebih ringkas di mobile agar label wilayah tetap terbaca.
-- Grafik **Tren Progress Over Time** hanya memakai **snapshot terakhir pada tiap tanggal** agar satu hari tidak muncul berkali-kali.
-- Rentang tren dibatasi menjadi **8 hari**: **5 hari data aktual terakhir** (berdasarkan tanggal snapshot terbaru) dan maksimal **3 hari proyeksi** ke depan.
+- Grafik **Tren Submit Over Time** hanya memakai **snapshot terakhir pada tiap tanggal** agar satu hari tidak muncul berkali-kali.
+- Rentang tren memakai **7 titik aktual terakhir** dan maksimal **3 titik proyeksi** ke depan.
+- Metrik **% Submit** memakai rumus `(Total Assignment - OPEN - DRAFT) / Total Assignment * 100`.
+- Filter Desa dan SLS memakai kode komposit parent-child (`kdkec-kddes` dan `kdkec-kddes-kdsls`) agar pilihan pada beberapa kecamatan tidak saling bercampur ketika kode lokal sama.
+- Tabel rincian dapat diekspor ke Excel sesuai level, filter, pencarian, sorting, dan kolom status aktif yang sedang tampil.
 - Tabel rincian per wilayah/petugas memiliki kolom **Progres Lapangan** dengan rumus:
 
-  `DRAFT + SUBMITTED BY Pencacah + APPROVED BY Pengawas + REJECTED BY Pengawas + EDITED BY Pengawas + REVOKED BY Pengawas`
+  `Total Assignment - OPEN`
 
 - Nilai **Progres Lapangan** ditampilkan sebagai total kasus dan persentasenya terhadap `Total Assignment`.
 
@@ -432,6 +435,7 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 
 - Versi aktif aplikasi diatur melalui `APP_VERSION` atau nilai default pada `config/app.php`.
 - Riwayat rilis dikelola terpusat di `config/releases.php` dan ditampilkan melalui modal Changelog di sidebar.
+- Modal changelog otomatis muncul sekali saat user pertama membuka aplikasi pada versi aktif. Jika user memilih `Jangan tampilkan lagi untuk versi ini`, preferensi disimpan di browser melalui `localStorage` dengan key per versi.
 - Ringkasan perubahan untuk developer tetap dicatat di `CHANGELOG.md`.
 
 Saat merilis versi baru, naikkan `APP_VERSION`, tambahkan entri terbaru di urutan pertama `config/releases.php`, lalu perbarui `CHANGELOG.md`.

@@ -127,17 +127,12 @@ const STATUS_COLS = [
     'EDITED BY Pengawas',
     'REVOKED BY Pengawas',
     'SUBMITTED RESPONDENT',
+    'COMPLETED BY Admin Kabupaten',
+    'EDITED BY Admin Kabupaten',
+    'REJECTED BY Admin Kabupaten',
+    'REVOKED BY Admin Kabupaten',
 ];
-const STATUS_LABELS = [
-    'Belum diisi',
-    'Sedang diisi',
-    'Diserahkan Pencacah',
-    'Disetujui Pengawas',
-    'Ditolak Pengawas',
-    'Diedit Pengawas',
-    'Dicabut Pengawas',
-    'Submit Responden',
-];
+const STATUS_LABELS = STATUS_COLS;
 const STATUS_COLORS = computed(() =>
     STATUS_COLS.map((c) => {
         if (c === 'OPEN') {
@@ -154,6 +149,10 @@ const STATUS_COLORS = computed(() =>
                     'EDITED BY Pengawas': '#FFA95A',
                     'REVOKED BY Pengawas': '#dc2626',
                     'SUBMITTED RESPONDENT': '#a78bfa',
+                    'COMPLETED BY Admin Kabupaten': '#14b8a6',
+                    'EDITED BY Admin Kabupaten': '#f97316',
+                    'REJECTED BY Admin Kabupaten': '#be123c',
+                    'REVOKED BY Admin Kabupaten': '#7f1d1d',
                 } as Record<string, string>
             )[c] ?? '#6b7280'
         );
@@ -176,7 +175,7 @@ const statusRows = computed(() =>
 
 // ── chart: trend ──────────────────────────────────────────────────────────
 const trendSeries = computed(() => [
-    { name: 'Progress %', data: trend.value.map((t) => t.progress_pct) },
+    { name: 'Submit %', data: trend.value.map((t) => t.progress_pct) },
     { name: 'Submitted %', data: trend.value.map((t) => t.submitted_pct) },
     { name: 'Approved %', data: trend.value.map((t) => t.approved_pct) },
 ]);
@@ -289,7 +288,7 @@ function pct(v: number) {
                         KABUPATEN {{ kabName }}
                     </h1>
                     <p class="mt-0.5 text-xs text-muted-foreground">
-                        Ringkasan data dan progress pencacahan
+                        Ringkasan data dan submit pencacahan
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -393,13 +392,13 @@ function pct(v: number) {
             <div
                 v-for="card in [
                     {
-                        label: 'Progress',
+                        label: '% Submit',
                         value: metrics.progress_pct,
                         hex: '#FFA95A',
                         bar: 'bg-[#FFA95A]',
                         ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
                         tooltip:
-                            'Progress = (Total − OPEN − DRAFT) ÷ Total × 100%',
+                            '% Submit = (Total − OPEN − DRAFT) ÷ Total × 100%',
                     },
                     {
                         label: 'Submitted',
@@ -467,7 +466,7 @@ function pct(v: number) {
                 >Cara penghitungan:</span
             >
             <span class="ml-1.5">
-                <span class="font-medium text-[#FFA95A]">Progress</span> =
+                <span class="font-medium text-[#FFA95A]">% Submit</span> =
                 (Total − OPEN − DRAFT) ÷ Total.
                 <span class="mx-1 opacity-40">·</span>
                 <span class="font-medium text-blue-500">Submitted</span> =
@@ -567,7 +566,7 @@ function pct(v: number) {
                 class="col-span-2 flex flex-col rounded-xl border border-sidebar-border/70 bg-card p-4 shadow-sm dark:border-sidebar-border"
             >
                 <h3 class="mb-1 shrink-0 text-sm font-semibold">
-                    Tren Progress Over Time
+                    Tren Submit Over Time
                 </h3>
                 <VueApexCharts
                     v-if="trend.length >= 1"

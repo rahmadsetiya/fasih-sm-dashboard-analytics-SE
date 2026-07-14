@@ -1,9 +1,23 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '0.4.2'),
+    'version' => env('APP_VERSION', '0.4.3'),
 
     'history' => [
+        [
+            'version' => '0.4.3',
+            'released_at' => '2026-07-14',
+            'title' => 'Akurasi Filter dan Ekspor Dashboard',
+            'summary' => 'Memperbaiki filter wilayah bertingkat, memperjelas metrik submit, dan menambahkan ekspor tabel sesuai tampilan user.',
+            'highlights' => [
+                'Mengubah label metrik progress menjadi % Submit dengan rumus yang tetap konsisten: Total dikurangi OPEN dan DRAFT.',
+                'Menambahkan status Admin Kabupaten ke tabel, pie chart, ringkasan, dan detail peta.',
+                'Memperbaiki filter Desa/SLS agar pilihan wilayah pada beberapa kecamatan tidak saling bocor karena kode lokal yang sama.',
+                'Menambahkan export Excel pada tabel dashboard sesuai filter, pencarian, sorting, dan kolom status aktif.',
+                'Menampilkan modal changelog otomatis saat user pertama membuka aplikasi, dengan opsi jangan tampilkan lagi per versi.',
+                'Mengubah tren submit agar memakai snapshot terakhir setiap tanggal, tetap tujuh titik aktual dan tiga titik proyeksi.',
+            ],
+        ],
         [
             'version' => '0.4.2',
             'released_at' => '2026-07-08',
