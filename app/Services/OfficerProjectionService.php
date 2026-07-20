@@ -288,10 +288,10 @@ class OfficerProjectionService
     private function firstRows(string $table, array $filters): Collection
     {
         $submitSql = $this->submitSql();
-        $daily = $this->baseQuery($table, $filters)
+        $daily = $this->latestDailyOfficerRows($table, $filters)
             ->selectRaw("
-                COALESCE(NULLIF(user_id, ''), NULLIF(username, ''), NULLIF(nama_lengkap, '')) as officer_key,
-                DATE(snapshot_at) as snapshot_date,
+                {$this->officerKeySql()} as officer_key,
+                DATE({$table}.snapshot_at) as snapshot_date,
                 SUM({$submitSql}) as submitted_total
             ")
             ->groupBy('officer_key', 'snapshot_date');
@@ -490,17 +490,17 @@ class OfficerProjectionService
      */
     private function aggregateHistory(string $table, array $filters): array
     {
-        return $this->baseQuery($table, $filters)
+        return $this->latestDailyRows($table, $filters)
             ->selectRaw("
-                DATE(snapshot_at) as date,
-                MAX(snapshot_at) as snapshot_at,
+                DATE({$table}.snapshot_at) as date,
+                latest_daily.snapshot_at as snapshot_at,
                 SUM({$this->submitSql()}) as submitted_total,
                 SUM({$this->rejectSql()}) as rejected_total,
                 SUM(COALESCE(\"OPEN\", 0)) as open_total,
                 SUM(COALESCE(\"DRAFT\", 0)) as draft_total,
                 SUM(COALESCE(region_total, 0)) as raw_total
             ")
-            ->groupBy('date')
+            ->groupBy('date', 'latest_daily.snapshot_at')
             ->orderBy('date')
             ->get()
             ->map(fn (object $row) => [
@@ -520,18 +520,17 @@ class OfficerProjectionService
      */
     private function officerHistory(string $table, string $officerKey, array $filters): array
     {
-        return $this->baseQuery($table, $filters)
-            ->whereRaw("COALESCE(NULLIF(user_id, ''), NULLIF(username, ''), NULLIF(nama_lengkap, '')) = ?", [$officerKey])
+        return $this->latestDailyRows($table, $filters, $officerKey)
             ->selectRaw("
-                DATE(snapshot_at) as date,
-                MAX(snapshot_at) as snapshot_at,
+                DATE({$table}.snapshot_at) as date,
+                latest_daily.snapshot_at as snapshot_at,
                 MAX(COALESCE(user_total, region_total, 0)) as total_assignment,
                 SUM({$this->submitSql()}) as submitted_total,
                 SUM({$this->rejectSql()}) as rejected_total,
                 SUM(COALESCE(\"OPEN\", 0)) as open_total,
                 SUM(COALESCE(\"DRAFT\", 0)) as draft_total
             ")
-            ->groupBy('date')
+            ->groupBy('date', 'latest_daily.snapshot_at')
             ->orderBy('date')
             ->get()
             ->map(fn (object $row) => [
@@ -544,6 +543,58 @@ class OfficerProjectionService
                 'draft_total' => (int) $row->draft_total,
             ])
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function latestDailyRows(string $table, array $filters, ?string $officerKey = null): Builder
+    {
+        $latest = $this->baseQuery($table, $filters)
+            ->when($officerKey !== null, fn (Builder $query) => $query->whereRaw($this->officerKeySql().' = ?', [$officerKey]))
+            ->selectRaw('DATE(snapshot_at) as snapshot_date, MAX(snapshot_at) as snapshot_at')
+            ->groupBy('snapshot_date');
+
+        return $this->baseQuery($table, $filters)
+            ->when($officerKey !== null, fn (Builder $query) => $query->whereRaw($this->officerKeySql().' = ?', [$officerKey]))
+            ->joinSub(
+                $latest,
+                'latest_daily',
+                fn ($join) => $join
+                    ->on("{$table}.snapshot_at", '=', 'latest_daily.snapshot_at')
+                    ->whereRaw("DATE({$table}.snapshot_at) = latest_daily.snapshot_date")
+            );
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function latestDailyOfficerRows(string $table, array $filters): Builder
+    {
+        $latest = $this->baseQuery($table, $filters)
+            ->selectRaw("
+                {$this->officerKeySql()} as officer_key,
+                DATE(snapshot_at) as snapshot_date,
+                MAX(snapshot_at) as snapshot_at
+            ")
+            ->groupBy('officer_key', 'snapshot_date');
+
+        return $this->baseQuery($table, $filters)
+            ->joinSub(
+                $latest,
+                'latest_daily',
+                fn ($join) => $join
+                    ->on("{$table}.snapshot_at", '=', 'latest_daily.snapshot_at')
+                    ->whereRaw("DATE({$table}.snapshot_at) = latest_daily.snapshot_date")
+                    ->whereRaw($this->officerKeySql($table).' = latest_daily.officer_key')
+            );
+    }
+
+    private function officerKeySql(?string $table = null): string
+    {
+        $prefix = $table !== null ? $table.'.' : '';
+
+        return "COALESCE(NULLIF({$prefix}user_id, ''), NULLIF({$prefix}username, ''), NULLIF({$prefix}nama_lengkap, ''))";
     }
 
     /**

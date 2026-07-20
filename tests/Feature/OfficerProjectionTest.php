@@ -84,6 +84,31 @@ class OfficerProjectionTest extends TestCase
             ->assertJsonMissingPath('officer.email');
     }
 
+    public function test_projection_history_uses_latest_snapshot_per_day(): void
+    {
+        DB::connection('fasih')->table('progress_pencacah')->insert([
+            $this->progressRow('2026-07-19T08:00:00+00:00', 'ppl-daily', 'ppl harian', 100, 90, 0, [
+                'SUBMITTED BY Pencacah' => 10,
+            ]),
+            $this->progressRow('2026-07-19T23:00:00+00:00', 'ppl-daily', 'ppl harian', 100, 85, 0, [
+                'SUBMITTED BY Pencacah' => 15,
+            ]),
+            $this->progressRow('2026-07-20T00:00:00+00:00', 'ppl-daily', 'ppl harian', 100, 80, 0, [
+                'SUBMITTED BY Pencacah' => 20,
+            ]),
+        ]);
+        $user = User::factory()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($user)
+            ->getJson('/api/projections/officers/ppl-daily?role=pencacah&deadline=2026-08-31')
+            ->assertOk()
+            ->assertJsonPath('daily_history.0.snapshot_at', '2026-07-19T23:00:00+00:00')
+            ->assertJsonPath('daily_history.0.submitted_total', 15)
+            ->assertJsonPath('daily_history.1.submitted_total', 20)
+            ->assertJsonPath('target_vs_actual.0.actual_submit', 15)
+            ->assertJsonPath('target_vs_actual.1.actual_submit', 20);
+    }
+
     public function test_projection_composite_desa_filter_does_not_leak_same_local_code(): void
     {
         DB::connection('fasih')->table('progress_pencacah')->insert([
