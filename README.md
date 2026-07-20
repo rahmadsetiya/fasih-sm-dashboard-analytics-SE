@@ -24,6 +24,8 @@ Dashboard monitoring berbasis web untuk memantau progres kerja lapangan **Sensus
 
 ## Fitur
 
+- **Proyeksi Petugas** - target submit harian, laju aktual, estimasi selesai, dan prioritas pendampingan PPL/PML sampai deadline operasional
+
 - **Dashboard utama** — filter per snapshot, role (Pengawas/Pencacah), level wilayah, dan region; metric cards, donut chart, ranking wilayah responsif, tren submit, tabel rincian, dan export Excel sesuai tampilan tabel
 - **Ringkasan Kabupaten** — tabel rekap per kecamatan dengan persentase progres dan approval
 - **Heatmap Aktivitas** — aktivitas petugas per hari dan per jam; filter tanggal dan wilayah
@@ -396,6 +398,7 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 |---|---|---|
 | `/` | Dashboard | Filter snapshot, role, level wilayah; metric cards, chart status, ranking top wilayah, trend, dan tabel rincian |
 | `/ringkasan` | Ringkasan Kabupaten | Tabel rekap per kecamatan: total, selesai, approved, % |
+| `/proyeksi` | Proyeksi Petugas | Target submit harian per PPL/PML, status Aman/Berisiko/Belum Bergerak, modal detail, dan export Excel |
 | `/heatmap` | Heatmap Aktivitas | Aktivitas per petugas per hari; drill-down per jam |
 | `/petugas` | Analitik Petugas | 6 tab analitik (lihat di bawah) |
 | `/penugasan` | Daftar Penugasan | Tabel semua assignment + riwayat perubahan status |
@@ -428,6 +431,15 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
   `Total Assignment - OPEN`
 
 - Nilai **Progres Lapangan** ditampilkan sebagai total kasus dan persentasenya terhadap `Total Assignment`.
+
+### Catatan Proyeksi Petugas (`/proyeksi`)
+
+- Deadline default adalah **31 Agustus 2026** dan bisa diubah dari filter tanggal.
+- Sumber histori memakai snapshot harian terakhir dari `progress_pencacah` atau `progress_pengawas`.
+- Submit dihitung sebagai seluruh status selain `OPEN` dan `DRAFT`, termasuk status Admin Kabupaten.
+- Target submit/hari memakai rumus `CEIL(Sisa Assignment / Hari Tersisa Inklusif)`.
+- Badge proyeksi: `Aman`, `Berisiko`, `Belum Bergerak`, dan `Selesai`.
+- Reject tetap dihitung sebagai progress, tetapi menjadi penimbang kualitas melalui `Reject %`, `Laju Efektif/Hari`, dan badge `Reject Rendah/Perlu Pantau/Reject Tinggi`.
 
 ---
 

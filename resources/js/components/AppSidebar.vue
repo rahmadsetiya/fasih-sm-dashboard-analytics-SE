@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart3, ClipboardList, Map, Users, X } from '@lucide/vue';
+import { BarChart3, ClipboardList, Map, Target, Users, X } from '@lucide/vue';
 import Drawer from 'primevue/drawer';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -24,6 +24,7 @@ const mainNavItems: NavItem[] = [
     { title: 'Ringkasan Kabupaten', href: '/ringkasan', icon: ClipboardList },
     { title: 'Dashboard FASIH', href: '/', icon: BarChart3 },
     { title: 'Peta Wilayah', href: '/peta', icon: Map },
+    { title: 'Proyeksi Petugas', href: '/proyeksi', icon: Target },
 ];
 
 const adminNavItems: NavItem[] = [

@@ -4,6 +4,22 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 
 Format changelog ini mengikuti pendekatan ringkas berbasis versi aplikasi yang ditampilkan ke user di dalam dashboard.
 
+## [0.4.5] - 2026-07-20
+
+### Ditambahkan
+- Metrik reject pada halaman Proyeksi Petugas: jumlah reject, reject %, laju efektif/hari, estimasi efektif, dan risiko reject.
+- Badge risiko kualitas `Reject Rendah`, `Perlu Pantau`, dan `Reject Tinggi`.
+
+### Diubah
+- Status proyeksi `Aman/Berisiko` kini mempertimbangkan laju efektif yang dikoreksi oleh reject rate, sementara progress mentah tetap semua status selain `OPEN` dan `DRAFT`.
+
+## [0.4.4] - 2026-07-20
+
+### Ditambahkan
+- Halaman Proyeksi Petugas untuk menghitung target submit harian per PPL/PML sampai deadline 31 Agustus 2026.
+- Ringkasan kabupaten, ranking petugas, badge Aman/Berisiko/Belum Bergerak/Selesai, dan export Excel sesuai tampilan.
+- Modal detail petugas berisi tren harian, target vs realisasi, breakdown status, dan daftar wilayah tugas.
+
 ## [0.4.3] - 2026-07-14
 
 ### Ditambahkan

@@ -1,9 +1,33 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '0.4.3'),
+    'version' => env('APP_VERSION', '0.4.5'),
 
     'history' => [
+        [
+            'version' => '0.4.5',
+            'released_at' => '2026-07-20',
+            'title' => 'Bobot Reject pada Proyeksi Petugas',
+            'summary' => 'Menyempurnakan proyeksi petugas dengan laju efektif yang mempertimbangkan tingkat reject.',
+            'highlights' => [
+                'Memastikan progress proyeksi menghitung seluruh status selain OPEN dan DRAFT.',
+                'Menambahkan jumlah reject, persentase reject, laju efektif per hari, dan estimasi selesai terkoreksi reject.',
+                'Menambahkan badge Reject Rendah, Perlu Pantau, dan Reject Tinggi untuk membaca risiko kualitas petugas.',
+                'Memperbarui tabel, modal detail, tren, dan export Excel proyeksi agar menampilkan indikator reject.',
+            ],
+        ],
+        [
+            'version' => '0.4.4',
+            'released_at' => '2026-07-20',
+            'title' => 'Proyeksi Selesai Petugas',
+            'summary' => 'Menambahkan monitoring target submit harian per PPL/PML sampai deadline operasional.',
+            'highlights' => [
+                'Menambahkan halaman Proyeksi Petugas untuk melihat target submit harian, laju aktual, sisa assignment, dan estimasi selesai.',
+                'Menampilkan badge Aman, Berisiko, Belum Bergerak, dan Selesai agar prioritas pendampingan lebih cepat terlihat.',
+                'Menambahkan modal detail petugas berisi tren harian, target vs realisasi, breakdown status, dan wilayah tugas.',
+                'Menyediakan filter role, snapshot, deadline, wilayah, status proyeksi, pencarian nama, serta export Excel sesuai tampilan.',
+            ],
+        ],
         [
             'version' => '0.4.3',
             'released_at' => '2026-07-14',

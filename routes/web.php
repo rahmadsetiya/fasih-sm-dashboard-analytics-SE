@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseImportController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\HeatmapController;
+use App\Http\Controllers\OfficerProjectionController;
 use App\Http\Controllers\PenugasanController;
 use App\Http\Controllers\PetugasController;
 use App\Http\Controllers\PetugasNameController;
@@ -42,6 +43,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/geo/officers/{userId}/regions', [GeoController::class, 'officerRegions'])->name('geo.officers.regions');
     Route::get('/api/geo/regions/{level}/{regionId}', [GeoController::class, 'regionDetail'])->name('geo.regions.detail');
     Route::get('/api/geo/regions/{idsubsls}', [GeoController::class, 'region'])->name('geo.regions.show');
+
+    Route::get('/proyeksi', [OfficerProjectionController::class, 'index'])->name('proyeksi');
+    Route::get('/api/projections/officers', [OfficerProjectionController::class, 'officers'])->name('projections.officers');
+    Route::get('/api/projections/officers/{officerKey}', [OfficerProjectionController::class, 'detail'])->name('projections.officers.detail');
 
     Route::get('/heatmap', $redirectDisabledAnalyticsPage)->name('heatmap');
     Route::get('/api/heatmap', [HeatmapController::class, 'data'])->name('heatmap.data');
