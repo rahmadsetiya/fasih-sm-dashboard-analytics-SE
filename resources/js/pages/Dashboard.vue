@@ -21,12 +21,14 @@ const props = defineProps<{
 // ── types ─────────────────────────────────────────────────────────────────
 type Role = 'pengawas' | 'pencacah';
 type Level = 'kec' | 'desa' | 'sls' | 'subsls' | 'by_pengawas' | 'by_pencacah';
+type PrelistBasis = 'dynamic' | 'initial';
 
 interface Metrics {
     total_petugas: number;
     total_kec: number;
     total_desa: number;
     total_assignment: number;
+    progress_total?: number;
     progress_pct: number;
     approved_pct: number;
     submitted_pct: number;
@@ -43,6 +45,10 @@ interface BreakdownRow {
     key: string;
     label: string;
     total: number;
+    progress_total?: number;
+    prelist_dynamic: number;
+    prelist_initial: number;
+    prelist_delta: number;
     progress_pct: number;
     lapangan_total: number;
     lapangan_pct: number;
@@ -70,6 +76,20 @@ interface FilterOptions {
     desa: FilterOption[] | null;
     sls: FilterOption[] | null;
 }
+interface PrelistComparison {
+    dynamic_total: number;
+    initial_total: number;
+    delta: number;
+    delta_pct: number;
+    matched_subsls: number;
+    initial_only_subsls: number;
+    initial_without_assignments_subsls: number;
+    initial_without_assignments_with_progress_subsls: number;
+    initial_without_assignments_missing_progress_subsls: number;
+    dynamic_only_subsls: number;
+    zero_initial_subsls: number;
+    initial_available: boolean;
+}
 
 // ── state ─────────────────────────────────────────────────────────────────
 const snapshots = ref<string[]>(props.snapshots);
@@ -79,6 +99,7 @@ const filters = reactive({
     snapshot: props.snapshots[0] ?? '',
     role: 'pengawas' as Role,
     level: 'kec' as Level,
+    prelist_basis: 'dynamic' as PrelistBasis,
     filter_kec: [] as string[],
     filter_desa: [] as string[],
     filter_sls: [] as string[],
@@ -114,6 +135,24 @@ const statusTotals = ref<Record<string, number>>({});
 const breakdown = ref<BreakdownRow[]>([]);
 const trend = ref<TrendPoint[]>([]);
 const filterOptions = ref<FilterOptions | null>(null);
+const prelistComparison = ref<PrelistComparison>({
+    dynamic_total: 0,
+    initial_total: 0,
+    delta: 0,
+    delta_pct: 0,
+    matched_subsls: 0,
+    initial_only_subsls: 0,
+    initial_without_assignments_subsls: 0,
+    initial_without_assignments_with_progress_subsls: 0,
+    initial_without_assignments_missing_progress_subsls: 0,
+    dynamic_only_subsls: 0,
+    zero_initial_subsls: 0,
+    initial_available: false,
+});
+const PRELIST_BASIS_OPTIONS: { label: string; value: PrelistBasis }[] = [
+    { label: 'Dinamis', value: 'dynamic' },
+    { label: 'Awal', value: 'initial' },
+];
 
 // ── compare mode ──────────────────────────────────────────────────────────
 const compareMode = ref(false);
@@ -153,6 +192,7 @@ async function fetchData() {
             snapshot: filters.snapshot,
             role: filters.role,
             level: filters.level,
+            prelist_basis: filters.prelist_basis,
         });
         filters.filter_kec.forEach((c) => params.append('filter_kec[]', c));
         filters.filter_desa.forEach((c) => params.append('filter_desa[]', c));
@@ -170,6 +210,7 @@ async function fetchData() {
         breakdown.value = data.breakdown;
         trend.value = data.trend;
         filterOptions.value = data.filter_options;
+        prelistComparison.value = data.prelist_comparison;
         currentPage.value = 1;
         tableSearch.value = '';
     } finally {
@@ -192,6 +233,7 @@ async function fetchCompare() {
             snapshot: compareSnapshot.value,
             role: filters.role,
             level: filters.level,
+            prelist_basis: filters.prelist_basis,
         });
         filters.filter_kec.forEach((c) => params.append('filter_kec[]', c));
         filters.filter_desa.forEach((c) => params.append('filter_desa[]', c));
@@ -275,6 +317,14 @@ const totalActiveFilters = computed(
         filters.filter_kec.length +
         filters.filter_desa.length +
         filters.filter_sls.length,
+);
+const prelistBasisLabel = computed(() =>
+    filters.prelist_basis === 'initial' ? 'Prelist Awal' : 'Prelist Dinamis',
+);
+const prelistInitialMissing = computed(
+    () =>
+        filters.prelist_basis === 'initial' &&
+        !prelistComparison.value.initial_available,
 );
 
 const selectedFilterChips = computed(() => {
@@ -1339,6 +1389,21 @@ function rowContext(row: BreakdownRow): string {
                 <div class="space-y-1.5">
                     <span
                         class="block text-xs font-medium text-muted-foreground"
+                        >Basis Prelist</span
+                    >
+                    <SelectButton
+                        v-model="filters.prelist_basis"
+                        :options="PRELIST_BASIS_OPTIONS"
+                        optionLabel="label"
+                        optionValue="value"
+                        size="small"
+                        class="w-full"
+                    />
+                </div>
+
+                <div class="space-y-1.5">
+                    <span
+                        class="block text-xs font-medium text-muted-foreground"
                         >Mode Ringkasan</span
                     >
                     <div class="grid grid-cols-3 gap-1.5">
@@ -1455,6 +1520,21 @@ function rowContext(row: BreakdownRow): string {
                     optionValue="value"
                     size="small"
                 />
+
+                <div class="h-4 w-px bg-border" />
+
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >Basis</span
+                    >
+                    <SelectButton
+                        v-model="filters.prelist_basis"
+                        :options="PRELIST_BASIS_OPTIONS"
+                        optionLabel="label"
+                        optionValue="value"
+                        size="small"
+                    />
+                </div>
 
                 <div class="h-4 w-px bg-border" />
 
@@ -1714,6 +1794,18 @@ function rowContext(row: BreakdownRow): string {
             </Transition>
         </div>
 
+        <div
+            v-if="prelistInitialMissing"
+            class="rounded-xl border border-amber-400/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 shadow-sm dark:text-amber-200"
+        >
+            <span class="font-semibold">Prelist awal belum tersedia.</span>
+            Dashboard tetap memakai Prelist Dinamis sampai data awal diimpor
+            lewat command
+            <code class="rounded bg-amber-500/15 px-1 py-0.5 text-xs"
+                >php artisan prelist:import-awal</code
+            >.
+        </div>
+
         <!-- Metric cards -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
             <div
@@ -1743,7 +1835,7 @@ function rowContext(row: BreakdownRow): string {
                         tooltip: '',
                     },
                     {
-                        label: 'Total Assignment',
+                        label: `Total Assignment (${prelistBasisLabel})`,
                         value: metrics.total_assignment,
                         fmt: 'n',
                         color: 'text-foreground',
@@ -1758,7 +1850,7 @@ function rowContext(row: BreakdownRow): string {
                         hex: '#FFA95A',
                         ring: 'border-[#FFA95A]/60 bg-[#FFA95A]/10 shadow-md shadow-orange-500/10 dark:bg-[#FFA95A]/12',
                         tooltip:
-                            '% Submit = (Total − OPEN − DRAFT) ÷ Total × 100%. Status OPEN dan DRAFT belum diproses, tidak dihitung sebagai submit.',
+                            '% Submit = jumlah aktual semua status selain OPEN dan DRAFT ÷ Total Assignment basis aktif × 100%.',
                     },
                     {
                         label: 'Submitted',
@@ -1821,6 +1913,59 @@ function rowContext(row: BreakdownRow): string {
                             ? card.value.toFixed(1) + '%'
                             : card.value.toLocaleString('id-ID')
                     }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Gap Prelist -->
+        <div
+            class="grid gap-3 rounded-2xl border border-sky-300/35 bg-gradient-to-r from-sky-500/10 via-card to-card p-3 shadow-sm md:grid-cols-[1.2fr_repeat(4,1fr)] dark:border-sky-500/20"
+        >
+            <div class="flex min-w-0 flex-col justify-center">
+                <p
+                    class="text-[10px] font-bold tracking-[0.22em] text-sky-700 uppercase dark:text-sky-300"
+                >
+                    Gap Prelist
+                </p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Basis aktif: {{ prelistBasisLabel }}. Cakupan assignments
+                    dipisahkan dari progress agar kualitas data terbaca jelas.
+                </p>
+            </div>
+            <div
+                v-for="item in [
+                    {
+                        label: 'Dinamis',
+                        value: prelistComparison.dynamic_total,
+                        suffix: 'assignment',
+                    },
+                    {
+                        label: 'Awal',
+                        value: prelistComparison.initial_total,
+                        suffix: prelistComparison.initial_available
+                            ? 'assignment'
+                            : 'belum impor',
+                    },
+                    {
+                        label: 'Selisih',
+                        value: prelistComparison.delta,
+                        suffix: `${prelistComparison.delta_pct}%`,
+                    },
+                    {
+                        label: 'Fallback Progress',
+                        value: prelistComparison.initial_without_assignments_with_progress_subsls,
+                        suffix: `${prelistComparison.initial_only_subsls} belum masuk basis`,
+                    },
+                ]"
+                :key="item.label"
+                class="rounded-xl border border-white/50 bg-background/70 px-3 py-2 shadow-sm dark:border-white/10"
+            >
+                <p class="text-xs text-muted-foreground">{{ item.label }}</p>
+                <p class="mt-0.5 text-lg font-bold tabular-nums">
+                    {{ item.value.toLocaleString('id-ID') }}
+                </p>
+                <p class="text-[11px] text-muted-foreground">
+                    {{ item.suffix }}
                 </p>
             </div>
         </div>
@@ -2200,9 +2345,16 @@ function rowContext(row: BreakdownRow): string {
                             <th
                                 class="cursor-pointer px-3 py-2 text-right font-semibold"
                                 @click="toggleSort('total')"
+                                :title="`Mengikuti basis aktif: ${prelistBasisLabel}`"
                                 scope="col"
                             >
-                                Total Assignment{{ sortIcon('total') }}
+                                Total Assignment
+                                <span
+                                    class="block text-[10px] font-medium text-muted-foreground/70"
+                                >
+                                    {{ prelistBasisLabel }}
+                                </span>
+                                {{ sortIcon('total') }}
                             </th>
                             <th
                                 class="cursor-pointer px-3 py-2 font-semibold"

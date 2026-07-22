@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PetugasName;
+use App\Services\PrelistComparisonService;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,8 @@ class DashboardController extends Controller
 
     private const STATUS_SUM_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT", SUM("COMPLETED BY Admin Kabupaten") as "COMPLETED BY Admin Kabupaten", SUM("EDITED BY Admin Kabupaten") as "EDITED BY Admin Kabupaten", SUM("REJECTED BY Admin Kabupaten") as "REJECTED BY Admin Kabupaten", SUM("REVOKED BY Admin Kabupaten") as "REVOKED BY Admin Kabupaten"';
 
+    private const SUBMIT_SUM_SQL = 'SUM("SUBMITTED BY Pencacah") + SUM("APPROVED BY Pengawas") + SUM("REJECTED BY Pengawas") + SUM("EDITED BY Pengawas") + SUM("REVOKED BY Pengawas") + SUM("SUBMITTED RESPONDENT") + SUM("COMPLETED BY Admin Kabupaten") + SUM("EDITED BY Admin Kabupaten") + SUM("REJECTED BY Admin Kabupaten") + SUM("REVOKED BY Admin Kabupaten")';
+
     public function index(): Response
     {
         $dbPath = config('database.connections.fasih.database');
@@ -50,12 +53,13 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function data(Request $request): JsonResponse
+    public function data(Request $request, PrelistComparisonService $prelists): JsonResponse
     {
         $snapshot = $request->input('snapshot', '');
         $role = in_array($request->input('role'), ['pengawas', 'pencacah'])
             ? $request->input('role') : 'pengawas';
         $level = $request->input('level', 'kec');
+        $prelistBasis = $prelists->basis($request->input('prelist_basis'));
 
         $filterKec = array_values(array_filter((array) $request->input('filter_kec', [])));
         $filterDesa = array_values(array_filter((array) $request->input('filter_desa', [])));
@@ -72,13 +76,19 @@ class DashboardController extends Controller
         }
 
         $nameOverrides = PetugasName::pluck('display_name', 'username')->all();
+        $basisTotal = $prelists->totalForBasis($prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot);
+        $groupTotals = in_array($level, ['by_pengawas', 'by_pencacah'], true)
+            ? $prelists->officerGroupTotals($level, $prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot)
+            : $prelists->groupTotals($level, $prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot);
 
         return response()->json([
-            'metrics' => $this->calcMetrics(clone $base),
+            'metrics' => $this->calcMetrics(clone $base, $basisTotal),
             'status_totals' => $this->calcStatusTotals(clone $base),
-            'breakdown' => $this->calcBreakdown(clone $base, $level, $nameOverrides),
-            'trend' => $this->calcTrend($table, $filterKec, $filterDesa, $filterSls),
+            'breakdown' => $this->calcBreakdown(clone $base, $level, $nameOverrides, $groupTotals),
+            'trend' => $this->calcTrend($table, $filterKec, $filterDesa, $filterSls, $prelistBasis, $prelists),
             'filter_options' => $this->calcFilterOptions($table, $snapshot, $level, $filterKec, $filterDesa, $filterSls),
+            'prelist_basis' => $prelistBasis,
+            'prelist_comparison' => $prelists->comparison($filterKec, $filterDesa, $filterSls, $table, $snapshot),
         ]);
     }
 
@@ -102,12 +112,15 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function ringkasanData(Request $request): JsonResponse
+    public function ringkasanData(Request $request, PrelistComparisonService $prelists): JsonResponse
     {
         $snapshot = $request->input('snapshot', '');
+        $prelistBasis = $prelists->basis($request->input('prelist_basis'));
 
         $baseP = DB::connection('fasih')->table('progress_pengawas')->where('snapshot_at', $snapshot);
         $baseC = DB::connection('fasih')->table('progress_pencacah')->where('snapshot_at', $snapshot);
+        $basisTotal = $prelists->totalForBasis($prelistBasis, [], [], [], 'progress_pengawas', $snapshot);
+        $kecTotals = $prelists->groupTotals('kec', $prelistBasis, [], [], [], 'progress_pengawas', $snapshot);
 
         // Geo info
         $geoRow = (clone $baseP)
@@ -119,25 +132,25 @@ class DashboardController extends Controller
             ->first();
 
         // Metrics
-        $m = (clone $baseP)->selectRaw('
+        $submitSql = self::SUBMIT_SUM_SQL;
+        $m = (clone $baseP)->selectRaw("
             COUNT(DISTINCT kdkec)                as total_kec,
             COUNT(DISTINCT kdkec || kddes)        as total_desa,
             COUNT(DISTINCT kdkec || kddes || kdsls) as total_sls,
             COUNT(DISTINCT idsubsls)             as total_subsls,
             COUNT(DISTINCT username)             as total_pengawas,
-            SUM(region_total)                    as total_assignment,
-            SUM("OPEN")                          as total_open,
-            SUM("DRAFT")                         as total_draft,
-            SUM("APPROVED BY Pengawas")          as total_approved,
-            SUM("SUBMITTED BY Pencacah")         as total_submitted,
-            SUM("REJECTED BY Pengawas")          as total_rejected
-        ')->first();
+            SUM(\"OPEN\")                          as total_open,
+            SUM(\"DRAFT\")                         as total_draft,
+            SUM(\"APPROVED BY Pengawas\")          as total_approved,
+            SUM(\"SUBMITTED BY Pencacah\")         as total_submitted,
+            SUM(\"REJECTED BY Pengawas\")          as total_rejected,
+            ({$submitSql})                         as total_submit_progress
+        ")->first();
 
         $totalPencacah = (clone $baseC)->distinct()->count('username');
 
-        $total = (int) ($m->total_assignment ?: 1);
-        $open = (int) ($m->total_open ?: 0);
-        $draft = (int) ($m->total_draft ?: 0);
+        $total = max(1, $basisTotal);
+        $submitProgress = (int) ($m->total_submit_progress ?: 0);
         $approved = (int) ($m->total_approved ?: 0);
         $submitted = (int) ($m->total_submitted ?: 0);
         $rejected = (int) ($m->total_rejected ?: 0);
@@ -154,25 +167,29 @@ class DashboardController extends Controller
         $kecRows = (clone $baseP)->selectRaw("
             kdkec, nmkec,
             COUNT(DISTINCT kdkec || kddes) as total_desa,
-            SUM(region_total) as total, $sums
-        ")->groupBy('kdkec', 'nmkec')->orderByDesc('total')->get();
+            SUM(region_total) as progress_total, $sums
+        ")->groupBy('kdkec', 'nmkec')->orderByDesc('progress_total')->get();
 
-        $kecamatan = $kecRows->map(function ($r) {
-            $tot = (int) ($r->total ?: 1);
-            $open = (int) ($r->OPEN ?? 0);
-            $draft = (int) ($r->DRAFT ?? 0);
+        $kecamatan = $kecRows->map(function ($r) use ($kecTotals) {
+            $prelist = $kecTotals[(string) $r->kdkec] ?? null;
+            $tot = (int) (($prelist['selected'] ?? $r->progress_total) ?: 1);
             $app = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
             $statuses = [];
             foreach (self::STATUS_COLS as $c) {
                 $statuses[$c] = (int) ($r->$c ?? 0);
             }
+            $submitProgress = $this->actualSubmitTotal($statuses);
 
             return [
                 'kdkec' => $r->kdkec,
                 'nmkec' => $r->nmkec,
                 'total_desa' => (int) $r->total_desa,
                 'total' => $tot,
-                'progress_pct' => round(($tot - $open - $draft) / $tot * 100, 1),
+                'progress_total' => (int) $r->progress_total,
+                'prelist_dynamic' => (int) ($prelist['dynamic'] ?? 0),
+                'prelist_initial' => (int) ($prelist['initial'] ?? 0),
+                'prelist_delta' => (int) (($prelist['dynamic'] ?? 0) - ($prelist['initial'] ?? 0)),
+                'progress_pct' => round($submitProgress / $tot * 100, 1),
                 'approved_pct' => round($app / $tot * 100, 1),
                 'statuses' => $statuses,
             ];
@@ -189,14 +206,16 @@ class DashboardController extends Controller
                 'total_pengawas' => (int) $m->total_pengawas,
                 'total_pencacah' => $totalPencacah,
                 'total_assignment' => $total,
-                'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
+                'progress_pct' => round($submitProgress / $total * 100, 1),
                 'approved_pct' => round($approved / $total * 100, 1),
                 'submitted_pct' => round($submitted / $total * 100, 1),
                 'rejected_pct' => round($rejected / $total * 100, 1),
             ],
             'status_totals' => $statusTotals,
             'kecamatan' => $kecamatan,
-            'trend' => $this->calcTrend('progress_pengawas', [], [], []),
+            'trend' => $this->calcTrend('progress_pengawas', [], [], [], $prelistBasis, $prelists),
+            'prelist_basis' => $prelistBasis,
+            'prelist_comparison' => $prelists->comparison([], [], [], 'progress_pengawas', $snapshot),
         ]);
     }
 
@@ -265,23 +284,24 @@ class DashboardController extends Controller
     /**
      * @return array<string, int|float>
      */
-    private function calcMetrics(Builder $query): array
+    private function calcMetrics(Builder $query, int $basisTotal = 0): array
     {
-        $row = $query->selectRaw('
+        $submitSql = self::SUBMIT_SUM_SQL;
+        $row = $query->selectRaw("
             COUNT(DISTINCT username)          as total_petugas,
             COUNT(DISTINCT kdkec)             as total_kec,
             COUNT(DISTINCT kdkec || kddes)    as total_desa,
-            SUM(region_total)                 as total_assignment,
-            SUM("OPEN")                       as total_open,
-            SUM("DRAFT")                      as total_draft,
-            SUM("APPROVED BY Pengawas")       as total_approved,
-            SUM("SUBMITTED BY Pencacah")      as total_submitted,
-            SUM("REJECTED BY Pengawas")       as total_rejected
-        ')->first();
+            SUM(region_total)                 as progress_total,
+            SUM(\"OPEN\")                       as total_open,
+            SUM(\"DRAFT\")                      as total_draft,
+            SUM(\"APPROVED BY Pengawas\")       as total_approved,
+            SUM(\"SUBMITTED BY Pencacah\")      as total_submitted,
+            SUM(\"REJECTED BY Pengawas\")       as total_rejected,
+            ({$submitSql})                      as total_submit_progress
+        ")->first();
 
-        $total = (int) ($row->total_assignment ?: 1);
-        $open = (int) ($row->total_open ?: 0);
-        $draft = (int) ($row->total_draft ?: 0);
+        $total = (int) ($basisTotal ?: $row->progress_total ?: 1);
+        $submitProgress = (int) ($row->total_submit_progress ?: 0);
         $approved = (int) ($row->total_approved ?: 0);
         $submitted = (int) ($row->total_submitted ?: 0);
         $rejected = (int) ($row->total_rejected ?: 0);
@@ -291,7 +311,8 @@ class DashboardController extends Controller
             'total_kec' => (int) $row->total_kec,
             'total_desa' => (int) $row->total_desa,
             'total_assignment' => $total,
-            'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
+            'progress_total' => (int) ($row->progress_total ?: 0),
+            'progress_pct' => round($submitProgress / $total * 100, 1),
             'approved_pct' => round($approved / $total * 100, 1),
             'submitted_pct' => round($submitted / $total * 100, 1),
             'rejected_pct' => round($rejected / $total * 100, 1),
@@ -313,10 +334,20 @@ class DashboardController extends Controller
     }
 
     /**
+     * @param  array<string, int>  $statuses
+     */
+    private function actualSubmitTotal(array $statuses): int
+    {
+        return collect(self::STATUS_COLS)
+            ->reject(fn (string $status) => in_array($status, ['OPEN', 'DRAFT'], true))
+            ->sum(fn (string $status) => $statuses[$status] ?? 0);
+    }
+
+    /**
      * @param  array<string, string>  $nameOverrides
      * @return array<int, array<string, mixed>>
      */
-    private function calcBreakdown(Builder $query, string $level, array $nameOverrides = []): array
+    private function calcBreakdown(Builder $query, string $level, array $nameOverrides = [], array $prelistTotals = []): array
     {
         $sums = self::STATUS_SUM_SQL;
 
@@ -324,19 +355,19 @@ class DashboardController extends Controller
             'desa' => $query->selectRaw("
                     kdkec || '-' || kddes as grp_key,
                     nmdesa as label, nmkec,
-                    SUM(region_total) as total, $sums
+                    SUM(region_total) as progress_total, $sums
                 ")->groupBy('kdkec', 'kddes', 'nmdesa', 'nmkec')->get(),
 
             'sls' => $query->selectRaw("
                     kdkec || kddes || kdsls as grp_key,
                     nmsls as label, nmdesa, nmkec,
-                    SUM(region_total) as total, $sums
+                    SUM(region_total) as progress_total, $sums
                 ")->groupBy('kdkec', 'kddes', 'kdsls', 'nmsls', 'nmdesa', 'nmkec')->get(),
 
             'subsls' => $query->selectRaw("
                     idsubsls as grp_key,
                     nmsubsls as label, nmsls, nmdesa, nmkec,
-                    SUM(region_total) as total, $sums
+                    SUM(region_total) as progress_total, $sums
                 ")->groupBy('idsubsls', 'nmsubsls', 'nmsls', 'nmdesa', 'nmkec')->get(),
 
             'by_pengawas', 'by_pencacah' => $query->selectRaw("
@@ -344,19 +375,20 @@ class DashboardController extends Controller
                     COALESCE(NULLIF(nama_lengkap,''), username) as label,
                     COUNT(DISTINCT kdkec) as kec_count,
                     COUNT(DISTINCT kdkec || kddes) as desa_count,
-                    SUM(region_total) as total, $sums
+                    SUM(region_total) as progress_total, $sums
                 ")->groupBy('username', 'nama_lengkap')->get(),
 
             default => /* kec */ $query->selectRaw("
                     kdkec as grp_key, nmkec as label,
-                    SUM(region_total) as total, $sums
+                    SUM(region_total) as progress_total, $sums
                 ")->groupBy('kdkec', 'nmkec')->get(),
         };
 
-        return $rows->map(function ($r) use ($level, $nameOverrides) {
-            $total = (int) ($r->total ?: 1);
+        return $rows->map(function ($r) use ($level, $nameOverrides, $prelistTotals) {
+            $prelist = $prelistTotals[(string) $r->grp_key] ?? null;
+            $progressTotal = (int) ($r->progress_total ?: 0);
+            $total = (int) (($prelist['selected'] ?? $progressTotal) ?: 1);
             $open = (int) ($r->OPEN ?? 0);
-            $draft = (int) ($r->DRAFT ?? 0);
             $approved = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
             $lapanganTotal =
                 (int) ($r->DRAFT ?? 0) +
@@ -375,6 +407,7 @@ class DashboardController extends Controller
             foreach (self::STATUS_COLS as $c) {
                 $statuses[$c] = (int) ($r->$c ?? 0);
             }
+            $submitProgress = $this->actualSubmitTotal($statuses);
 
             $label = $nameOverrides[$r->grp_key] ?? $r->label ?? null;
             if (! is_string($label) || trim($label) === '') {
@@ -390,7 +423,11 @@ class DashboardController extends Controller
                 'key' => $r->grp_key,
                 'label' => $label,
                 'total' => $total,
-                'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
+                'progress_total' => $progressTotal,
+                'prelist_dynamic' => (int) ($prelist['dynamic'] ?? 0),
+                'prelist_initial' => (int) ($prelist['initial'] ?? 0),
+                'prelist_delta' => (int) (($prelist['dynamic'] ?? 0) - ($prelist['initial'] ?? 0)),
+                'progress_pct' => round($submitProgress / $total * 100, 1),
                 'lapangan_total' => $lapanganTotal,
                 'lapangan_pct' => round($lapanganTotal / $total * 100, 1),
                 'approved_pct' => round($approved / $total * 100, 1),
@@ -423,8 +460,14 @@ class DashboardController extends Controller
      * @param  list<string>  $filterSls
      * @return array<int, array<string, int|float|string>>
      */
-    private function calcTrend(string $table, array $filterKec, array $filterDesa, array $filterSls): array
-    {
+    private function calcTrend(
+        string $table,
+        array $filterKec,
+        array $filterDesa,
+        array $filterSls,
+        string $prelistBasis = 'dynamic',
+        ?PrelistComparisonService $prelists = null,
+    ): array {
         $query = DB::connection('fasih')->table($table);
         $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
@@ -443,29 +486,32 @@ class DashboardController extends Controller
             return [];
         }
 
+        $basisTotal = $prelists?->totalForBasis($prelistBasis, $filterKec, $filterDesa, $filterSls, $table) ?? 0;
+        $submitSql = self::SUBMIT_SUM_SQL;
+
         return $query
             ->whereIn('snapshot_at', $latestSnapshots)
-            ->selectRaw('
+            ->selectRaw("
             snapshot_at,
-            SUM(region_total)             as total,
-            SUM("OPEN")                   as total_open,
-            SUM("DRAFT")                  as total_draft,
-            SUM("SUBMITTED BY Pencacah")  as total_submitted,
-            SUM("APPROVED BY Pengawas")   as total_approved
-        ')
+            SUM(region_total)             as progress_total,
+            SUM(\"OPEN\")                   as total_open,
+            SUM(\"DRAFT\")                  as total_draft,
+            SUM(\"SUBMITTED BY Pencacah\")  as total_submitted,
+            SUM(\"APPROVED BY Pengawas\")   as total_approved,
+            ({$submitSql})                 as total_submit_progress
+        ")
             ->groupBy('snapshot_at')
             ->orderBy('snapshot_at')
             ->get()
-            ->map(function ($r) {
-                $total = (int) ($r->total ?: 1);
-                $open = (int) ($r->total_open ?: 0);
-                $draft = (int) ($r->total_draft ?: 0);
+            ->map(function ($r) use ($basisTotal) {
+                $total = (int) ($basisTotal ?: $r->progress_total ?: 1);
+                $submitProgress = (int) ($r->total_submit_progress ?: 0);
                 $submitted = (int) ($r->total_submitted ?: 0);
                 $approved = (int) ($r->total_approved ?: 0);
 
                 return [
                     'snapshot_at' => $r->snapshot_at,
-                    'progress_pct' => round(($total - $open - $draft) / $total * 100, 1),
+                    'progress_pct' => round($submitProgress / $total * 100, 1),
                     'submitted_pct' => round($submitted / $total * 100, 1),
                     'approved_pct' => round($approved / $total * 100, 1),
                     'total' => $total,

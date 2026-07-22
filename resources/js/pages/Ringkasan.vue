@@ -24,6 +24,21 @@ interface RingkasanMetrics {
     submitted_pct: number;
     rejected_pct: number;
 }
+type PrelistBasis = 'dynamic' | 'initial';
+interface PrelistComparison {
+    dynamic_total: number;
+    initial_total: number;
+    delta: number;
+    delta_pct: number;
+    matched_subsls: number;
+    initial_only_subsls: number;
+    initial_without_assignments_subsls: number;
+    initial_without_assignments_with_progress_subsls: number;
+    initial_without_assignments_missing_progress_subsls: number;
+    dynamic_only_subsls: number;
+    zero_initial_subsls: number;
+    initial_available: boolean;
+}
 interface TrendPoint {
     snapshot_at: string;
     progress_pct: number;
@@ -35,6 +50,11 @@ interface TrendPoint {
 // ── state ─────────────────────────────────────────────────────────────────
 const snapshots = ref<string[]>(props.snapshots);
 const snapshot = ref(props.snapshots[0] ?? '');
+const prelistBasis = ref<PrelistBasis>('dynamic');
+const PRELIST_BASIS_OPTIONS: { label: string; value: PrelistBasis }[] = [
+    { label: 'Dinamis', value: 'dynamic' },
+    { label: 'Awal', value: 'initial' },
+];
 
 watch(
     () => props.snapshots,
@@ -65,6 +85,28 @@ const metrics = ref<RingkasanMetrics>({
 });
 const statusTotals = ref<Record<string, number>>({});
 const trend = ref<TrendPoint[]>([]);
+const prelistComparison = ref<PrelistComparison>({
+    dynamic_total: 0,
+    initial_total: 0,
+    delta: 0,
+    delta_pct: 0,
+    matched_subsls: 0,
+    initial_only_subsls: 0,
+    initial_without_assignments_subsls: 0,
+    initial_without_assignments_with_progress_subsls: 0,
+    initial_without_assignments_missing_progress_subsls: 0,
+    dynamic_only_subsls: 0,
+    zero_initial_subsls: 0,
+    initial_available: false,
+});
+const prelistBasisLabel = computed(() =>
+    prelistBasis.value === 'initial' ? 'Prelist Awal' : 'Prelist Dinamis',
+);
+const prelistInitialMissing = computed(
+    () =>
+        prelistBasis.value === 'initial' &&
+        !prelistComparison.value.initial_available,
+);
 
 const isDark = useDark();
 const chartBg = computed(() => (isDark.value ? '#18181b' : '#ffffff'));
@@ -95,7 +137,7 @@ async function fetchData() {
 
     try {
         const res = await fetch(
-            `/api/ringkasan-data?snapshot=${encodeURIComponent(snapshot.value)}`,
+            `/api/ringkasan-data?snapshot=${encodeURIComponent(snapshot.value)}&prelist_basis=${prelistBasis.value}`,
             {
                 headers: {
                     Accept: 'application/json',
@@ -109,12 +151,13 @@ async function fetchData() {
         metrics.value = data.metrics;
         statusTotals.value = data.status_totals;
         trend.value = data.trend;
+        prelistComparison.value = data.prelist_comparison;
     } finally {
         loading.value = false;
     }
 }
 
-watch(snapshot, fetchData);
+watch([snapshot, prelistBasis], fetchData);
 onMounted(fetchData);
 
 // ── chart: donut ──────────────────────────────────────────────────────────
@@ -306,6 +349,24 @@ function pct(v: number) {
                             </option>
                         </select>
                     </div>
+                    <div
+                        class="flex overflow-hidden rounded-md border border-input bg-background text-xs"
+                    >
+                        <button
+                            v-for="option in PRELIST_BASIS_OPTIONS"
+                            :key="option.value"
+                            type="button"
+                            :class="[
+                                'px-2.5 py-1 font-medium transition-colors',
+                                prelistBasis === option.value
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:bg-muted',
+                            ]"
+                            @click="prelistBasis = option.value"
+                        >
+                            {{ option.label }}
+                        </button>
+                    </div>
                     <span
                         v-if="loading"
                         class="animate-pulse text-xs text-muted-foreground"
@@ -321,6 +382,14 @@ function pct(v: number) {
                     </button>
                 </div>
             </div>
+        </div>
+
+        <div
+            v-if="prelistInitialMissing"
+            class="rounded-xl border border-amber-400/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 shadow-sm dark:text-amber-200"
+        >
+            <span class="font-semibold">Prelist awal belum tersedia.</span>
+            Ringkasan tetap memakai Prelist Dinamis sampai data awal diimpor.
         </div>
 
         <!-- Metric cards row 1: geographic counts + assignment -->
@@ -370,7 +439,7 @@ function pct(v: number) {
                         ring: '',
                     },
                     {
-                        label: 'Total Assignment',
+                        label: `Total Assignment (${prelistBasisLabel})`,
                         value: metrics.total_assignment,
                         fmt: 'n',
                         color: 'text-foreground',
@@ -387,6 +456,58 @@ function pct(v: number) {
             </div>
         </div>
 
+        <div
+            class="grid gap-3 rounded-2xl border border-sky-300/35 bg-gradient-to-r from-sky-500/10 via-card to-card p-3 shadow-sm md:grid-cols-[1.2fr_repeat(4,1fr)] dark:border-sky-500/20"
+        >
+            <div class="flex min-w-0 flex-col justify-center">
+                <p
+                    class="text-[10px] font-bold tracking-[0.22em] text-sky-700 uppercase dark:text-sky-300"
+                >
+                    Gap Prelist
+                </p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Basis aktif: {{ prelistBasisLabel }}. Cakupan assignments
+                    dipisahkan dari progress agar kualitas data terbaca jelas.
+                </p>
+            </div>
+            <div
+                v-for="item in [
+                    {
+                        label: 'Dinamis',
+                        value: prelistComparison.dynamic_total,
+                        suffix: 'assignment',
+                    },
+                    {
+                        label: 'Awal',
+                        value: prelistComparison.initial_total,
+                        suffix: prelistComparison.initial_available
+                            ? 'assignment'
+                            : 'belum impor',
+                    },
+                    {
+                        label: 'Selisih',
+                        value: prelistComparison.delta,
+                        suffix: `${prelistComparison.delta_pct}%`,
+                    },
+                    {
+                        label: 'Fallback Progress',
+                        value: prelistComparison.initial_without_assignments_with_progress_subsls,
+                        suffix: `${prelistComparison.initial_only_subsls} belum masuk basis`,
+                    },
+                ]"
+                :key="item.label"
+                class="rounded-xl border border-white/50 bg-background/70 px-3 py-2 shadow-sm dark:border-white/10"
+            >
+                <p class="text-xs text-muted-foreground">{{ item.label }}</p>
+                <p class="mt-0.5 text-lg font-bold tabular-nums">
+                    {{ item.value.toLocaleString('id-ID') }}
+                </p>
+                <p class="text-[11px] text-muted-foreground">
+                    {{ item.suffix }}
+                </p>
+            </div>
+        </div>
+
         <!-- Metric cards row 2: progress -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div
@@ -398,7 +519,7 @@ function pct(v: number) {
                         bar: 'bg-[#FFA95A]',
                         ring: 'border-[#FFA95A]/40 bg-[#FFA95A]/8 dark:bg-[#FFA95A]/12',
                         tooltip:
-                            '% Submit = (Total − OPEN − DRAFT) ÷ Total × 100%',
+                            '% Submit = jumlah aktual semua status selain OPEN dan DRAFT ÷ Total Assignment basis aktif × 100%',
                     },
                     {
                         label: 'Submitted',
@@ -466,8 +587,10 @@ function pct(v: number) {
                 >Cara penghitungan:</span
             >
             <span class="ml-1.5">
+                Total memakai {{ prelistBasisLabel }}.
+                <span class="mx-1 opacity-40">·</span>
                 <span class="font-medium text-[#FFA95A]">% Submit</span> =
-                (Total − OPEN − DRAFT) ÷ Total.
+                status aktual selain OPEN/DRAFT ÷ Total.
                 <span class="mx-1 opacity-40">·</span>
                 <span class="font-medium text-blue-500">Submitted</span> =
                 Diserahkan Pencacah ÷ Total.

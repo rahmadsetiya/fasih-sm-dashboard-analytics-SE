@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\ImportInitialPrelist;
 use App\Console\Commands\ServeCommand;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([
+        ImportInitialPrelist::class,
         ServeCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {

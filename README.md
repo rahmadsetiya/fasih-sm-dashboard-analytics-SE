@@ -32,6 +32,7 @@ Dashboard monitoring berbasis web untuk memantau progres kerja lapangan **Sensus
 - **Analitik Petugas** — 6 tab analitik: Daftar, Funnel Status, Matrix, Leaderboard, Mangkrak, Proyeksi Selesai
 - **Daftar Penugasan** — tabel seluruh assignment + riwayat perubahan status per penugasan
 - **Statistik Inferensial** — uji proporsi, komparasi wilayah, chi-square, korelasi, analisis bangunan kosong
+- **Analisis Prelist** - toggle Prelist Dinamis/Awal, gap coverage, dan import prelist awal dari workbook Master SE2026
 - **Import Database** — upload `fasih.db` langsung dari browser tanpa akses server
 - **Admin Panel** — manajemen user (CRUD), nama petugas, dan nama wilayah
 - **Dark mode** + timezone WITA (UTC+8)
@@ -396,8 +397,8 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 
 | URL | Nama | Keterangan |
 |---|---|---|
-| `/` | Dashboard | Filter snapshot, role, level wilayah; metric cards, chart status, ranking top wilayah, trend, dan tabel rincian |
-| `/ringkasan` | Ringkasan Kabupaten | Tabel rekap per kecamatan: total, selesai, approved, % |
+| `/` | Dashboard | Filter snapshot, role, level wilayah, basis prelist; metric cards, gap prelist, chart status, ranking top wilayah, trend, dan tabel rincian |
+| `/ringkasan` | Ringkasan Kabupaten | Rekap kabupaten dengan basis prelist, gap coverage, komposisi status, dan trend |
 | `/proyeksi` | Proyeksi Petugas | Target submit harian per PPL/PML, status Aman/Berisiko/Belum Bergerak, modal detail, dan export Excel |
 | `/heatmap` | Heatmap Aktivitas | Aktivitas per petugas per hari; drill-down per jam |
 | `/petugas` | Analitik Petugas | 6 tab analitik (lihat di bawah) |
@@ -423,7 +424,9 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 - Grafik **Top wilayah** memakai tampilan bar chart penuh di desktop dan tampilan ranking card yang lebih ringkas di mobile agar label wilayah tetap terbaca.
 - Grafik **Tren Submit Over Time** hanya memakai **snapshot terakhir pada tiap tanggal** agar satu hari tidak muncul berkali-kali.
 - Rentang tren memakai **7 titik aktual terakhir** dan maksimal **3 titik proyeksi** ke depan.
-- Metrik **% Submit** memakai rumus `(Total Assignment - OPEN - DRAFT) / Total Assignment * 100`.
+- Toggle **Basis Prelist** menentukan denominator `Total Assignment`: `Dinamis` memakai count tabel `assignments` dari `fasih.db`, sedangkan `Awal` memakai tabel app `initial_prelists` hasil import workbook Master SE2026.
+- Card **Gap Prelist** menampilkan total dinamis, total awal, selisih, dan mismatch coverage agar perbedaan target tidak tersembunyi.
+- Metrik **% Submit** memakai rumus `jumlah aktual semua status selain OPEN dan DRAFT / Total Assignment * 100`, dengan `Total Assignment` mengikuti basis prelist aktif.
 - Filter Desa dan SLS memakai kode komposit parent-child (`kdkec-kddes` dan `kdkec-kddes-kdsls`) agar pilihan pada beberapa kecamatan tidak saling bercampur ketika kode lokal sama.
 - Tabel rincian dapat diekspor ke Excel sesuai level, filter, pencarian, sorting, dan kolom status aktif yang sedang tampil.
 - Tabel rincian per wilayah/petugas memiliki kolom **Progres Lapangan** dengan rumus:
@@ -431,6 +434,16 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
   `Total Assignment - OPEN`
 
 - Nilai **Progres Lapangan** ditampilkan sebagai total kasus dan persentasenya terhadap `Total Assignment`.
+
+### Import Prelist Awal
+
+Prelist awal tidak di-commit ke repository. Di server atau lokal, simpan workbook Master SE2026 di lokasi aman lalu jalankan:
+
+```bash
+php artisan prelist:import-awal "C:\path\Master SE2026 7316.xlsx" --sheet="Rekap Prelist"
+```
+
+Command membaca sheet yang namanya mengandung `Rekap Prelist`, mengambil `IDSUBSLS_25_2` dari kolom `D` dan `TOTAL ASSIGNMENT FASIH` dari kolom `AD`, lalu melakukan upsert ke tabel `initial_prelists`.
 
 ### Catatan Proyeksi Petugas (`/proyeksi`)
 

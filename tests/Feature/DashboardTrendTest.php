@@ -84,14 +84,14 @@ class DashboardTrendTest extends TestCase
             [
                 [
                     'snapshot_at' => '2026-06-26T18:00:00+08:00',
-                    'progress_pct' => 30.0,
+                    'progress_pct' => 35.0,
                     'submitted_pct' => 20.0,
                     'approved_pct' => 15.0,
                     'total' => 100,
                 ],
                 [
                     'snapshot_at' => '2026-06-27T12:00:00+08:00',
-                    'progress_pct' => 40.0,
+                    'progress_pct' => 45.0,
                     'submitted_pct' => 25.0,
                     'approved_pct' => 20.0,
                     'total' => 100,

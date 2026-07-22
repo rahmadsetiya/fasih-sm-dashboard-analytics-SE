@@ -1,9 +1,22 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '0.4.5'),
+    'version' => env('APP_VERSION', '0.4.6'),
 
     'history' => [
+        [
+            'version' => '0.4.6',
+            'released_at' => '2026-07-22',
+            'title' => 'Analisis Prelist Dinamis vs Awal',
+            'summary' => 'Menambahkan pilihan basis prelist agar user bisa membandingkan target dinamis dari FASIH dengan prelist awal operasional.',
+            'highlights' => [
+                'Menambahkan toggle Basis Prelist Dinamis/Awal pada Dashboard dan Ringkasan Kabupaten.',
+                'Menampilkan card Gap Prelist berisi total dinamis, total awal, selisih, dan mismatch coverage Sub-SLS.',
+                'Menambahkan kolom Prelist Dinamis, Prelist Awal, dan Selisih pada tabel rincian dashboard serta export Excel.',
+                'Menambahkan command import prelist awal dari workbook Master SE2026 tanpa menyimpan file Excel di repository.',
+                'Memastikan persentase submit, approved, dan rejected memakai denominator basis prelist yang dipilih.',
+            ],
+        ],
         [
             'version' => '0.4.5',
             'released_at' => '2026-07-20',

@@ -4,6 +4,18 @@ Semua perubahan penting pada proyek ini didokumentasikan di file ini.
 
 Format changelog ini mengikuti pendekatan ringkas berbasis versi aplikasi yang ditampilkan ke user di dalam dashboard.
 
+## [0.4.6] - 2026-07-22
+
+### Ditambahkan
+- Toggle Basis Prelist `Dinamis/Awal` pada Dashboard dan Ringkasan Kabupaten.
+- Card Gap Prelist untuk membandingkan total dinamis, total awal, selisih, coverage cocok, initial-only, dynamic-only, dan prelist awal bernilai 0.
+- Kolom `Prelist Dinamis`, `Prelist Awal`, dan `Selisih` pada tabel dashboard dan export Excel.
+- Command `php artisan prelist:import-awal` untuk mengimpor prelist awal dari workbook Master SE2026 tanpa commit file Excel.
+
+### Diubah
+- `Total Assignment`, `% Submit`, `Approved`, `Rejected`, breakdown wilayah, dan tren submit dapat memakai denominator sesuai basis prelist yang dipilih.
+- Jika prelist awal belum diimpor, aplikasi tetap berjalan dengan Prelist Dinamis dan menampilkan warning eksplisit.
+
 ## [0.4.5] - 2026-07-20
 
 ### Ditambahkan
