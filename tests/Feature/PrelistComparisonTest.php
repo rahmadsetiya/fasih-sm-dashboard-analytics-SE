@@ -66,6 +66,7 @@ class PrelistComparisonTest extends TestCase
 
     public function test_import_initial_prelist_reads_expected_sheet_and_columns(): void
     {
+        InitialPrelist::query()->delete();
         $xlsx = $this->makePrelistWorkbook();
 
         $this->artisan('prelist:import-awal', [
@@ -83,8 +84,19 @@ class PrelistComparisonTest extends TestCase
         @unlink($xlsx);
     }
 
+    public function test_initial_prelist_fixture_is_loaded_by_migration(): void
+    {
+        $this->assertSame(669, InitialPrelist::query()->count());
+        $this->assertSame(78210, (int) InitialPrelist::query()->sum('total_assignment_fasih'));
+        $this->assertDatabaseHas('initial_prelists', [
+            'idsubsls' => '7316041007000100',
+            'total_assignment_fasih' => 102,
+        ]);
+    }
+
     public function test_dashboard_api_uses_selected_prelist_basis_and_reports_coverage_gap(): void
     {
+        InitialPrelist::query()->delete();
         $this->seedDashboardRows();
         $user = User::factory()->create(['email_verified_at' => now()]);
 
@@ -121,6 +133,7 @@ class PrelistComparisonTest extends TestCase
 
     public function test_pencacah_breakdown_uses_selected_prelist_basis_as_denominator(): void
     {
+        InitialPrelist::query()->delete();
         $idsubsls = '7316010001000101';
         $snapshot = urlencode('2026-07-20T00:00:00+00:00');
         $username = 'ppl@example.test';

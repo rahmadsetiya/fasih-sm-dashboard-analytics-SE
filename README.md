@@ -424,7 +424,7 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 - Grafik **Top wilayah** memakai tampilan bar chart penuh di desktop dan tampilan ranking card yang lebih ringkas di mobile agar label wilayah tetap terbaca.
 - Grafik **Tren Submit Over Time** hanya memakai **snapshot terakhir pada tiap tanggal** agar satu hari tidak muncul berkali-kali.
 - Rentang tren memakai **7 titik aktual terakhir** dan maksimal **3 titik proyeksi** ke depan.
-- Toggle **Basis Prelist** menentukan denominator `Total Assignment`: `Dinamis` memakai count tabel `assignments` dari `fasih.db`, sedangkan `Awal` memakai tabel app `initial_prelists` hasil import workbook Master SE2026.
+- Toggle **Basis Prelist** menentukan denominator `Total Assignment`: `Dinamis` memakai count tabel `assignments` dari `fasih.db`, sedangkan `Awal` memakai tabel app `initial_prelists` yang otomatis diisi dari fixture `database/data/initial_prelists.json` saat migrasi.
 - Card **Gap Prelist** menampilkan total dinamis, total awal, selisih, dan mismatch coverage agar perbedaan target tidak tersembunyi.
 - Metrik **% Submit** memakai rumus `jumlah aktual semua status selain OPEN dan DRAFT / Total Assignment * 100`, dengan `Total Assignment` mengikuti basis prelist aktif.
 - Filter Desa dan SLS memakai kode komposit parent-child (`kdkec-kddes` dan `kdkec-kddes-kdsls`) agar pilihan pada beberapa kecamatan tidak saling bercampur ketika kode lokal sama.
@@ -435,9 +435,11 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 
 - Nilai **Progres Lapangan** ditampilkan sebagai total kasus dan persentasenya terhadap `Total Assignment`.
 
-### Import Prelist Awal
+### Prelist Awal
 
-Prelist awal tidak di-commit ke repository. Di server atau lokal, simpan workbook Master SE2026 di lokasi aman lalu jalankan:
+Prelist awal standar sudah dibundel sebagai fixture JSON di `database/data/initial_prelists.json` dan otomatis dimuat ke tabel `initial_prelists` saat `php artisan migrate --force`. File workbook Master SE2026 dan `database.sqlite` tetap tidak perlu di-commit.
+
+Jika suatu saat prelist awal diganti dari workbook baru, simpan workbook Master SE2026 di lokasi aman lalu jalankan:
 
 ```bash
 php artisan prelist:import-awal "C:\path\Master SE2026 7316.xlsx" --sheet="Rekap Prelist"
