@@ -14,6 +14,7 @@ return [
                 'Menampilkan card Gap Prelist berisi total dinamis, total awal, selisih, dan mismatch coverage Sub-SLS.',
                 'Menambahkan kolom Prelist Dinamis, Prelist Awal, dan Selisih pada tabel rincian dashboard serta export Excel.',
                 'Menyediakan fixture prelist awal 669 Sub-SLS yang otomatis dimuat saat migrasi tanpa menyimpan workbook Excel atau database SQLite di repository.',
+                'Menambahkan command seed fixture prelist awal untuk server yang sudah terlanjur menjalankan migrasi sebelum fixture tersedia.',
                 'Menambahkan command import prelist awal dari workbook Master SE2026 untuk penggantian data manual jika diperlukan.',
                 'Memastikan persentase submit, approved, dan rejected memakai denominator basis prelist yang dipilih.',
             ],

@@ -94,6 +94,23 @@ class PrelistComparisonTest extends TestCase
         ]);
     }
 
+    public function test_initial_prelist_fixture_can_be_seeded_into_existing_table(): void
+    {
+        InitialPrelist::query()->delete();
+
+        $this->artisan('prelist:seed-awal')
+            ->assertSuccessful()
+            ->expectsOutput('Seed prelist awal selesai.');
+
+        $this->assertSame(669, InitialPrelist::query()->count());
+        $this->assertSame(78210, (int) InitialPrelist::query()->sum('total_assignment_fasih'));
+        $this->assertDatabaseHas('initial_prelists', [
+            'idsubsls' => '7316041007000100',
+            'total_assignment_fasih' => 102,
+            'source_file' => 'database/data/initial_prelists.json',
+        ]);
+    }
+
     public function test_dashboard_api_uses_selected_prelist_basis_and_reports_coverage_gap(): void
     {
         InitialPrelist::query()->delete();

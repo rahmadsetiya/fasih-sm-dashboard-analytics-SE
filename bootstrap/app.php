@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\ImportInitialPrelist;
+use App\Console\Commands\SeedInitialPrelist;
 use App\Console\Commands\ServeCommand;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         ImportInitialPrelist::class,
+        SeedInitialPrelist::class,
         ServeCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {

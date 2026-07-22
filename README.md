@@ -439,6 +439,12 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 
 Prelist awal standar sudah dibundel sebagai fixture JSON di `database/data/initial_prelists.json` dan otomatis dimuat ke tabel `initial_prelists` saat `php artisan migrate --force`. File workbook Master SE2026 dan `database.sqlite` tetap tidak perlu di-commit.
 
+Jika server sudah pernah menjalankan migrasi sebelum fixture ini tersedia dan dashboard masih menampilkan warning prelist awal belum tersedia, jalankan seed fixture bawaan:
+
+```bash
+php artisan prelist:seed-awal
+```
+
 Jika suatu saat prelist awal diganti dari workbook baru, simpan workbook Master SE2026 di lokasi aman lalu jalankan:
 
 ```bash
