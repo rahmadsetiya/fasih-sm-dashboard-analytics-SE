@@ -135,7 +135,7 @@ class PrelistComparisonService
         }
 
         $dynamic = $this->officerProgressTotals($progressTable, $snapshot, $filterKec, $filterDesa, $filterSls);
-        $initial = $this->officerInitialTotals($level, $filterKec, $filterDesa, $filterSls);
+        $initial = $this->officerInitialTotals($progressTable, $snapshot, $filterKec, $filterDesa, $filterSls);
         $keys = array_unique([...array_keys($dynamic), ...array_keys($initial)]);
         $result = [];
 
@@ -166,27 +166,33 @@ class PrelistComparisonService
      * @param  list<string>  $filterSls
      * @return array<string, int>
      */
-    private function officerInitialTotals(string $level, array $filterKec, array $filterDesa, array $filterSls): array
+    private function officerInitialTotals(?string $table, ?string $snapshot, array $filterKec, array $filterDesa, array $filterSls): array
     {
-        if (! $this->fasihTableExists('petugas_wilayah')) {
+        if ($table === null || ! $this->fasihTableExists($table)) {
             return [];
         }
 
-        $column = $level === 'by_pengawas' ? 'pengawas_user_id' : 'pencacah_user_id';
-        $officerIdSql = "COALESCE(NULLIF(u.email, ''), ".$this->normalizedIdSql("pw.{$column}").')';
         $initialByRegion = $this->initialGroupTotals('subsls', $filterKec, $filterDesa, $filterSls);
+        if ($initialByRegion === []) {
+            return [];
+        }
+
+        $snapshot ??= DB::connection('fasih')->table($table)->max('snapshot_at');
         $query = DB::connection('fasih')
-            ->table('petugas_wilayah as pw')
-            ->leftJoin('users as u', 'u.user_id', '=', "pw.{$column}")
-            ->whereNotNull("pw.{$column}")
-            ->whereNotNull('pw.idsubsls')
-            ->selectRaw("{$officerIdSql} as officer_id, pw.idsubsls");
+            ->table($table)
+            ->whereNotNull('username')
+            ->whereNotNull('idsubsls')
+            ->select('username', 'idsubsls');
+
+        if ($snapshot !== null) {
+            $query->where('snapshot_at', $snapshot);
+        }
 
         $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
         $result = [];
         foreach ($query->distinct()->get() as $row) {
-            $officerId = (string) $row->officer_id;
+            $officerId = (string) $row->username;
             $idsubsls = (string) $row->idsubsls;
             $result[$officerId] = ($result[$officerId] ?? 0) + ($initialByRegion[$idsubsls] ?? 0);
         }
@@ -408,15 +414,6 @@ class PrelistComparisonService
             'subsls' => ['idsubsls', ['idsubsls']],
             default => ['SUBSTR(idsubsls, 5, 3)', ['grp_key']],
         };
-    }
-
-    /**
-     * @param  literal-string  $column
-     * @return literal-string
-     */
-    private function normalizedIdSql(string $column): string
-    {
-        return "CASE WHEN typeof({$column}) = 'blob' THEN lower(substr(hex({$column}), 1, 8) || '-' || substr(hex({$column}), 9, 4) || '-' || substr(hex({$column}), 13, 4) || '-' || substr(hex({$column}), 17, 4) || '-' || substr(hex({$column}), 21, 12)) ELSE CAST({$column} AS TEXT) END";
     }
 
     /**

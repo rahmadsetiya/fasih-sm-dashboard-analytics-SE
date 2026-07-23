@@ -418,6 +418,7 @@ const searchedBreakdown = computed(() => {
 
     return breakdown.value.filter(
         (row) =>
+            row.key.toLowerCase().includes(q) ||
             row.label.toLowerCase().includes(q) ||
             (row.nmkec ?? '').toLowerCase().includes(q) ||
             (row.nmdesa ?? '').toLowerCase().includes(q),
@@ -1104,6 +1105,14 @@ function exportBreakdownExcel(): void {
                   },
               ]
             : []),
+        ...(filters.level === 'subsls'
+            ? [
+                  {
+                      label: 'IDSUBSLS',
+                      value: (row: BreakdownRow) => row.key,
+                  },
+              ]
+            : []),
         { label: 'Total Assignment', value: (row: BreakdownRow) => row.total },
         { label: '% Submit', value: (row: BreakdownRow) => row.progress_pct },
         {
@@ -1213,7 +1222,9 @@ const petugasSearched = computed(() => {
     }
 
     return petugasBreakdown.value.filter((r) =>
-        r.label.toLowerCase().includes(q),
+        [r.key, r.label, r.nmkec, r.nmdesa, r.nmsls]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(q)),
     );
 });
 
@@ -2475,6 +2486,12 @@ function rowContext(row: BreakdownRow): string {
                                         {{ rowContext(row) }}
                                     </p>
                                     <p
+                                        v-if="filters.level === 'subsls'"
+                                        class="mt-0.5 font-mono text-xs text-muted-foreground/70"
+                                    >
+                                        IDSUBSLS: {{ row.key }}
+                                    </p>
+                                    <p
                                         v-if="isPetugasLevel"
                                         class="font-mono text-xs text-muted-foreground/60"
                                     >
@@ -2798,6 +2815,12 @@ function rowContext(row: BreakdownRow): string {
                             >
                                 <td class="px-4 py-2.5 font-medium">
                                     {{ r.label }}
+                                    <span
+                                        v-if="petugasLevel === 'subsls'"
+                                        class="mt-0.5 block font-mono text-xs text-muted-foreground/70"
+                                    >
+                                        IDSUBSLS: {{ r.key }}
+                                    </span>
                                     <span
                                         v-if="r.nmsls"
                                         class="block text-xs text-muted-foreground"

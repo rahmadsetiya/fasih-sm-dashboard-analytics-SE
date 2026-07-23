@@ -160,11 +160,6 @@ class PrelistComparisonTest extends TestCase
             'email' => $username,
             'fullname' => 'PPL Test',
         ]);
-        DB::connection('fasih')->table('petugas_wilayah')->insert([
-            'pencacah_user_id' => 'ppl-1',
-            'pengawas_user_id' => null,
-            'idsubsls' => $idsubsls,
-        ]);
         DB::connection('fasih')->table('progress_pencacah')->insert([
             [
                 ...$this->progressRow($idsubsls, '010', '001', 100, 20, 10),
