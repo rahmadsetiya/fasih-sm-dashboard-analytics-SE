@@ -1240,6 +1240,7 @@ async function fetchPetugasBreakdown() {
             snapshot: filters.snapshot,
             role: filters.role,
             level: petugasLevel.value,
+            prelist_basis: filters.prelist_basis,
             petugas_username: petugasRow.value.key,
         });
         const res = await fetch(`/api/data?${params}`, {

@@ -154,6 +154,46 @@ class PrelistComparisonService
         return $result;
     }
 
+    /**
+     * @param  list<string>  $filterKec
+     * @param  list<string>  $filterDesa
+     * @param  list<string>  $filterSls
+     * @return array<string, array{dynamic:int, initial:int, selected:int}>
+     */
+    public function progressScopedGroupTotals(
+        string $level,
+        string $basis,
+        string $table,
+        string $snapshot,
+        string $username,
+        array $filterKec = [],
+        array $filterDesa = [],
+        array $filterSls = [],
+    ): array {
+        if (in_array($level, ['by_pengawas', 'by_pencacah'], true)) {
+            return [];
+        }
+
+        $dynamic = $this->progressScopedDynamicGroupTotals($level, $table, $snapshot, $username, $filterKec, $filterDesa, $filterSls);
+        $initial = $this->progressScopedInitialGroupTotals($level, $table, $snapshot, $username, $filterKec, $filterDesa, $filterSls);
+        $keys = array_unique([...array_keys($dynamic), ...array_keys($initial)]);
+        $result = [];
+
+        foreach ($keys as $key) {
+            $dynamicTotal = $dynamic[$key] ?? 0;
+            $initialTotal = $initial[$key] ?? 0;
+            $result[$key] = [
+                'dynamic' => $dynamicTotal,
+                'initial' => $initialTotal,
+                'selected' => $basis === 'initial' && $this->initialAvailable()
+                    ? $initialTotal
+                    : $dynamicTotal,
+            ];
+        }
+
+        return $result;
+    }
+
     public function initialAvailable(): bool
     {
         return Schema::hasTable('initial_prelists')
@@ -195,6 +235,70 @@ class PrelistComparisonService
             $officerId = (string) $row->username;
             $idsubsls = (string) $row->idsubsls;
             $result[$officerId] = ($result[$officerId] ?? 0) + ($initialByRegion[$idsubsls] ?? 0);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  list<string>  $filterKec
+     * @param  list<string>  $filterDesa
+     * @param  list<string>  $filterSls
+     * @return array<string, int>
+     */
+    private function progressScopedDynamicGroupTotals(string $level, string $table, string $snapshot, string $username, array $filterKec, array $filterDesa, array $filterSls): array
+    {
+        if (! $this->fasihTableExists($table)) {
+            return [];
+        }
+
+        [$keySql, $groupBy] = $this->dynamicGroupSql($level);
+        $query = DB::connection('fasih')
+            ->table($table)
+            ->where('snapshot_at', $snapshot)
+            ->where('username', $username)
+            ->whereNotNull('idsubsls')
+            ->selectRaw("{$keySql} as grp_key, SUM(region_total) as total");
+
+        $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
+
+        return $query
+            ->groupBy(...$groupBy)
+            ->get()
+            ->mapWithKeys(fn (object $row) => [(string) $row->grp_key => (int) $row->total])
+            ->all();
+    }
+
+    /**
+     * @param  list<string>  $filterKec
+     * @param  list<string>  $filterDesa
+     * @param  list<string>  $filterSls
+     * @return array<string, int>
+     */
+    private function progressScopedInitialGroupTotals(string $level, string $table, string $snapshot, string $username, array $filterKec, array $filterDesa, array $filterSls): array
+    {
+        if (! $this->fasihTableExists($table)) {
+            return [];
+        }
+
+        $initialByRegion = $this->initialGroupTotals('subsls', $filterKec, $filterDesa, $filterSls);
+        if ($initialByRegion === []) {
+            return [];
+        }
+
+        $query = DB::connection('fasih')
+            ->table($table)
+            ->where('snapshot_at', $snapshot)
+            ->where('username', $username)
+            ->whereNotNull('idsubsls')
+            ->select('idsubsls');
+
+        $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
+
+        $result = [];
+        foreach ($query->distinct()->pluck('idsubsls')->filter()->values()->all() as $idsubsls) {
+            $key = $this->groupKeyFromIdsubsls($level, (string) $idsubsls);
+            $result[$key] = ($result[$key] ?? 0) + ($initialByRegion[(string) $idsubsls] ?? 0);
         }
 
         return $result;
@@ -400,6 +504,16 @@ class PrelistComparisonService
             'sls' => ['SUBSTR(idsubsls, 5, 3) || SUBSTR(idsubsls, 8, 3) || SUBSTR(idsubsls, 11, 4)', ['grp_key']],
             'subsls' => ['idsubsls', ['idsubsls']],
             default => ['SUBSTR(idsubsls, 5, 3)', ['grp_key']],
+        };
+    }
+
+    private function groupKeyFromIdsubsls(string $level, string $idsubsls): string
+    {
+        return match ($level) {
+            'desa' => substr($idsubsls, 4, 3).'-'.substr($idsubsls, 7, 3),
+            'sls' => substr($idsubsls, 4, 3).substr($idsubsls, 7, 3).substr($idsubsls, 10, 4),
+            'subsls' => $idsubsls,
+            default => substr($idsubsls, 4, 3),
         };
     }
 

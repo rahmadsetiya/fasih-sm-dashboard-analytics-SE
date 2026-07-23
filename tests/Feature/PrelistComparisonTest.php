@@ -197,6 +197,23 @@ class PrelistComparisonTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        InitialPrelist::query()->insert([
+            'idsubsls' => '7316010001000201',
+            'kdkec' => '7316010',
+            'nmkec' => 'MAIWA',
+            'kddes' => '001',
+            'nmdesa' => 'PATONDON SALU',
+            'kdsls' => '0002',
+            'kdsubsls' => '01',
+            'nmsls' => 'DUSUN LAIN',
+            'nmsubsls' => 'DUSUN LAIN',
+            'total_assignment_fasih' => 999,
+            'source_sheet' => 'Rekap Prelist',
+            'source_file' => 'Master.xlsx',
+            'imported_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $user = User::factory()->create(['email_verified_at' => now()]);
 
@@ -213,6 +230,20 @@ class PrelistComparisonTest extends TestCase
             ->assertJsonPath('breakdown.0.total', 80)
             ->assertJsonPath('breakdown.0.statuses.OPEN', 20)
             ->assertJsonPath('breakdown.0.progress_pct', 87.5);
+
+        $modalDynamic = $this->actingAs($user)->getJson("/api/data?snapshot={$snapshot}&role=pencacah&level=kec&petugas_username={$username}&prelist_basis=dynamic");
+        $modalDynamic->assertOk()
+            ->assertJsonPath('breakdown.0.key', '010')
+            ->assertJsonPath('breakdown.0.total', 100)
+            ->assertJsonPath('breakdown.0.prelist_dynamic', 100)
+            ->assertJsonPath('breakdown.0.prelist_initial', 80);
+
+        $modalInitial = $this->actingAs($user)->getJson("/api/data?snapshot={$snapshot}&role=pencacah&level=kec&petugas_username={$username}&prelist_basis=initial");
+        $modalInitial->assertOk()
+            ->assertJsonPath('breakdown.0.key', '010')
+            ->assertJsonPath('breakdown.0.total', 80)
+            ->assertJsonPath('breakdown.0.prelist_dynamic', 100)
+            ->assertJsonPath('breakdown.0.prelist_initial', 80);
     }
 
     private function seedDashboardRows(): void

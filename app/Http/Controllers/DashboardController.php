@@ -77,9 +77,20 @@ class DashboardController extends Controller
 
         $nameOverrides = PetugasName::pluck('display_name', 'username')->all();
         $basisTotal = $prelists->totalForBasis($prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot);
-        $groupTotals = in_array($level, ['by_pengawas', 'by_pencacah'], true)
-            ? $prelists->officerGroupTotals($level, $prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot)
-            : $prelists->groupTotals($level, $prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot);
+        $groupTotals = match (true) {
+            $petugasUsername !== '' && ! in_array($level, ['by_pengawas', 'by_pencacah'], true) => $prelists->progressScopedGroupTotals(
+                $level,
+                $prelistBasis,
+                $table,
+                $snapshot,
+                $petugasUsername,
+                $filterKec,
+                $filterDesa,
+                $filterSls,
+            ),
+            in_array($level, ['by_pengawas', 'by_pencacah'], true) => $prelists->officerGroupTotals($level, $prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot),
+            default => $prelists->groupTotals($level, $prelistBasis, $filterKec, $filterDesa, $filterSls, $table, $snapshot),
+        };
 
         return response()->json([
             'metrics' => $this->calcMetrics(clone $base, $basisTotal),
