@@ -288,28 +288,43 @@ class OfficerProjectionService
     private function firstRows(string $table, array $filters): Collection
     {
         $submitSql = $this->submitSql();
-        $daily = $this->latestDailyOfficerRows($table, $filters)
+        $daily = $this->baseQuery($table, $filters)
             ->selectRaw("
                 {$this->officerKeySql()} as officer_key,
-                DATE({$table}.snapshot_at) as snapshot_date,
+                DATE(snapshot_at) as snapshot_date,
+                snapshot_at,
                 SUM({$submitSql}) as submitted_total
             ")
-            ->groupBy('officer_key', 'snapshot_date');
+            ->groupBy('officer_key', 'snapshot_date', 'snapshot_at');
+
+        $latestDaily = DB::connection('fasih')
+            ->query()
+            ->fromSub($daily, 'daily')
+            ->selectRaw('
+                daily.*,
+                ROW_NUMBER() OVER (
+                    PARTITION BY daily.officer_key, daily.snapshot_date
+                    ORDER BY daily.snapshot_at DESC
+                ) as daily_rank
+            ');
+
+        $firstDaily = DB::connection('fasih')
+            ->query()
+            ->fromSub($latestDaily, 'latest_daily')
+            ->where('daily_rank', 1)
+            ->selectRaw('
+                latest_daily.*,
+                ROW_NUMBER() OVER (
+                    PARTITION BY latest_daily.officer_key
+                    ORDER BY latest_daily.snapshot_date ASC
+                ) as first_rank
+            ');
 
         return DB::connection('fasih')
             ->query()
-            ->fromSub($daily, 'daily')
-            ->joinSub(
-                DB::connection('fasih')->query()
-                    ->fromSub($daily, 'd2')
-                    ->selectRaw('officer_key, MIN(snapshot_date) as first_date')
-                    ->groupBy('officer_key'),
-                'firsts',
-                fn ($join) => $join
-                    ->on('firsts.officer_key', '=', 'daily.officer_key')
-                    ->on('firsts.first_date', '=', 'daily.snapshot_date')
-            )
-            ->select('daily.officer_key', 'daily.snapshot_date', 'daily.submitted_total')
+            ->fromSub($firstDaily, 'first_daily')
+            ->where('first_rank', 1)
+            ->select('officer_key', 'snapshot_date', 'submitted_total')
             ->get();
     }
 
