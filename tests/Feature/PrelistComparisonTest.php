@@ -127,9 +127,9 @@ class PrelistComparisonTest extends TestCase
             ->assertJsonPath('prelist_comparison.initial_total', 130)
             ->assertJsonPath('prelist_comparison.matched_subsls', 2)
             ->assertJsonPath('prelist_comparison.initial_only_subsls', 1)
-            ->assertJsonPath('prelist_comparison.initial_without_assignments_subsls', 2)
-            ->assertJsonPath('prelist_comparison.initial_without_assignments_with_progress_subsls', 1)
-            ->assertJsonPath('prelist_comparison.initial_without_assignments_missing_progress_subsls', 1)
+            ->assertJsonPath('prelist_comparison.initial_without_assignments_subsls', 0)
+            ->assertJsonPath('prelist_comparison.initial_without_assignments_with_progress_subsls', 0)
+            ->assertJsonPath('prelist_comparison.initial_without_assignments_missing_progress_subsls', 0)
             ->assertJsonPath('prelist_comparison.dynamic_only_subsls', 1)
             ->assertJsonPath('breakdown.0.prelist_dynamic', 100)
             ->assertJsonPath('breakdown.0.prelist_initial', 80)
@@ -175,7 +175,7 @@ class PrelistComparisonTest extends TestCase
         ]);
 
         $assignmentRows = [];
-        for ($i = 0; $i < 100; $i++) {
+        for ($i = 0; $i < 60; $i++) {
             $assignmentRows[] = [
                 'idsubsls' => $idsubsls,
                 'kdkec' => '7316010',
@@ -235,8 +235,8 @@ class PrelistComparisonTest extends TestCase
 
         $assignmentRows = [];
         foreach ([
-            ['7316010001000101', '7316010', '001', 100],
-            ['7316020001000101', '7316020', '001', 50],
+            ['7316010001000101', '7316010', '001', 70],
+            ['7316020001000101', '7316020', '001', 30],
         ] as [$idsubsls, $kdkec, $kddes, $count]) {
             for ($i = 0; $i < $count; $i++) {
                 $assignmentRows[] = [

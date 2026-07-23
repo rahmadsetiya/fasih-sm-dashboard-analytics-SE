@@ -1802,6 +1802,10 @@ function rowContext(row: BreakdownRow): string {
             Dashboard tetap memakai Prelist Dinamis sampai data awal diimpor
             lewat command
             <code class="rounded bg-amber-500/15 px-1 py-0.5 text-xs"
+                >php artisan prelist:seed-awal</code
+            >
+            atau
+            <code class="rounded bg-amber-500/15 px-1 py-0.5 text-xs"
                 >php artisan prelist:import-awal</code
             >.
         </div>
@@ -1928,8 +1932,8 @@ function rowContext(row: BreakdownRow): string {
                     Gap Prelist
                 </p>
                 <p class="mt-1 text-xs text-muted-foreground">
-                    Basis aktif: {{ prelistBasisLabel }}. Cakupan assignments
-                    dipisahkan dari progress agar kualitas data terbaca jelas.
+                    Basis aktif: {{ prelistBasisLabel }}. Prelist Dinamis
+                    mengikuti total status scrape pada snapshot aktif.
                 </p>
             </div>
             <div
@@ -1952,9 +1956,9 @@ function rowContext(row: BreakdownRow): string {
                         suffix: `${prelistComparison.delta_pct}%`,
                     },
                     {
-                        label: 'Fallback Progress',
-                        value: prelistComparison.initial_without_assignments_with_progress_subsls,
-                        suffix: `${prelistComparison.initial_only_subsls} belum masuk basis`,
+                        label: 'Awal Tanpa Status',
+                        value: prelistComparison.initial_only_subsls,
+                        suffix: `${prelistComparison.dynamic_only_subsls} status-only`,
                     },
                 ]"
                 :key="item.label"

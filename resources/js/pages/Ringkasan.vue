@@ -389,7 +389,15 @@ function pct(v: number) {
             class="rounded-xl border border-amber-400/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 shadow-sm dark:text-amber-200"
         >
             <span class="font-semibold">Prelist awal belum tersedia.</span>
-            Ringkasan tetap memakai Prelist Dinamis sampai data awal diimpor.
+            Ringkasan tetap memakai Prelist Dinamis sampai data awal diimpor
+            lewat command
+            <code class="rounded bg-amber-500/15 px-1 py-0.5 text-xs"
+                >php artisan prelist:seed-awal</code
+            >
+            atau
+            <code class="rounded bg-amber-500/15 px-1 py-0.5 text-xs"
+                >php artisan prelist:import-awal</code
+            >.
         </div>
 
         <!-- Metric cards row 1: geographic counts + assignment -->
@@ -466,8 +474,8 @@ function pct(v: number) {
                     Gap Prelist
                 </p>
                 <p class="mt-1 text-xs text-muted-foreground">
-                    Basis aktif: {{ prelistBasisLabel }}. Cakupan assignments
-                    dipisahkan dari progress agar kualitas data terbaca jelas.
+                    Basis aktif: {{ prelistBasisLabel }}. Prelist Dinamis
+                    mengikuti total status scrape pada snapshot aktif.
                 </p>
             </div>
             <div
@@ -490,9 +498,9 @@ function pct(v: number) {
                         suffix: `${prelistComparison.delta_pct}%`,
                     },
                     {
-                        label: 'Fallback Progress',
-                        value: prelistComparison.initial_without_assignments_with_progress_subsls,
-                        suffix: `${prelistComparison.initial_only_subsls} belum masuk basis`,
+                        label: 'Awal Tanpa Status',
+                        value: prelistComparison.initial_only_subsls,
+                        suffix: `${prelistComparison.dynamic_only_subsls} status-only`,
                     },
                 ]"
                 :key="item.label"

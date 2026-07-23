@@ -16,6 +16,7 @@ Format changelog ini mengikuti pendekatan ringkas berbasis versi aplikasi yang d
 
 ### Diubah
 - `Total Assignment`, `% Submit`, `Approved`, `Rejected`, breakdown wilayah, dan tren submit dapat memakai denominator sesuai basis prelist yang dipilih.
+- Prelist Dinamis kini mengikuti total status scrape terbaru dari `progress_pengawas/progress_pencacah`, bukan preview assignment dari tabel `assignments`.
 - Import workbook prelist awal kini bersifat opsional untuk penggantian data, bukan langkah wajib saat deploy pertama.
 
 ## [0.4.5] - 2026-07-20

@@ -32,7 +32,7 @@ Dashboard monitoring berbasis web untuk memantau progres kerja lapangan **Sensus
 - **Analitik Petugas** — 6 tab analitik: Daftar, Funnel Status, Matrix, Leaderboard, Mangkrak, Proyeksi Selesai
 - **Daftar Penugasan** — tabel seluruh assignment + riwayat perubahan status per penugasan
 - **Statistik Inferensial** — uji proporsi, komparasi wilayah, chi-square, korelasi, analisis bangunan kosong
-- **Analisis Prelist** - toggle Prelist Dinamis/Awal, gap coverage, dan import prelist awal dari workbook Master SE2026
+- **Analisis Prelist** - toggle Prelist Dinamis/Awal, gap target, dan import prelist awal dari workbook Master SE2026
 - **Import Database** — upload `fasih.db` langsung dari browser tanpa akses server
 - **Admin Panel** — manajemen user (CRUD), nama petugas, dan nama wilayah
 - **Dark mode** + timezone WITA (UTC+8)
@@ -424,8 +424,8 @@ Nama tampilan petugas bisa diset di Admin → Nama Petugas, menggunakan username
 - Grafik **Top wilayah** memakai tampilan bar chart penuh di desktop dan tampilan ranking card yang lebih ringkas di mobile agar label wilayah tetap terbaca.
 - Grafik **Tren Submit Over Time** hanya memakai **snapshot terakhir pada tiap tanggal** agar satu hari tidak muncul berkali-kali.
 - Rentang tren memakai **7 titik aktual terakhir** dan maksimal **3 titik proyeksi** ke depan.
-- Toggle **Basis Prelist** menentukan denominator `Total Assignment`: `Dinamis` memakai count tabel `assignments` dari `fasih.db`, sedangkan `Awal` memakai tabel app `initial_prelists` yang otomatis diisi dari fixture `database/data/initial_prelists.json` saat migrasi.
-- Card **Gap Prelist** menampilkan total dinamis, total awal, selisih, dan mismatch coverage agar perbedaan target tidak tersembunyi.
+- Toggle **Basis Prelist** menentukan denominator `Total Assignment`: `Dinamis` memakai `SUM(region_total)` dari tabel status scrape `progress_pengawas/progress_pencacah` pada snapshot aktif, sedangkan `Awal` memakai tabel app `initial_prelists` yang otomatis diisi dari fixture `database/data/initial_prelists.json` saat migrasi.
+- Card **Gap Prelist** menampilkan total dinamis dari status scrape, total awal, selisih, dan mismatch Sub-SLS agar perbedaan target tidak tersembunyi.
 - Metrik **% Submit** memakai rumus `jumlah aktual semua status selain OPEN dan DRAFT / Total Assignment * 100`, dengan `Total Assignment` mengikuti basis prelist aktif.
 - Filter Desa dan SLS memakai kode komposit parent-child (`kdkec-kddes` dan `kdkec-kddes-kdsls`) agar pilihan pada beberapa kecamatan tidak saling bercampur ketika kode lokal sama.
 - Tabel rincian dapat diekspor ke Excel sesuai level, filter, pencarian, sorting, dan kolom status aktif yang sedang tampil.

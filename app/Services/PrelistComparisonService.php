@@ -28,17 +28,13 @@ class PrelistComparisonService
         ?string $progressTable = null,
         ?string $snapshot = null,
     ): array {
-        $assignmentIds = $this->assignmentIds($filterKec, $filterDesa, $filterSls);
         $progressIds = $progressTable !== null
             ? $this->progressIds($progressTable, $snapshot, $filterKec, $filterDesa, $filterSls)
             : [];
-        $dynamicIds = array_values(array_unique([...$assignmentIds, ...$progressIds]));
+        $dynamicIds = $progressIds;
         $initialIds = $this->initialIds($filterKec, $filterDesa, $filterSls);
-        $assignmentSet = array_fill_keys($assignmentIds, true);
         $dynamicSet = array_fill_keys($dynamicIds, true);
         $initialSet = array_fill_keys($initialIds, true);
-        $progressSet = array_fill_keys($progressIds, true);
-        $initialWithoutAssignments = array_diff_key($initialSet, $assignmentSet);
         $initialAvailable = $this->initialAvailable();
         $dynamicTotal = $this->dynamicTotal($filterKec, $filterDesa, $filterSls, $progressTable, $snapshot);
         $initialTotal = $this->initialTotal($filterKec, $filterDesa, $filterSls);
@@ -51,9 +47,9 @@ class PrelistComparisonService
             'delta_pct' => $initialTotal > 0 ? round(($delta / $initialTotal) * 100, 1) : 0.0,
             'matched_subsls' => count(array_intersect_key($dynamicSet, $initialSet)),
             'initial_only_subsls' => count(array_diff_key($initialSet, $dynamicSet)),
-            'initial_without_assignments_subsls' => count($initialWithoutAssignments),
-            'initial_without_assignments_with_progress_subsls' => count(array_intersect_key($initialWithoutAssignments, $progressSet)),
-            'initial_without_assignments_missing_progress_subsls' => count(array_diff_key($initialWithoutAssignments, $progressSet)),
+            'initial_without_assignments_subsls' => 0,
+            'initial_without_assignments_with_progress_subsls' => 0,
+            'initial_without_assignments_missing_progress_subsls' => 0,
             'dynamic_only_subsls' => count(array_diff_key($dynamicSet, $initialSet)),
             'zero_initial_subsls' => $this->zeroInitialCount($filterKec, $filterDesa, $filterSls),
             'initial_available' => $initialAvailable,
@@ -134,36 +130,25 @@ class PrelistComparisonService
         ?string $progressTable = null,
         ?string $snapshot = null,
     ): array {
-        if (! in_array($level, ['by_pengawas', 'by_pencacah'], true) || ! $this->fasihTableExists('petugas_wilayah')) {
+        if (! in_array($level, ['by_pengawas', 'by_pencacah'], true)) {
             return [];
         }
 
-        $column = $level === 'by_pengawas' ? 'pengawas_user_id' : 'pencacah_user_id';
-        $officerIdSql = "COALESCE(NULLIF(u.email, ''), ".$this->normalizedIdSql("pw.{$column}").')';
-        $dynamicByRegion = $this->dynamicGroupTotals('subsls', $filterKec, $filterDesa, $filterSls, $progressTable, $snapshot);
-        $initialByRegion = $this->initialGroupTotals('subsls', $filterKec, $filterDesa, $filterSls);
-        $query = DB::connection('fasih')
-            ->table('petugas_wilayah as pw')
-            ->leftJoin('users as u', 'u.user_id', '=', "pw.{$column}")
-            ->whereNotNull("pw.{$column}")
-            ->whereNotNull('pw.idsubsls')
-            ->selectRaw("{$officerIdSql} as officer_id, pw.idsubsls");
-
-        $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
-
+        $dynamic = $this->officerProgressTotals($progressTable, $snapshot, $filterKec, $filterDesa, $filterSls);
+        $initial = $this->officerInitialTotals($level, $filterKec, $filterDesa, $filterSls);
+        $keys = array_unique([...array_keys($dynamic), ...array_keys($initial)]);
         $result = [];
-        foreach ($query->distinct()->get() as $row) {
-            $officerId = (string) $row->officer_id;
-            $idsubsls = (string) $row->idsubsls;
-            $result[$officerId] ??= ['dynamic' => 0, 'initial' => 0, 'selected' => 0];
-            $result[$officerId]['dynamic'] += $dynamicByRegion[$idsubsls] ?? 0;
-            $result[$officerId]['initial'] += $initialByRegion[$idsubsls] ?? 0;
-        }
 
-        foreach ($result as $officerId => $totals) {
-            $result[$officerId]['selected'] = $basis === 'initial' && $this->initialAvailable()
-                ? $totals['initial']
-                : $totals['dynamic'];
+        foreach ($keys as $key) {
+            $dynamicTotal = $dynamic[$key] ?? 0;
+            $initialTotal = $initial[$key] ?? 0;
+            $result[$key] = [
+                'dynamic' => $dynamicTotal,
+                'initial' => $initialTotal,
+                'selected' => $basis === 'initial' && $this->initialAvailable()
+                    ? $initialTotal
+                    : $dynamicTotal,
+            ];
         }
 
         return $result;
@@ -179,18 +164,34 @@ class PrelistComparisonService
      * @param  list<string>  $filterKec
      * @param  list<string>  $filterDesa
      * @param  list<string>  $filterSls
-     * @return list<string>
+     * @return array<string, int>
      */
-    private function assignmentIds(array $filterKec, array $filterDesa, array $filterSls): array
+    private function officerInitialTotals(string $level, array $filterKec, array $filterDesa, array $filterSls): array
     {
-        if (! $this->fasihTableExists('assignments')) {
+        if (! $this->fasihTableExists('petugas_wilayah')) {
             return [];
         }
 
-        $query = DB::connection('fasih')->table('assignments')->whereNotNull('idsubsls');
+        $column = $level === 'by_pengawas' ? 'pengawas_user_id' : 'pencacah_user_id';
+        $officerIdSql = "COALESCE(NULLIF(u.email, ''), ".$this->normalizedIdSql("pw.{$column}").')';
+        $initialByRegion = $this->initialGroupTotals('subsls', $filterKec, $filterDesa, $filterSls);
+        $query = DB::connection('fasih')
+            ->table('petugas_wilayah as pw')
+            ->leftJoin('users as u', 'u.user_id', '=', "pw.{$column}")
+            ->whereNotNull("pw.{$column}")
+            ->whereNotNull('pw.idsubsls')
+            ->selectRaw("{$officerIdSql} as officer_id, pw.idsubsls");
+
         $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
-        return $query->distinct()->pluck('idsubsls')->filter()->values()->all();
+        $result = [];
+        foreach ($query->distinct()->get() as $row) {
+            $officerId = (string) $row->officer_id;
+            $idsubsls = (string) $row->idsubsls;
+            $result[$officerId] = ($result[$officerId] ?? 0) + ($initialByRegion[$idsubsls] ?? 0);
+        }
+
+        return $result;
     }
 
     /**
@@ -238,39 +239,6 @@ class PrelistComparisonService
      * @param  list<string>  $filterKec
      * @param  list<string>  $filterDesa
      * @param  list<string>  $filterSls
-     * @return array<string, int>
-     */
-    private function progressFallbackTotals(?string $table, ?string $snapshot, array $filterKec, array $filterDesa, array $filterSls): array
-    {
-        if ($table === null || ! $this->fasihTableExists($table)) {
-            return [];
-        }
-
-        $assignmentIds = array_fill_keys($this->assignmentIds($filterKec, $filterDesa, $filterSls), true);
-        $snapshot ??= DB::connection('fasih')->table($table)->max('snapshot_at');
-        $query = DB::connection('fasih')
-            ->table($table)
-            ->whereNotNull('idsubsls');
-
-        if ($snapshot !== null) {
-            $query->where('snapshot_at', $snapshot);
-        }
-
-        $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
-
-        return $query
-            ->selectRaw('idsubsls, SUM(region_total) as total')
-            ->groupBy('idsubsls')
-            ->get()
-            ->filter(fn (object $row) => ! isset($assignmentIds[(string) $row->idsubsls]))
-            ->mapWithKeys(fn (object $row) => [(string) $row->idsubsls => (int) ($row->total ?? 0)])
-            ->all();
-    }
-
-    /**
-     * @param  list<string>  $filterKec
-     * @param  list<string>  $filterDesa
-     * @param  list<string>  $filterSls
      */
     private function dynamicTotal(
         array $filterKec,
@@ -279,15 +247,18 @@ class PrelistComparisonService
         ?string $progressTable = null,
         ?string $snapshot = null,
     ): int {
-        if (! $this->fasihTableExists('assignments')) {
+        if ($progressTable === null || ! $this->fasihTableExists($progressTable)) {
             return 0;
         }
 
-        $query = DB::connection('fasih')->table('assignments');
+        $snapshot ??= DB::connection('fasih')->table($progressTable)->max('snapshot_at');
+        $query = DB::connection('fasih')->table($progressTable);
+        if ($snapshot !== null) {
+            $query->where('snapshot_at', $snapshot);
+        }
         $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
-        return (int) $query->count()
-            + array_sum($this->progressFallbackTotals($progressTable, $snapshot, $filterKec, $filterDesa, $filterSls));
+        return (int) $query->sum('region_total');
     }
 
     /**
@@ -338,27 +309,55 @@ class PrelistComparisonService
         ?string $progressTable = null,
         ?string $snapshot = null,
     ): array {
-        if (! $this->fasihTableExists('assignments')) {
+        if ($progressTable === null || ! $this->fasihTableExists($progressTable)) {
             return [];
         }
 
         [$keySql, $groupBy] = $this->dynamicGroupSql($level);
-        $query = DB::connection('fasih')->table('assignments')->selectRaw("{$keySql} as grp_key, COUNT(*) as total");
+        $snapshot ??= DB::connection('fasih')->table($progressTable)->max('snapshot_at');
+        $query = DB::connection('fasih')->table($progressTable)->selectRaw("{$keySql} as grp_key, SUM(region_total) as total");
+        if ($snapshot !== null) {
+            $query->where('snapshot_at', $snapshot);
+        }
         $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
 
-        $totals = $query
+        return $query
             ->whereNotNull('idsubsls')
             ->groupBy(...$groupBy)
             ->get()
             ->mapWithKeys(fn (object $row) => [(string) $row->grp_key => (int) $row->total])
             ->all();
+    }
 
-        foreach ($this->progressFallbackTotals($progressTable, $snapshot, $filterKec, $filterDesa, $filterSls) as $idsubsls => $total) {
-            $key = $this->groupKeyFromIdsubsls($level, (string) $idsubsls);
-            $totals[$key] = ($totals[$key] ?? 0) + $total;
+    /**
+     * @param  list<string>  $filterKec
+     * @param  list<string>  $filterDesa
+     * @param  list<string>  $filterSls
+     * @return array<string, int>
+     */
+    private function officerProgressTotals(?string $table, ?string $snapshot, array $filterKec, array $filterDesa, array $filterSls): array
+    {
+        if ($table === null || ! $this->fasihTableExists($table)) {
+            return [];
         }
 
-        return $totals;
+        $snapshot ??= DB::connection('fasih')->table($table)->max('snapshot_at');
+        $query = DB::connection('fasih')
+            ->table($table)
+            ->whereNotNull('username')
+            ->selectRaw('username as grp_key, SUM(region_total) as total');
+
+        if ($snapshot !== null) {
+            $query->where('snapshot_at', $snapshot);
+        }
+
+        $this->applyGeoFilter($query, $filterKec, $filterDesa, $filterSls);
+
+        return $query
+            ->groupBy('username')
+            ->get()
+            ->mapWithKeys(fn (object $row) => [(string) $row->grp_key => (int) $row->total])
+            ->all();
     }
 
     /**
@@ -408,16 +407,6 @@ class PrelistComparisonService
             'sls' => ['SUBSTR(idsubsls, 5, 3) || SUBSTR(idsubsls, 8, 3) || SUBSTR(idsubsls, 11, 4)', ['grp_key']],
             'subsls' => ['idsubsls', ['idsubsls']],
             default => ['SUBSTR(idsubsls, 5, 3)', ['grp_key']],
-        };
-    }
-
-    private function groupKeyFromIdsubsls(string $level, string $idsubsls): string
-    {
-        return match ($level) {
-            'desa' => substr($idsubsls, 4, 3).'-'.substr($idsubsls, 7, 3),
-            'sls' => substr($idsubsls, 4, 3).substr($idsubsls, 7, 3).substr($idsubsls, 10, 4),
-            'subsls' => $idsubsls,
-            default => substr($idsubsls, 4, 3),
         };
     }
 

@@ -16,6 +16,7 @@ return [
                 'Menyediakan fixture prelist awal 669 Sub-SLS yang otomatis dimuat saat migrasi tanpa menyimpan workbook Excel atau database SQLite di repository.',
                 'Menambahkan command seed fixture prelist awal untuk server yang sudah terlanjur menjalankan migrasi sebelum fixture tersedia.',
                 'Menambahkan command import prelist awal dari workbook Master SE2026 untuk penggantian data manual jika diperlukan.',
+                'Mengubah Prelist Dinamis agar mengikuti total status scrape terbaru dari progress, bukan preview assignment.',
                 'Memastikan persentase submit, approved, dan rejected memakai denominator basis prelist yang dipilih.',
             ],
         ],
