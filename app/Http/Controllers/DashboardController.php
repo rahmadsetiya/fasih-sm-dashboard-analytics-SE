@@ -29,9 +29,9 @@ class DashboardController extends Controller
         'REVOKED BY Admin Kabupaten',
     ];
 
-    private const STATUS_SUM_SQL = 'SUM("OPEN") as "OPEN", SUM("DRAFT") as "DRAFT", SUM("SUBMITTED BY Pencacah") as "SUBMITTED BY Pencacah", SUM("APPROVED BY Pengawas") as "APPROVED BY Pengawas", SUM("REJECTED BY Pengawas") as "REJECTED BY Pengawas", SUM("EDITED BY Pengawas") as "EDITED BY Pengawas", SUM("REVOKED BY Pengawas") as "REVOKED BY Pengawas", SUM("SUBMITTED RESPONDENT") as "SUBMITTED RESPONDENT", SUM("COMPLETED BY Admin Kabupaten") as "COMPLETED BY Admin Kabupaten", SUM("EDITED BY Admin Kabupaten") as "EDITED BY Admin Kabupaten", SUM("REJECTED BY Admin Kabupaten") as "REJECTED BY Admin Kabupaten", SUM("REVOKED BY Admin Kabupaten") as "REVOKED BY Admin Kabupaten"';
+    private const STATUS_SUM_SQL = 'COALESCE(SUM("OPEN"), 0) as "OPEN", COALESCE(SUM("DRAFT"), 0) as "DRAFT", COALESCE(SUM("SUBMITTED BY Pencacah"), 0) as "SUBMITTED BY Pencacah", COALESCE(SUM("APPROVED BY Pengawas"), 0) as "APPROVED BY Pengawas", COALESCE(SUM("REJECTED BY Pengawas"), 0) as "REJECTED BY Pengawas", COALESCE(SUM("EDITED BY Pengawas"), 0) as "EDITED BY Pengawas", COALESCE(SUM("REVOKED BY Pengawas"), 0) as "REVOKED BY Pengawas", COALESCE(SUM("SUBMITTED RESPONDENT"), 0) as "SUBMITTED RESPONDENT", COALESCE(SUM("COMPLETED BY Admin Kabupaten"), 0) as "COMPLETED BY Admin Kabupaten", COALESCE(SUM("EDITED BY Admin Kabupaten"), 0) as "EDITED BY Admin Kabupaten", COALESCE(SUM("REJECTED BY Admin Kabupaten"), 0) as "REJECTED BY Admin Kabupaten", COALESCE(SUM("REVOKED BY Admin Kabupaten"), 0) as "REVOKED BY Admin Kabupaten"';
 
-    private const SUBMIT_SUM_SQL = 'SUM("SUBMITTED BY Pencacah") + SUM("APPROVED BY Pengawas") + SUM("REJECTED BY Pengawas") + SUM("EDITED BY Pengawas") + SUM("REVOKED BY Pengawas") + SUM("SUBMITTED RESPONDENT") + SUM("COMPLETED BY Admin Kabupaten") + SUM("EDITED BY Admin Kabupaten") + SUM("REJECTED BY Admin Kabupaten") + SUM("REVOKED BY Admin Kabupaten")';
+    private const SUBMIT_SUM_SQL = 'COALESCE(SUM("SUBMITTED BY Pencacah"), 0) + COALESCE(SUM("APPROVED BY Pengawas"), 0) + COALESCE(SUM("REJECTED BY Pengawas"), 0) + COALESCE(SUM("EDITED BY Pengawas"), 0) + COALESCE(SUM("REVOKED BY Pengawas"), 0) + COALESCE(SUM("SUBMITTED RESPONDENT"), 0) + COALESCE(SUM("COMPLETED BY Admin Kabupaten"), 0) + COALESCE(SUM("EDITED BY Admin Kabupaten"), 0) + COALESCE(SUM("REJECTED BY Admin Kabupaten"), 0) + COALESCE(SUM("REVOKED BY Admin Kabupaten"), 0)';
 
     public function index(): Response
     {
@@ -150,11 +150,11 @@ class DashboardController extends Controller
             COUNT(DISTINCT kdkec || kddes || kdsls) as total_sls,
             COUNT(DISTINCT idsubsls)             as total_subsls,
             COUNT(DISTINCT username)             as total_pengawas,
-            SUM(\"OPEN\")                          as total_open,
-            SUM(\"DRAFT\")                         as total_draft,
-            SUM(\"APPROVED BY Pengawas\")          as total_approved,
-            SUM(\"SUBMITTED BY Pencacah\")         as total_submitted,
-            SUM(\"REJECTED BY Pengawas\")          as total_rejected,
+            COALESCE(SUM(\"OPEN\"), 0)                          as total_open,
+            COALESCE(SUM(\"DRAFT\"), 0)                         as total_draft,
+            COALESCE(SUM(\"APPROVED BY Pengawas\"), 0)          as total_approved,
+            COALESCE(SUM(\"SUBMITTED BY Pencacah\"), 0)         as total_submitted,
+            COALESCE(SUM(\"REJECTED BY Pengawas\"), 0)          as total_rejected,
             ({$submitSql})                         as total_submit_progress
         ")->first();
 
@@ -302,12 +302,12 @@ class DashboardController extends Controller
             COUNT(DISTINCT username)          as total_petugas,
             COUNT(DISTINCT kdkec)             as total_kec,
             COUNT(DISTINCT kdkec || kddes)    as total_desa,
-            SUM(region_total)                 as progress_total,
-            SUM(\"OPEN\")                       as total_open,
-            SUM(\"DRAFT\")                      as total_draft,
-            SUM(\"APPROVED BY Pengawas\")       as total_approved,
-            SUM(\"SUBMITTED BY Pencacah\")      as total_submitted,
-            SUM(\"REJECTED BY Pengawas\")       as total_rejected,
+            COALESCE(SUM(region_total), 0)                 as progress_total,
+            COALESCE(SUM(\"OPEN\"), 0)                       as total_open,
+            COALESCE(SUM(\"DRAFT\"), 0)                      as total_draft,
+            COALESCE(SUM(\"APPROVED BY Pengawas\"), 0)       as total_approved,
+            COALESCE(SUM(\"SUBMITTED BY Pencacah\"), 0)      as total_submitted,
+            COALESCE(SUM(\"REJECTED BY Pengawas\"), 0)       as total_rejected,
             ({$submitSql})                      as total_submit_progress
         ")->first();
 
@@ -504,11 +504,11 @@ class DashboardController extends Controller
             ->whereIn('snapshot_at', $latestSnapshots)
             ->selectRaw("
             snapshot_at,
-            SUM(region_total)             as progress_total,
-            SUM(\"OPEN\")                   as total_open,
-            SUM(\"DRAFT\")                  as total_draft,
-            SUM(\"SUBMITTED BY Pencacah\")  as total_submitted,
-            SUM(\"APPROVED BY Pengawas\")   as total_approved,
+            COALESCE(SUM(region_total), 0)             as progress_total,
+            COALESCE(SUM(\"OPEN\"), 0)                   as total_open,
+            COALESCE(SUM(\"DRAFT\"), 0)                  as total_draft,
+            COALESCE(SUM(\"SUBMITTED BY Pencacah\"), 0)  as total_submitted,
+            COALESCE(SUM(\"APPROVED BY Pengawas\"), 0)   as total_approved,
             ({$submitSql})                 as total_submit_progress
         ")
             ->groupBy('snapshot_at')

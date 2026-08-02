@@ -30,19 +30,19 @@ class DashboardBreakdownTest extends TestCase
                 kddes TEXT NOT NULL,
                 nmkec TEXT NULL,
                 nmdesa TEXT NULL,
-                region_total INTEGER NOT NULL,
-                "OPEN" INTEGER NOT NULL,
-                "DRAFT" INTEGER NOT NULL,
-                "SUBMITTED BY Pencacah" INTEGER NOT NULL,
-                "APPROVED BY Pengawas" INTEGER NOT NULL,
-                "REJECTED BY Pengawas" INTEGER NOT NULL,
-                "EDITED BY Pengawas" INTEGER NOT NULL,
-                "REVOKED BY Pengawas" INTEGER NOT NULL,
-                "SUBMITTED RESPONDENT" INTEGER NOT NULL,
-                "COMPLETED BY Admin Kabupaten" INTEGER NOT NULL,
-                "EDITED BY Admin Kabupaten" INTEGER NOT NULL,
-                "REJECTED BY Admin Kabupaten" INTEGER NOT NULL,
-                "REVOKED BY Admin Kabupaten" INTEGER NOT NULL
+                region_total INTEGER,
+                "OPEN" INTEGER,
+                "DRAFT" INTEGER,
+                "SUBMITTED BY Pencacah" INTEGER,
+                "APPROVED BY Pengawas" INTEGER,
+                "REJECTED BY Pengawas" INTEGER,
+                "EDITED BY Pengawas" INTEGER,
+                "REVOKED BY Pengawas" INTEGER,
+                "SUBMITTED RESPONDENT" INTEGER,
+                "COMPLETED BY Admin Kabupaten" INTEGER,
+                "EDITED BY Admin Kabupaten" INTEGER,
+                "REJECTED BY Admin Kabupaten" INTEGER,
+                "REVOKED BY Admin Kabupaten" INTEGER
             )
         ');
     }
@@ -129,6 +129,38 @@ class DashboardBreakdownTest extends TestCase
         $method->invoke($controller, $query, ['01', '02'], ['02-001'], []);
 
         $this->assertSame(20, (int) $query->sum('region_total'));
+    }
+
+    public function test_trend_submit_percentage_handles_null_status_columns(): void
+    {
+        $row = $this->progressRow('Alla', '001', 'Sumillan', 100);
+        $row['snapshot_at'] = '2026-08-02T09:56:14.855000+00:00';
+        $row['OPEN'] = 10;
+        $row['DRAFT'] = 10;
+        $row['SUBMITTED BY Pencacah'] = 20;
+        $row['APPROVED BY Pengawas'] = 30;
+        $row['REVOKED BY Admin Kabupaten'] = null;
+
+        DB::connection('fasih')->table('progress_pencacah')->insert([$row]);
+
+        $controller = new DashboardController;
+        $method = new \ReflectionMethod($controller, 'calcTrend');
+        $method->setAccessible(true);
+
+        /** @var array<int, array<string, mixed>> $trend */
+        $trend = $method->invoke(
+            $controller,
+            'progress_pencacah',
+            [],
+            [],
+            [],
+            'dynamic',
+            null,
+        );
+
+        $this->assertSame(50.0, $trend[0]['progress_pct']);
+        $this->assertSame(20.0, $trend[0]['submitted_pct']);
+        $this->assertSame(30.0, $trend[0]['approved_pct']);
     }
 
     /**
