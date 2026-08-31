@@ -82,6 +82,7 @@ class GeoSpatialTest extends TestCase
 
         $this->assertSame(200, $item['total']);
         $this->assertSame(70.0, $item['progress']);
+        $this->assertSame(18.0, $item['approved']);
         $this->assertSame(20.0, $item['delta']);
         $this->assertSame(3, $item['petugas']);
     }

@@ -486,7 +486,8 @@ class GeoSpatialService
         $open = (int) ($row->OPEN ?? 0);
         $draft = (int) ($row->DRAFT ?? 0);
         $submitted = (int) ($row->{'SUBMITTED BY Pencacah'} ?? 0);
-        $approved = (int) ($row->{'APPROVED BY Pengawas'} ?? 0);
+        $approved = (int) ($row->{'APPROVED BY Pengawas'} ?? 0)
+            + (int) ($row->{'COMPLETED BY Admin Kabupaten'} ?? 0);
         $rejected = (int) ($row->{'REJECTED BY Pengawas'} ?? 0);
         $progress = round(($total - $open - $draft) / $total * 100, 1);
         $rejectedPct = round($rejected / $total * 100, 1);

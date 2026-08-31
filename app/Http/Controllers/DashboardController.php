@@ -31,6 +31,8 @@ class DashboardController extends Controller
 
     private const STATUS_SUM_SQL = 'COALESCE(SUM("OPEN"), 0) as "OPEN", COALESCE(SUM("DRAFT"), 0) as "DRAFT", COALESCE(SUM("SUBMITTED BY Pencacah"), 0) as "SUBMITTED BY Pencacah", COALESCE(SUM("APPROVED BY Pengawas"), 0) as "APPROVED BY Pengawas", COALESCE(SUM("REJECTED BY Pengawas"), 0) as "REJECTED BY Pengawas", COALESCE(SUM("EDITED BY Pengawas"), 0) as "EDITED BY Pengawas", COALESCE(SUM("REVOKED BY Pengawas"), 0) as "REVOKED BY Pengawas", COALESCE(SUM("SUBMITTED RESPONDENT"), 0) as "SUBMITTED RESPONDENT", COALESCE(SUM("COMPLETED BY Admin Kabupaten"), 0) as "COMPLETED BY Admin Kabupaten", COALESCE(SUM("EDITED BY Admin Kabupaten"), 0) as "EDITED BY Admin Kabupaten", COALESCE(SUM("REJECTED BY Admin Kabupaten"), 0) as "REJECTED BY Admin Kabupaten", COALESCE(SUM("REVOKED BY Admin Kabupaten"), 0) as "REVOKED BY Admin Kabupaten"';
 
+    private const APPROVED_SUM_SQL = 'COALESCE(SUM("APPROVED BY Pengawas"), 0) + COALESCE(SUM("COMPLETED BY Admin Kabupaten"), 0)';
+
     private const SUBMIT_SUM_SQL = 'COALESCE(SUM("SUBMITTED BY Pencacah"), 0) + COALESCE(SUM("APPROVED BY Pengawas"), 0) + COALESCE(SUM("REJECTED BY Pengawas"), 0) + COALESCE(SUM("EDITED BY Pengawas"), 0) + COALESCE(SUM("REVOKED BY Pengawas"), 0) + COALESCE(SUM("SUBMITTED RESPONDENT"), 0) + COALESCE(SUM("COMPLETED BY Admin Kabupaten"), 0) + COALESCE(SUM("EDITED BY Admin Kabupaten"), 0) + COALESCE(SUM("REJECTED BY Admin Kabupaten"), 0) + COALESCE(SUM("REVOKED BY Admin Kabupaten"), 0)';
 
     public function index(): Response
@@ -144,6 +146,7 @@ class DashboardController extends Controller
 
         // Metrics
         $submitSql = self::SUBMIT_SUM_SQL;
+        $approvedSql = self::APPROVED_SUM_SQL;
         $m = (clone $baseP)->selectRaw("
             COUNT(DISTINCT kdkec)                as total_kec,
             COUNT(DISTINCT kdkec || kddes)        as total_desa,
@@ -152,7 +155,7 @@ class DashboardController extends Controller
             COUNT(DISTINCT username)             as total_pengawas,
             COALESCE(SUM(\"OPEN\"), 0)                          as total_open,
             COALESCE(SUM(\"DRAFT\"), 0)                         as total_draft,
-            COALESCE(SUM(\"APPROVED BY Pengawas\"), 0)          as total_approved,
+            ({$approvedSql})                                      as total_approved,
             COALESCE(SUM(\"SUBMITTED BY Pencacah\"), 0)         as total_submitted,
             COALESCE(SUM(\"REJECTED BY Pengawas\"), 0)          as total_rejected,
             ({$submitSql})                         as total_submit_progress
@@ -184,12 +187,12 @@ class DashboardController extends Controller
         $kecamatan = $kecRows->map(function ($r) use ($kecTotals) {
             $prelist = $kecTotals[(string) $r->kdkec] ?? null;
             $tot = (int) (($prelist['selected'] ?? $r->progress_total) ?: 1);
-            $app = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
             $statuses = [];
             foreach (self::STATUS_COLS as $c) {
                 $statuses[$c] = (int) ($r->$c ?? 0);
             }
             $submitProgress = $this->actualSubmitTotal($statuses);
+            $approved = $this->actualApprovedTotal($statuses);
 
             return [
                 'kdkec' => $r->kdkec,
@@ -201,7 +204,7 @@ class DashboardController extends Controller
                 'prelist_initial' => (int) ($prelist['initial'] ?? 0),
                 'prelist_delta' => (int) (($prelist['dynamic'] ?? 0) - ($prelist['initial'] ?? 0)),
                 'progress_pct' => round($submitProgress / $tot * 100, 1),
-                'approved_pct' => round($app / $tot * 100, 1),
+                'approved_pct' => round($approved / $tot * 100, 1),
                 'statuses' => $statuses,
             ];
         })->sortByDesc('total')->values()->all();
@@ -298,6 +301,7 @@ class DashboardController extends Controller
     private function calcMetrics(Builder $query, int $basisTotal = 0): array
     {
         $submitSql = self::SUBMIT_SUM_SQL;
+        $approvedSql = self::APPROVED_SUM_SQL;
         $row = $query->selectRaw("
             COUNT(DISTINCT username)          as total_petugas,
             COUNT(DISTINCT kdkec)             as total_kec,
@@ -305,7 +309,7 @@ class DashboardController extends Controller
             COALESCE(SUM(region_total), 0)                 as progress_total,
             COALESCE(SUM(\"OPEN\"), 0)                       as total_open,
             COALESCE(SUM(\"DRAFT\"), 0)                      as total_draft,
-            COALESCE(SUM(\"APPROVED BY Pengawas\"), 0)       as total_approved,
+            ({$approvedSql})                                  as total_approved,
             COALESCE(SUM(\"SUBMITTED BY Pencacah\"), 0)      as total_submitted,
             COALESCE(SUM(\"REJECTED BY Pengawas\"), 0)       as total_rejected,
             ({$submitSql})                      as total_submit_progress
@@ -355,6 +359,15 @@ class DashboardController extends Controller
     }
 
     /**
+     * @param  array<string, int>  $statuses
+     */
+    private function actualApprovedTotal(array $statuses): int
+    {
+        return ($statuses['APPROVED BY Pengawas'] ?? 0)
+            + ($statuses['COMPLETED BY Admin Kabupaten'] ?? 0);
+    }
+
+    /**
      * @param  array<string, string>  $nameOverrides
      * @return array<int, array<string, mixed>>
      */
@@ -400,7 +413,6 @@ class DashboardController extends Controller
             $progressTotal = (int) ($r->progress_total ?: 0);
             $total = (int) (($prelist['selected'] ?? $progressTotal) ?: 1);
             $open = (int) ($r->OPEN ?? 0);
-            $approved = (int) ($r->{'APPROVED BY Pengawas'} ?? 0);
             $lapanganTotal =
                 (int) ($r->DRAFT ?? 0) +
                 (int) ($r->{'SUBMITTED BY Pencacah'} ?? 0) +
@@ -419,6 +431,7 @@ class DashboardController extends Controller
                 $statuses[$c] = (int) ($r->$c ?? 0);
             }
             $submitProgress = $this->actualSubmitTotal($statuses);
+            $approved = $this->actualApprovedTotal($statuses);
 
             $label = $nameOverrides[$r->grp_key] ?? $r->label ?? null;
             if (! is_string($label) || trim($label) === '') {
@@ -499,6 +512,7 @@ class DashboardController extends Controller
 
         $basisTotal = $prelists?->totalForBasis($prelistBasis, $filterKec, $filterDesa, $filterSls, $table) ?? 0;
         $submitSql = self::SUBMIT_SUM_SQL;
+        $approvedSql = self::APPROVED_SUM_SQL;
 
         return $query
             ->whereIn('snapshot_at', $latestSnapshots)
@@ -508,7 +522,7 @@ class DashboardController extends Controller
             COALESCE(SUM(\"OPEN\"), 0)                   as total_open,
             COALESCE(SUM(\"DRAFT\"), 0)                  as total_draft,
             COALESCE(SUM(\"SUBMITTED BY Pencacah\"), 0)  as total_submitted,
-            COALESCE(SUM(\"APPROVED BY Pengawas\"), 0)   as total_approved,
+            ({$approvedSql})                              as total_approved,
             ({$submitSql})                 as total_submit_progress
         ")
             ->groupBy('snapshot_at')

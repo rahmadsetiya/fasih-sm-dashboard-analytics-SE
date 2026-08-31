@@ -28,7 +28,8 @@ class DashboardTrendTest extends TestCase
                 "OPEN" INTEGER NOT NULL,
                 "DRAFT" INTEGER NOT NULL,
                 "SUBMITTED BY Pencacah" INTEGER NOT NULL,
-                "APPROVED BY Pengawas" INTEGER NOT NULL
+                "APPROVED BY Pengawas" INTEGER NOT NULL,
+                "COMPLETED BY Admin Kabupaten" INTEGER NOT NULL DEFAULT 0
             )
         ');
     }

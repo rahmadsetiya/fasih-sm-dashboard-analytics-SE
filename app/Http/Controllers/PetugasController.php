@@ -372,7 +372,8 @@ class PetugasController extends Controller
                     SUM(\"OPEN\") as total_open,
                     SUM(\"DRAFT\") as total_draft,
                     SUM(\"SUBMITTED BY Pencacah\") as total_submitted,
-                    SUM(\"APPROVED BY Pengawas\") as total_approved,
+                    COALESCE(SUM(\"APPROVED BY Pengawas\"), 0)
+                        + COALESCE(SUM(\"COMPLETED BY Admin Kabupaten\"), 0) as total_approved,
                     SUM(\"REJECTED BY Pengawas\") as total_rejected
                 ")
                 ->groupByRaw($groupExpression)

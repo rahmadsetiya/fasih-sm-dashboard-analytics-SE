@@ -543,7 +543,8 @@ function pct(v: number) {
                         hex: '#22c55e',
                         bar: 'bg-[#22c55e]',
                         ring: 'border-green-500/30 bg-green-500/5 dark:bg-green-500/10',
-                        tooltip: '',
+                        tooltip:
+                            'Approved = APPROVED BY Pengawas + COMPLETED BY Admin Kabupaten ÷ Total Assignment basis aktif × 100%',
                     },
                     {
                         label: 'Rejected',

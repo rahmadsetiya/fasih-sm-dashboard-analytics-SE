@@ -96,6 +96,7 @@ class DashboardBreakdownTest extends TestCase
 
         $this->assertSame(66, $rows[0]['lapangan_total']);
         $this->assertSame(66.0, $rows[0]['lapangan_pct']);
+        $this->assertSame(13.0, $rows[0]['approved_pct']);
         $this->assertSame(5, $rows[0]['statuses']['COMPLETED BY Admin Kabupaten']);
 
         $totalsMethod = new \ReflectionMethod($controller, 'calcStatusTotals');
@@ -139,6 +140,7 @@ class DashboardBreakdownTest extends TestCase
         $row['DRAFT'] = 10;
         $row['SUBMITTED BY Pencacah'] = 20;
         $row['APPROVED BY Pengawas'] = 30;
+        $row['COMPLETED BY Admin Kabupaten'] = 15;
         $row['REVOKED BY Admin Kabupaten'] = null;
 
         DB::connection('fasih')->table('progress_pencacah')->insert([$row]);
@@ -158,9 +160,9 @@ class DashboardBreakdownTest extends TestCase
             null,
         );
 
-        $this->assertSame(50.0, $trend[0]['progress_pct']);
+        $this->assertSame(65.0, $trend[0]['progress_pct']);
         $this->assertSame(20.0, $trend[0]['submitted_pct']);
-        $this->assertSame(30.0, $trend[0]['approved_pct']);
+        $this->assertSame(45.0, $trend[0]['approved_pct']);
     }
 
     /**
